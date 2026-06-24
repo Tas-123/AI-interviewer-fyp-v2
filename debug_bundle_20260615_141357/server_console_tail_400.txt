@@ -1,0 +1,400 @@
+﻿2026-06-15 13:52:10,491 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:10,491 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:10,491 - InterviewBot - INFO - VAD audio chunk #580: bytes=8192, rms=2248.9, max_amp=11850/32767 
+(params: confidence\u22650.5, min_volume\u22650.1)
+2026-06-15 13:52:10,491 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:10,516 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:10,751 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:10,751 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:10,751 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:10,768 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,011 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:11,011 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:11,014 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,027 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,262 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:11,262 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:11,262 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,271 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,526 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:11,526 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:11,530 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,565 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,609 - InterviewProcessor - INFO - process_frame: Received frame type: TranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,611 - InterviewProcessor - INFO - process_frame: Received TranscriptionFrame. text: 'For 
+categorical features, I use one hot encoding or label encoding.', finalized: False
+2026-06-15 13:52:11,611 - InterviewProcessor - INFO - Stored non-final transcription as fallback: 'For categorical 
+features, I use one hot encoding or label encoding.'
+2026-06-15 13:52:11,615 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,774 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:11,774 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:11,776 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,796 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,817 - InterviewProcessor - INFO - process_frame: Received frame type: InterimTranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:11,817 - InterviewProcessor - INFO - DEEPGRAM INTERIM: 'For' (not yet finalized)
+2026-06-15 13:52:11,817 - InterviewProcessor - INFO - Buffered interim transcript fallback: 'For'
+2026-06-15 13:52:11,817 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:12,036 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:12,036 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:12,044 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:12,098 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:12,294 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:12,294 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:12,294 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:12,310 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:12,544 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:12,544 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:12,544 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:12,554 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:12,803 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:12,803 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:12,805 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:12,821 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,052 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:13,052 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:13,054 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,062 - InterviewBot - INFO - VAD state changed: VADState.SPEAKING \u2192 STOPPING (chunk #590, 
+rms=1062.5, max_amp=9314)
+2026-06-15 13:52:13,071 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,104 - InterviewProcessor - INFO - process_frame: Received frame type: InterimTranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,104 - InterviewProcessor - INFO - DEEPGRAM INTERIM: 'For scaling, I use standard' (not yet 
+finalized)
+2026-06-15 13:52:13,104 - InterviewProcessor - INFO - Buffered interim transcript fallback: 'For scaling, I use 
+standard'
+2026-06-15 13:52:13,110 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,316 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:13,316 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:13,317 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,328 - InterviewBot - INFO - VAD state changed: VADState.STOPPING \u2192 QUIET (chunk #591, 
+rms=16.9, max_amp=63)
+2026-06-15 13:52:13.329 | DEBUG    | pipecat.processors.audio.vad_processor:on_speech_stopped:79 - VADProcessor#0: 
+User stopped speaking
+2026-06-15 13:52:13,331 - InterviewProcessor - INFO - process_frame: Received frame type: VADUserStoppedSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,334 - InterviewProcessor - INFO - VAD EVENT: VADUserStoppedSpeakingFrame ù user stopped speaking 
+(Deepgram Finalize will be sent)
+2026-06-15 13:52:13,334 - InterviewProcessor - INFO - VAD stopped, waiting for final transcript debounce
+2026-06-15 13:52:13,571 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:13,571 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:13,574 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,587 - InterviewBot - INFO - VAD state changed: VADState.QUIET \u2192 SPEAKING (chunk #592, 
+rms=1931.2, max_amp=10308)
+2026-06-15 13:52:13.589 | DEBUG    | pipecat.processors.audio.vad_processor:on_speech_started:71 - VADProcessor#0: 
+User started speaking
+2026-06-15 13:52:13,589 - InterviewProcessor - INFO - process_frame: Received frame type: VADUserStartedSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,590 - InterviewProcessor - INFO - VAD EVENT: VADUserStartedSpeakingFrame ù user started speaking
+2026-06-15 13:52:13,590 - InterviewProcessor - INFO - VAD user started speaking. Resetting debounce task.
+2026-06-15 13:52:13,590 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,590 - InterviewProcessor - INFO - Debounce task cancelled because user started speaking again.
+2026-06-15 13:52:13,814 - InterviewProcessor - INFO - process_frame: Received frame type: TranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,814 - InterviewProcessor - INFO - process_frame: Received TranscriptionFrame. text: 'For scaling, 
+I use standard scaling.', finalized: False
+2026-06-15 13:52:13,814 - InterviewProcessor - INFO - Stored non-final transcription as fallback: 'For scaling, I use 
+standard scaling.'
+2026-06-15 13:52:13,814 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,822 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:13,822 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:13,825 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:13,841 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,081 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:14,081 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:14,087 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,098 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,334 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:14,334 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:14,336 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,346 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,593 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:14,593 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:14,593 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,616 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,837 - InterviewProcessor - INFO - process_frame: Received frame type: InterimTranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,837 - InterviewProcessor - INFO - DEEPGRAM INTERIM: 'Or min max scaling.' (not yet finalized)
+2026-06-15 13:52:14,837 - InterviewProcessor - INFO - Buffered interim transcript fallback: 'Or min max scaling.'
+2026-06-15 13:52:14,839 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,851 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:14,851 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:14,857 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:14,877 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,006 - InterviewProcessor - INFO - process_frame: Received frame type: TranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,006 - InterviewProcessor - INFO - process_frame: Received TranscriptionFrame. text: 'Or min max 
+scaling.', finalized: False
+2026-06-15 13:52:15,006 - InterviewProcessor - INFO - Stored non-final transcription as fallback: 'Or min max scaling.'
+2026-06-15 13:52:15,006 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,104 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:15,104 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:15,106 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,117 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,363 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:15,363 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:15,364 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,382 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,611 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:15,611 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:15,611 - InterviewBot - INFO - VAD audio chunk #600: bytes=8192, rms=1391.7, max_amp=7328/32767 
+(params: confidence\u22650.5, min_volume\u22650.1)
+2026-06-15 13:52:15,611 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,623 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,874 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:15,874 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:15,875 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:15,881 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,131 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:16,131 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:16,131 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,139 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,331 - InterviewProcessor - INFO - process_frame: Received frame type: InterimTranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,341 - InterviewProcessor - INFO - DEEPGRAM INTERIM: 'Especially for model' (not yet finalized)
+2026-06-15 13:52:16,341 - InterviewProcessor - INFO - Buffered interim transcript fallback: 'Especially for model'
+2026-06-15 13:52:16,341 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,381 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:16,381 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:16,381 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,397 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,641 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:16,641 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:16,641 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,651 - InterviewBot - INFO - VAD state changed: VADState.SPEAKING \u2192 STOPPING (chunk #604, 
+rms=955.5, max_amp=5694)
+2026-06-15 13:52:16,651 - InterviewProcessor - INFO - process_frame: Received frame type: UserSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,894 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:16,896 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:16,898 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,925 - InterviewBot - INFO - VAD state changed: VADState.STOPPING \u2192 QUIET (chunk #605, 
+rms=24.1, max_amp=79)
+2026-06-15 13:52:16.925 | DEBUG    | pipecat.processors.audio.vad_processor:on_speech_stopped:79 - VADProcessor#0: 
+User stopped speaking
+2026-06-15 13:52:16,927 - InterviewProcessor - INFO - process_frame: Received frame type: VADUserStoppedSpeakingFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:16,927 - InterviewProcessor - INFO - VAD EVENT: VADUserStoppedSpeakingFrame ù user stopped speaking 
+(Deepgram Finalize will be sent)
+2026-06-15 13:52:16,927 - InterviewProcessor - INFO - VAD stopped, waiting for final transcript debounce
+2026-06-15 13:52:17,151 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:17,151 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:17,151 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:17,411 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:17,414 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:17,414 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:17,664 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:17,664 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:17,665 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:17,925 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:17,925 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:17,925 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:18,171 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:18,171 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:18,174 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:18,311 - InterviewProcessor - INFO - process_frame: Received frame type: InterimTranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:18,311 - InterviewProcessor - INFO - DEEPGRAM INTERIM: 'Especially for models that rely on distance' 
+(not yet finalized)
+2026-06-15 13:52:18,311 - InterviewProcessor - INFO - Buffered interim transcript fallback: 'Especially for models 
+that rely on distance'
+2026-06-15 13:52:18,311 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:18,433 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:18,433 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:18,435 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:18,691 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:18,691 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:18,691 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:18,941 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:18,941 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:18,941 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:19,203 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:19,205 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:19,205 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:19,211 - InterviewProcessor - INFO - process_frame: Received frame type: InterimTranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:19,211 - InterviewProcessor - INFO - DEEPGRAM INTERIM: 'Especially for models that rely on distance 
+or gradients.' (not yet finalized)
+2026-06-15 13:52:19,213 - InterviewProcessor - INFO - Buffered interim transcript fallback: 'Especially for models 
+that rely on distance or gradients.'
+2026-06-15 13:52:19,218 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:19,426 - InterviewProcessor - INFO - process_frame: Received frame type: TranscriptionFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:19,426 - InterviewProcessor - INFO - process_frame: Received TranscriptionFrame. text: 'Especially 
+for models that rely on distance or gradients.', finalized: True
+2026-06-15 13:52:19,426 - InterviewProcessor - INFO - Buffered transcript: 'Especially for models that rely on 
+distance or gradients.'
+2026-06-15 13:52:19,426 - InterviewProcessor - INFO - process_frame: Received frame type: 
+OutputTransportMessageUrgentFrame (direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:19,456 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:19,456 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:19,461 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+2026-06-15 13:52:19,714 - InterviewBot - INFO - deserialize: Received binary audio chunk from browser, length: 8192 
+bytes
+2026-06-15 13:52:19,716 - InterviewBot - INFO - deserialize: Created InputAudioRawFrame: sample_rate=16000, 
+num_channels=1
+2026-06-15 13:52:19,716 - InterviewProcessor - INFO - process_frame: Received frame type: InputAudioRawFrame 
+(direction: FrameDirection.DOWNSTREAM)
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 58894)
+Traceback (most recent call last):
+  File "C:\Users\LENOVO\AppData\Local\Programs\Python\Python312\Lib\socketserver.py", line 318, in 
+_handle_request_noblock
+    self.process_request(request, client_address)
+  File "C:\Users\LENOVO\AppData\Local\Programs\Python\Python312\Lib\socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+  File "C:\Users\LENOVO\AppData\Local\Programs\Python\Python312\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "C:\Users\LENOVO\AppData\Local\Programs\Python\Python312\Lib\socketserver.py", line 761, in __init__
+    self.handle()
+  File "C:\Users\LENOVO\AppData\Local\Programs\Python\Python312\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+  File "C:\Users\LENOVO\AppData\Local\Programs\Python\Python312\Lib\http\server.py", line 404, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LENOVO\AppData\Local\Programs\Python\Python312\Lib\socket.py", line 707, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------

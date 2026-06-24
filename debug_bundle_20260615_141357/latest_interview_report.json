@@ -1,0 +1,580 @@
+{
+  "weighted_score_summary": {
+    "avg_clarity": 3.5,
+    "avg_structure": 3.5,
+    "avg_confidence": 3.75,
+    "avg_ownership": 3.83,
+    "avg_leadership": 2.83,
+    "avg_result_orientation": 3.0,
+    "avg_weighted_overall": 3.39,
+    "total_evaluated": 12,
+    "final_hire_signal": "Hire"
+  },
+  "technical_evidence_analysis": {
+    "framework": "Evidence-Based Junior AI Engineer Technical Competency Rubric",
+    "expected_level": "Beginner-to-intermediate practical understanding, not expert-level production mastery.",
+    "evaluation_basis": {
+      "technical_correctness": {
+        "description": "Checks whether the candidate understands the basic technical concept correctly.",
+        "junior_expectation": "Core idea should be correct; deep expert-level detail is not required.",
+        "importance": "High"
+      },
+      "implementation_thinking": {
+        "description": "Checks whether the candidate can explain simple practical steps such as loading data, preprocessing, training, evaluating, exposing an API, or deploying.",
+        "junior_expectation": "A clear basic workflow is enough; complex MLOps architecture is not required.",
+        "importance": "High"
+      },
+      "tool_and_framework_understanding": {
+        "description": "Checks whether the candidate has basic practical familiarity with tools such as Python, scikit-learn, FastAPI, Docker, logging, monitoring, or NLP/speech tools.",
+        "junior_expectation": "Basic usage and purpose should be clear; advanced optimization is not required.",
+        "importance": "Medium-High"
+      },
+      "validation_and_testing": {
+        "description": "Checks whether the candidate can explain simple ways to verify results using train/validation split, accuracy, precision, recall, F1-score, confusion matrix, API testing, logs, or latency/error checks.",
+        "junior_expectation": "Basic validation sense is expected; advanced statistical evaluation is not required.",
+        "importance": "High"
+      },
+      "debugging_approach": {
+        "description": "Checks whether the candidate can isolate common issues in data, preprocessing, model behavior, evaluation, API, or deployment.",
+        "junior_expectation": "Candidate should know how to check problems step by step.",
+        "importance": "High"
+      },
+      "communication_clarity": {
+        "description": "Checks whether the answer is understandable, structured, and clear in a live interview.",
+        "junior_expectation": "Simple clear wording is preferred over complex terminology.",
+        "importance": "Medium"
+      },
+      "ownership_evidence": {
+        "description": "Checks whether the candidate can explain what they personally built, tested, fixed, or improved.",
+        "junior_expectation": "Individual contribution should be visible, even if the project was small.",
+        "importance": "Medium"
+      }
+    },
+    "focus_areas": [
+      "technical_correctness",
+      "implementation_thinking",
+      "tool_and_framework_understanding",
+      "validation_and_testing",
+      "debugging_approach",
+      "communication_clarity",
+      "ownership_evidence"
+    ],
+    "technical_turns_evaluated": 12,
+    "note": "This report uses an evidence-based Junior AI Engineer technical competency rubric. It does not expect senior-level production mastery. The candidate is evaluated on core AI/ML understanding, practical implementation steps, basic tool usage, validation/testing, debugging approach, communication clarity, and evidence of personal contribution."
+  },
+  "performance_trend_analysis": {
+    "early_avg": 3.48,
+    "mid_avg": 3.61,
+    "late_avg": 3.16,
+    "performance_trend_label": "declining",
+    "score_history": [
+      3.15,
+      3.65,
+      3.65,
+      3.65,
+      3.85,
+      3.3,
+      3.65,
+      3.8,
+      3.65,
+      3.05,
+      3.3,
+      2.0
+    ]
+  },
+  "consistency_rating": {
+    "stdev": 0.49,
+    "consistency_rating": "High"
+  },
+  "behavioral_profile": {
+    "risk_orientation": "Balanced",
+    "thinking_style": "Semi-Structured",
+    "data_orientation": "Example-Based",
+    "ownership_pattern": "Moderate",
+    "leadership_presence": "Situational"
+  },
+  "recruiter_summary": {
+    "overall_observation": "Candidate showed potential, but some areas still require deeper technical and behavioral validation.",
+    "final_signal": "Hire",
+    "average_weighted_score": 3.39,
+    "main_strengths": [
+      "Candidate showed moderate potential but needs deeper explanation.",
+      "Candidate showed some ownership of the discussed work."
+    ],
+    "main_concerns": [
+      "Candidate answers lacked structure and step-by-step explanation.",
+      "Candidate did not clearly explain actions taken to solve problems."
+    ],
+    "recommended_follow_up_areas": [
+      "Ask candidate to explain exact implementation steps and decisions.",
+      "Re-check debugging/problem solving with a deeper technical follow-up.",
+      "Assess deep learning because it was not covered."
+    ],
+    "interview_decision_note": "Final recommendation signal is Hire based on an average weighted score of 3.39. This should be treated as a decision-support signal, not a final hiring decision."
+  },
+  "bias_awareness": {
+    "language_fluency_bias": "Scores may be influenced by the candidate's English language fluency rather than actual competency. Non-native speakers may receive lower clarity and structure scores despite strong technical or behavioral substance.",
+    "cultural_storytelling_differences": "Structured interview response conventions vary across cultures. Candidates from different cultural backgrounds may organize their answers differently without implying weaker thinking or ownership.",
+    "llm_subjectivity_limitations": "All scores are generated by an LLM and are inherently subjective. They should be treated as directional signals, not definitive assessments. Human interviewer review is strongly recommended before any hiring decision."
+  },
+  "adaptive_questioning_trace": [
+    {
+      "turn": 2,
+      "question_answered": "Good morning, welcome to our interview today, we're discussing the AI Engineer position, and I'm excited to learn more about your background and experience. Can you start by introducing yourself and telling me about one AI or machine learning project you've worked on that you're particularly proud of?",
+      "candidate_answer": "Let's dive right in. So Working Worked on a project. It was a class of It was a classification project used It was a classification project using random forest and XGBoost. I handle I handled preprocessing, model training, evaluation, and compared accuracy recall, precision, and f one score.",
+      "decision_type": "PROBE",
+      "engine_action": "followup",
+      "engine_reason": "context_followup_after_good_answer",
+      "domain": "project_overview",
+      "next_domain": "project_overview",
+      "weakest_dimension": "leadership",
+      "follow_up_reason": "Candidate answer needed more concrete evidence or explanation, so the system asked for clearer steps, reasoning, or validation.",
+      "next_question": "You mentioned using random forest and XGBoost. What were the key hyperparameters you tuned for each model?",
+      "skill_focus": "machine learning",
+      "interview_stage": "EARLY",
+      "scores": {
+        "clarity": 3.0,
+        "structure": 3.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 2.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.17,
+        "weighted_overall_score": 3.15
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 3,
+      "question_answered": "You mentioned using random forest and XGBoost. What were the key hyperparameters you tuned for each model?",
+      "candidate_answer": "For random forest, I tuned the number of estimators and max depth. For XGBoost, I adjusted learning rate. Max step, and the number of boost grants.",
+      "decision_type": "ADVANCE",
+      "engine_action": "ask",
+      "engine_reason": "",
+      "domain": "project_overview",
+      "next_domain": "python",
+      "weakest_dimension": "leadership",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "Let's talk about Python project structure. In a small ML project, how would you organize the code so it stays clean, reusable, and easy to debug?",
+      "skill_focus": "machine learning",
+      "interview_stage": "EARLY",
+      "scores": {
+        "clarity": 4.0,
+        "structure": 4.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 3.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.67,
+        "weighted_overall_score": 3.65
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 4,
+      "question_answered": "Let's talk about Python project structure. In a small ML project, how would you organize the code so it stays clean, reusable, and easy to debug?",
+      "candidate_answer": "I would organize the project into separate folders for data loading, pre processing, training. Evaluation. And configuration. I would also add logging and simple tests. Debugging becomes easier.",
+      "decision_type": "PROBE",
+      "engine_action": "followup",
+      "engine_reason": "context_followup_after_good_answer",
+      "domain": "python",
+      "next_domain": "python",
+      "weakest_dimension": "leadership",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "You mentioned logging and simple tests. What testing framework would you use for a small ML project?",
+      "skill_focus": "python",
+      "interview_stage": "MID",
+      "scores": {
+        "clarity": 4.0,
+        "structure": 4.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 3.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.67,
+        "weighted_overall_score": 3.65
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 5,
+      "question_answered": "You mentioned logging and simple tests. What testing framework would you use for a small ML project?",
+      "candidate_answer": "For a small ML project, I'd likely use PyTest. It's simple, flexible, and works well for unit testing functions like preprocessing or model evaluation.",
+      "decision_type": "ADVANCE",
+      "engine_action": "ask",
+      "engine_reason": "",
+      "domain": "python",
+      "next_domain": "machine_learning",
+      "weakest_dimension": "leadership",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "Let's move to overfitting. Suppose your training score is high but validation performance drops. How would you detect overfitting, and what would you do to reduce it?",
+      "skill_focus": "model evaluation",
+      "interview_stage": "MID",
+      "scores": {
+        "clarity": 4.0,
+        "structure": 4.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 3.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.67,
+        "weighted_overall_score": 3.65
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 6,
+      "question_answered": "Let's move to overfitting. Suppose your training score is high but validation performance drops. How would you detect overfitting, and what would you do to reduce it?",
+      "candidate_answer": "I detect overfitting by comparing training and validation scores. If training score is high but validation score drops, that indicates overfitting. To reduce it, I'd use regularization cross validation, early stopping, simpler models, or more data.",
+      "decision_type": "PROBE",
+      "engine_action": "followup",
+      "engine_reason": "context_followup_after_good_answer",
+      "domain": "machine_learning",
+      "next_domain": "machine_learning",
+      "weakest_dimension": "leadership",
+      "follow_up_reason": "Candidate did not show leadership or collaboration evidence, so the system asked a leadership-oriented follow-up.",
+      "next_question": "You mentioned using regularization, cross-validation, and early stopping. Can you elaborate on how you would tune the hyperparameters for these techniques?",
+      "skill_focus": "machine learning",
+      "interview_stage": "MID",
+      "scores": {
+        "clarity": 4.0,
+        "structure": 4.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 3.0,
+        "result_orientation": 4.0,
+        "overall_score": 3.83,
+        "weighted_overall_score": 3.85
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 7,
+      "question_answered": "You mentioned using regularization, cross-validation, and early stopping. Can you elaborate on how you would tune the hyperparameters for these techniques?",
+      "candidate_answer": "I would tune regularization strength. Like the alpha or lambda parameters through grid search or cross validation. For early stopping, I would monitor validation loss and tune patients how many Epic how many epics to wait before stopping. Cross validation itself helps pick the best combination by averaging results across both.",
+      "decision_type": "ADVANCE",
+      "engine_action": "ask",
+      "engine_reason": "",
+      "domain": "machine_learning",
+      "next_domain": "data_preprocessing",
+      "weakest_dimension": "clarity",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "Now let's talk about preprocessing. Before training a model, how would you handle missing values, categorical features, and scaling?",
+      "skill_focus": "technical",
+      "interview_stage": "MID",
+      "scores": {
+        "clarity": 3.0,
+        "structure": 3.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 3.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.33,
+        "weighted_overall_score": 3.3
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 8,
+      "question_answered": "Now let's talk about preprocessing. Before training a model, how would you handle missing values, categorical features, and scaling?",
+      "candidate_answer": "For missing values, I use mean median, or mode depending on the feature. For categorical features, I use one hot encoding or label encoding. For scaling, I use standard scaling, or min max scaling. Especially for models that rely on distances or gradients.",
+      "decision_type": "ADVANCE",
+      "engine_action": "ask",
+      "engine_reason": "",
+      "domain": "data_preprocessing",
+      "next_domain": "model_evaluation",
+      "weakest_dimension": "leadership",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "For a classification model, how would you choose between accuracy, precision, recall, F1-score, and the confusion matrix?",
+      "skill_focus": "machine learning",
+      "interview_stage": "LATE",
+      "scores": {
+        "clarity": 4.0,
+        "structure": 4.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 3.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.67,
+        "weighted_overall_score": 3.65
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 9,
+      "question_answered": "For a classification model, how would you choose between accuracy, precision, recall, F1-score, and the confusion matrix?",
+      "candidate_answer": "Is the If the dataset is balanced I'd start with accuracy. If false positive If false positives or false negatives are critical, I'd use precision or recall. If I need a balance, I'd use f one. The confusion matrix helps me understand the exact types of errors.",
+      "decision_type": "ADVANCE",
+      "engine_action": "ask",
+      "engine_reason": "",
+      "domain": "model_evaluation",
+      "next_domain": "nlp_speech_ai",
+      "weakest_dimension": "result_orientation",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "Suppose you're building a speech or NLP-based AI system. What preprocessing would you apply before sending the text to the model?",
+      "skill_focus": "machine learning",
+      "interview_stage": "LATE",
+      "scores": {
+        "clarity": 4.0,
+        "structure": 4.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 4.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.83,
+        "weighted_overall_score": 3.8
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 10,
+      "question_answered": "Suppose you're building a speech or NLP-based AI system. What preprocessing would you apply before sending the text to the model?",
+      "candidate_answer": "I would clean the text remove unnecessary symbols, lowercase it if needed, tokenize it, convert it into a convert it into embeddings or model input formats. For speech I would first convert audio to text using speech to text then clean and process the transcript.",
+      "decision_type": "ADVANCE",
+      "engine_action": "ask",
+      "engine_reason": "",
+      "domain": "nlp_speech_ai",
+      "next_domain": "apis_backend",
+      "weakest_dimension": "leadership",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "Now imagine your model is trained and ready. How would you expose it through an API, including request, response, and error handling?",
+      "skill_focus": "nlp",
+      "interview_stage": "LATE",
+      "scores": {
+        "clarity": 4.0,
+        "structure": 4.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 3.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.67,
+        "weighted_overall_score": 3.65
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 11,
+      "question_answered": "Now imagine your model is trained and ready. How would you expose it through an API, including request, response, and error handling?",
+      "candidate_answer": "I would expose the model through an using fasting using FastAPI or Flask. The request would contain input data and the response would return prediction and confidence. I would also hand I would also handle errors invalid inputs, and log requests.",
+      "decision_type": "ADVANCE",
+      "engine_action": "ask",
+      "engine_reason": "",
+      "domain": "apis_backend",
+      "next_domain": "deployment",
+      "weakest_dimension": "leadership",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "Let's move to deployment. How would you deploy a small AI model and monitor latency, errors, and model performance after release?",
+      "skill_focus": "python",
+      "interview_stage": "LATE",
+      "scores": {
+        "clarity": 3.0,
+        "structure": 3.0,
+        "confidence": 3.0,
+        "ownership": 4.0,
+        "leadership": 2.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.0,
+        "weighted_overall_score": 3.05
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 12,
+      "question_answered": "Let's move to deployment. How would you deploy a small AI model and monitor latency, errors, and model performance after release?",
+      "candidate_answer": "I would deploy the model on a cloud server or After deployment, I would monitor latency, error rate, logs, and prediction quality. If preferred, If performance drops, I would check alerts, and compare new data with training data.",
+      "decision_type": "ADVANCE",
+      "engine_action": "ask",
+      "engine_reason": "",
+      "domain": "deployment",
+      "next_domain": "debugging_problem_solving",
+      "weakest_dimension": "clarity",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "Suppose your AI pipeline starts giving poor results. How would you debug whether the issue is in the data, preprocessing, model, or evaluation?",
+      "skill_focus": "machine learning",
+      "interview_stage": "LATE",
+      "scores": {
+        "clarity": 3.0,
+        "structure": 3.0,
+        "confidence": 4.0,
+        "ownership": 4.0,
+        "leadership": 3.0,
+        "result_orientation": 3.0,
+        "overall_score": 3.33,
+        "weighted_overall_score": 3.3
+      },
+      "hire_signal": "Borderline"
+    },
+    {
+      "turn": 13,
+      "question_answered": "Suppose your AI pipeline starts giving poor results. How would you debug whether the issue is in the data, preprocessing, model, or evaluation?",
+      "candidate_answer": "I would debug step by step. First, I would check the data for missing value First, I would check the data for missing values or drift. Then I would verify pre processing Then I would verify preprocessing.",
+      "decision_type": "CLOSING",
+      "engine_action": "closing",
+      "engine_reason": "",
+      "domain": "debugging_problem_solving",
+      "next_domain": "debugging_problem_solving",
+      "weakest_dimension": "clarity",
+      "follow_up_reason": "Candidate answer needed more concrete technical detail, so the system asked for exact steps, reasoning, and validation.",
+      "next_question": "Thank you for your time. This concludes the interview.",
+      "skill_focus": "machine learning",
+      "interview_stage": "LATE",
+      "scores": {
+        "clarity": 2.0,
+        "structure": 2.0,
+        "confidence": 2.0,
+        "ownership": 2.0,
+        "leadership": 2.0,
+        "result_orientation": 2.0,
+        "overall_score": 2.0,
+        "weighted_overall_score": 2.0
+      },
+      "hire_signal": "Borderline"
+    }
+  ],
+  "skill_coverage_map": {
+    "python": {
+      "mentions": 2,
+      "avg_score": 3.65,
+      "status": "covered_strong",
+      "evidence_turns": [
+        4,
+        5
+      ],
+      "coverage_reason": "Skill/domain was assessed in its dedicated domain with strong performance.",
+      "evidence_snippets": [
+        "I would organize the project into separate folders for data loading, pre processing, training. Evaluation. And configuration. I would also add logging and simpl",
+        "For a small ML project, I'd likely use PyTest. It's simple, flexible, and works well for unit testing functions like preprocessing or model evaluation."
+      ]
+    },
+    "machine learning": {
+      "mentions": 2,
+      "avg_score": 3.58,
+      "status": "covered_strong",
+      "evidence_turns": [
+        6,
+        7
+      ],
+      "coverage_reason": "Skill/domain was assessed in its dedicated domain with strong performance.",
+      "evidence_snippets": [
+        "I detect overfitting by comparing training and validation scores. If training score is high but validation score drops, that indicates overfitting. To reduce it",
+        "I would tune regularization strength. Like the alpha or lambda parameters through grid search or cross validation. For early stopping, I would monitor validatio"
+      ]
+    },
+    "deep learning": {
+      "mentions": 0,
+      "avg_score": 0,
+      "status": "not_covered",
+      "evidence_turns": [],
+      "coverage_reason": "This skill/domain was not reached as a dedicated interview domain.",
+      "evidence_snippets": []
+    },
+    "nlp": {
+      "mentions": 1,
+      "avg_score": 3.65,
+      "status": "covered_strong",
+      "evidence_turns": [
+        10
+      ],
+      "coverage_reason": "Skill/domain was assessed in its dedicated domain with strong performance.",
+      "evidence_snippets": [
+        "I would clean the text remove unnecessary symbols, lowercase it if needed, tokenize it, convert it into a convert it into embeddings or model input formats. For"
+      ]
+    },
+    "apis": {
+      "mentions": 1,
+      "avg_score": 3.05,
+      "status": "covered_moderate",
+      "evidence_turns": [
+        11
+      ],
+      "coverage_reason": "Skill/domain was assessed in its dedicated domain with moderate performance.",
+      "evidence_snippets": [
+        "I would expose the model through an using fasting using FastAPI or Flask. The request would contain input data and the response would return prediction and conf"
+      ]
+    },
+    "data preprocessing": {
+      "mentions": 1,
+      "avg_score": 3.65,
+      "status": "covered_strong",
+      "evidence_turns": [
+        8
+      ],
+      "coverage_reason": "Skill/domain was assessed in its dedicated domain with strong performance.",
+      "evidence_snippets": [
+        "For missing values, I use mean median, or mode depending on the feature. For categorical features, I use one hot encoding or label encoding. For scaling, I use"
+      ]
+    },
+    "model evaluation": {
+      "mentions": 1,
+      "avg_score": 3.8,
+      "status": "covered_strong",
+      "evidence_turns": [
+        9
+      ],
+      "coverage_reason": "Skill/domain was assessed in its dedicated domain with strong performance.",
+      "evidence_snippets": [
+        "Is the If the dataset is balanced I'd start with accuracy. If false positive If false positives or false negatives are critical, I'd use precision or recall. If"
+      ]
+    },
+    "project overview": {
+      "mentions": 2,
+      "avg_score": 3.15,
+      "status": "covered_moderate",
+      "evidence_turns": [
+        2,
+        3
+      ],
+      "coverage_reason": "Inferred domain/skill had evidence in the interview trace.",
+      "evidence_snippets": [
+        "Let's dive right in. So Working Worked on a project. It was a class of It was a classification project used It was a classification project using random forest",
+        "For random forest, I tuned the number of estimators and max depth. For XGBoost, I adjusted learning rate. Max step, and the number of boost grants."
+      ]
+    },
+    "deployment": {
+      "mentions": 1,
+      "avg_score": 3.3,
+      "status": "covered_moderate",
+      "evidence_turns": [
+        12
+      ],
+      "coverage_reason": "Inferred domain/skill had evidence in the interview trace.",
+      "evidence_snippets": [
+        "I would deploy the model on a cloud server or After deployment, I would monitor latency, error rate, logs, and prediction quality. If preferred, If performance"
+      ]
+    },
+    "debugging/problem solving": {
+      "mentions": 1,
+      "avg_score": 2.0,
+      "status": "covered_weak",
+      "evidence_turns": [
+        13
+      ],
+      "coverage_reason": "Inferred domain/skill had evidence in the interview trace.",
+      "evidence_snippets": [
+        "I would debug step by step. First, I would check the data for missing value First, I would check the data for missing values or drift. Then I would verify pre p"
+      ]
+    }
+  },
+  "interview_metadata": {
+    "total_turns": 13,
+    "final_state": "wrapup",
+    "interview_stage": "LATE",
+    "skills_assessed": [
+      "python",
+      "machine learning",
+      "deep learning",
+      "nlp",
+      "apis",
+      "data preprocessing",
+      "model evaluation"
+    ],
+    "behavioral_categories_covered": []
+  },
+  "latency_metrics": {
+    "avg_ms": 0.0,
+    "p95_ms": 0.0,
+    "max_ms": 0.0,
+    "total_calls": 12,
+    "source": "in_memory"
+  }
+}

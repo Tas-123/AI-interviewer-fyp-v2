@@ -1,0 +1,48 @@
+{
+    "warmup": [
+        "Can you walk me through your professional background briefly?",
+        "What attracted you to this role and organization?",
+        "How would your most recent manager describe your working style?",
+        "What has been the most interesting project you worked on recently?",
+        "Tell me about a typical day in your current or most recent role."
+    ],
+    "behavioral": [
+        "Tell me about a time you handled a difficult situation at work.",
+        "Describe a time you had to work under significant pressure.",
+        "Give an example of when you had to adapt quickly to unexpected changes.",
+        "Tell me about a time you received critical feedback and how you responded.",
+        "Describe a conflict with a colleague and how you resolved it.",
+        "Tell me about a time you had to make a decision without complete information.",
+        "Give an example of a time you failed at something and what you learned.",
+        "Describe a situation where you had to persuade someone to see your point of view."
+    ],
+    "leadership": [
+        "Describe a time you led a team through a challenging project.",
+        "Tell me about a time you had to mentor or develop a team member.",
+        "Give an example of when you had to make an unpopular decision as a leader.",
+        "Describe how you handled a situation where your team disagreed on an approach.",
+        "Tell me about a time you had to delegate a critical task and how you ensured success."
+    ],
+    "situational": [
+        "What would you do if a project deadline suddenly moved forward by two weeks?",
+        "How would you handle a team member who is consistently underperforming?",
+        "If you discovered a critical bug in production right before a major release, what would you do?",
+        "How would you approach building a feature from scratch with ambiguous requirements?",
+        "What would you do if a stakeholder kept changing requirements mid-sprint?",
+        "How would you handle inheriting a large codebase with minimal documentation?"
+    ],
+    "stress_test": [
+        "Tell me about the biggest professional mistake you have made and its consequences.",
+        "Describe a time when everything went wrong on a project. What did you do?",
+        "Have you ever had to push back against a senior leader? What happened?",
+        "Tell me about a time you were given an impossible deadline.",
+        "Describe a situation where you had to deliver bad news to a client or stakeholder."
+    ],
+    "role_specific": [
+        "Describe your experience with the primary technologies listed in this role.",
+        "How do you stay current with industry trends and emerging technologies?",
+        "Tell me about a time you introduced a new tool or process that improved team productivity.",
+        "What is your approach to code review and maintaining code quality?",
+        "Describe your experience working in agile or cross-functional teams."
+    ]
+}

@@ -1,0 +1,21 @@
+============================================================
+NEW LAYERS TEST SUITE — AI Interviewer v4.0
+============================================================
+[PASS] test_flow_controller_progression
+[PASS] test_dynamic_probing
+[PASS] test_max_probes_limit
+[PASS] test_question_bank_loading
+[PASS] test_resume_parsing
+[PASS] test_resume_question_generation
+[PASS] test_question_selector_pipeline
+[PASS] test_question_selector_dedup
+[PASS] test_question_selector_resume_priority
+[PASS] test_hire_recommendation
+[PASS] test_candidate_ranking
+[PASS] test_question_type_mapping
+
+============================================================
+Results: 12 passed, 0 failed out of 12 tests
+============================================================
+
+---STDERR---

@@ -1,0 +1,19 @@
+﻿============================================================
+AI INTERVIEWER -- Full Test Suite (v4.0)
+============================================================
+
+[PASS] Test 1: interview_stage returns correct values
+[PASS] Test 2: adaptive evaluation validation works correctly
+[PASS] Test 3: decision validation works correctly
+[PASS] Test 4: decide_from_adaptive handles state transitions correctly
+[PASS] Test 5: decide() always returns a valid action
+[PASS] Test 6: previous_evaluations_summary filters errors correctly
+[PASS] Test 7: weighted scoring computes correctly
+[PASS] Test 8: STAR tracking counts correctly
+[PASS] Test 9: trend detection labels correctly
+[PASS] Test 10: consistency rating classifies correctly
+[PASS] Test 11: behavioral profile derives correctly
+
+============================================================
+Results: 11 passed, 0 failed out of 11 tests
+============================================================
