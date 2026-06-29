@@ -1,5 +1,5 @@
 """
-LLM Adapter — Handles all communication with Google Gemini API.
+LLM Adapter — Handles all communication with Groq API.
 Generates interview questions based on the current action and conversation context.
 """
 
@@ -23,6 +23,7 @@ NATURAL INTERVIEWER STYLE RULES:
 import os
 from dotenv import load_dotenv
 from groq import Groq
+from dialogue.output_sanitizer import sanitize_interviewer_output
 from dialogue.prompts import (
     BEHAVIORAL_SYSTEM_PROMPT,
     TECHNICAL_SYSTEM_PROMPT,
@@ -208,6 +209,7 @@ Follow-up policy:
                             "role": "system",
                             "content": (
                                 "You are a professional live voice interviewer. "
+                                "Never coach, hint, or provide example answers. "
                                 "Return only the spoken response. No markdown, no bullets, no headings."
                             ),
                         },
@@ -218,6 +220,7 @@ Follow-up policy:
                 )
 
                 text = response.choices[0].message.content.strip()
+                text = sanitize_interviewer_output(text)
 
                 if text and len(text) > 5:
                     return text

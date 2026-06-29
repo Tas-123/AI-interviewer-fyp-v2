@@ -153,8 +153,11 @@ def test_adapter_preserves_session_state():
             "dialogue.llm_adapter.LLMAdapter._call_llm",
             return_value="Mocked LLM Response",
         ), patch(
-            "dialogue.dialogue_manager.DialogueManager._is_answer_relevant_to_question",
+            "dialogue.guards.domain_guard.is_answer_relevant_to_question",
             return_value=True,
+        ), patch(
+            "dialogue.guards.intent_guard.semantic_intent_classify",
+            return_value="ANSWER_ATTEMPT",
         ):
             start_res = adapter.start_interview(profile)
             session_id = start_res["session_id"]

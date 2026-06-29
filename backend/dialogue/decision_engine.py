@@ -6,6 +6,7 @@ Uses adaptive evaluation (PROBE/ADVANCE) for intelligent follow-up decisions.
 """
 
 from dialogue.states import InterviewState
+from dialogue.followup_policy import classify_followup_type
 
 
 # Threshold: if overall evaluation score is at or below this,
@@ -14,6 +15,23 @@ WEAKNESS_FOLLOWUP_THRESHOLD = 2.5
 
 
 class DecisionEngine:
+
+    def _attach_followup_metadata(
+        self, result: dict, adaptive_result: dict, context
+    ) -> dict:
+        evaluation = adaptive_result.get("evaluation", {})
+        decision = adaptive_result.get("decision", {})
+        answer_text = getattr(context, "latest_answer_for_decision", "")
+        followup_type, followup_reason = classify_followup_type(
+            evaluation,
+            decision,
+            domain=result.get("domain", ""),
+            answer_word_count=len(str(answer_text).split()),
+            engine_reason=result.get("reason", ""),
+        )
+        result["followup_type"] = followup_type
+        result["followup_reason"] = followup_reason
+        return result
 
     def decide(self, context, latest_answer):
         """
@@ -163,6 +181,11 @@ class DecisionEngine:
     # ════════════════════════════════════════════════════════════
 
     def decide_from_adaptive(self, adaptive_result: dict, context) -> dict:
+        """Consume adaptive evaluation and enforce interview policy with follow-up metadata."""
+        result = self._decide_from_adaptive_impl(adaptive_result, context)
+        return self._attach_followup_metadata(result, adaptive_result, context)
+
+    def _decide_from_adaptive_impl(self, adaptive_result: dict, context) -> dict:
         """
         Consume Evaluator.adaptive_evaluate() result and enforce interview policy.
 

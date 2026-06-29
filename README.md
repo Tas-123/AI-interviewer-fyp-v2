@@ -56,6 +56,10 @@ backend/
     session_service.py
     interviewer_policy.py
   dialogue/
+    guards/
+    transcript_utils.py
+    followup_policy.py
+    output_sanitizer.py
     analytics.py
     context.py
     database.py
@@ -197,6 +201,8 @@ http://localhost:8766/latest-report
 ```
 
 ## Debugging Live Interview Flow
+
+See [docs/DIALOGUE_PIPELINE.md](docs/DIALOGUE_PIPELINE.md) for guard order and turn flow.
 
 A clean debug log may be available at:
 

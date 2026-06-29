@@ -9,6 +9,10 @@ Supports two evaluation paths:
 """
 
 from dialogue.context import InterviewContext
+from dialogue.guards.pipeline import GuardPipeline
+from dialogue.guards.types import GuardContext, GuardResult
+from dialogue.followup_policy import build_followup_label
+from dialogue.transcript_utils import clean_live_transcript
 from dialogue.decision_engine import DecisionEngine
 from dialogue.llm_adapter import LLMAdapter
 from dialogue.evaluator import Evaluator
@@ -23,6 +27,10 @@ class DialogueManager:
         self.llm = LLMAdapter()
         self.evaluator = Evaluator()
         self.latency_history = []  # List of latency_ms per turn
+        self.guard_pipeline = GuardPipeline(
+            llm_client=self.llm.client,
+            llm_model=self.llm.model,
+        )
 
     def _debug_live_log(self, label: str, value):
         """
@@ -56,73 +64,31 @@ class DialogueManager:
 
 
     def _clean_live_transcript(self, text: str) -> str:
-        """Clean repeated ASR fragments before evaluation and reporting."""
-        import re
+        """Backward-compatible shim — delegates to shared transcript utils."""
+        return clean_live_transcript(text)
 
-        original = (text or "").strip()
-        if not original:
-            return ""
+    def _record_non_evaluated_event(self, event_type: str, transcript: str, **extra):
+        if not hasattr(self.context, "non_evaluated_events"):
+            self.context.non_evaluated_events = []
+        payload = {"type": event_type, "transcript": transcript, **extra}
+        self.context.non_evaluated_events.append(payload)
 
-        cleaned = re.sub(r"\s+", " ", original).strip()
-
-        def norm_token(x):
-            t = x.lower().strip(".,!?;:")
-            # Normalize common contractions so "I'd" matches "I", etc.
-            for suffix in ("'d", "'s", "'ll", "'ve", "'re", "'m",
-                           "\u2019d", "\u2019s", "\u2019ll", "\u2019ve", "\u2019re", "\u2019m"):
-                if t.endswith(suffix):
-                    t = t[:-len(suffix)]
-                    break
-            return t
-
-        def remove_adjacent_repeated_ngrams(tokens, max_n=14):
-            changed = True
-            while changed:
-                changed = False
-                for n in range(min(max_n, len(tokens)//2), 0, -1):
-                    i = 0
-                    out = []
-                    while i < len(tokens):
-                        cur = tokens[i:i+n]
-                        nxt = tokens[i+n:i+2*n]
-
-                        if len(cur) == n and [norm_token(x) for x in cur] == [norm_token(x) for x in nxt]:
-                            out.extend(cur)
-                            i += 2*n
-                            changed = True
-
-                            while i+n <= len(tokens) and [norm_token(x) for x in tokens[i:i+n]] == [norm_token(x) for x in cur]:
-                                i += n
-                        else:
-                            out.append(tokens[i])
-                            i += 1
-                    tokens = out
-            return tokens
-
-        tokens = remove_adjacent_repeated_ngrams(cleaned.split())
-        cleaned = " ".join(tokens)
-
-        phrase_pattern = re.compile(
-            r"\b((?:\w+[,.]?\s+){2,12}\w+[,.]?)(?:\s+\1\b)+",
-            flags=re.IGNORECASE
+    def _response_from_guard(
+        self, guard_hit: GuardResult, transcript: str, last_question: str
+    ) -> dict:
+        self._record_non_evaluated_event(
+            guard_hit.decision_type,
+            transcript,
+            response=guard_hit.response_text,
+            question=last_question,
+            metadata=guard_hit.metadata,
         )
-
-        previous = None
-        while previous != cleaned:
-            previous = cleaned
-            cleaned = phrase_pattern.sub(r"\1", cleaned).strip()
-
-        cleaned = re.sub(r"\b(\w+)(\s+\1\b)+", r"\1", cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r"\s+", " ", cleaned).strip()
-
-        if not cleaned:
-            return original
-
-        if len(original.split()) >= 10 and len(cleaned.split()) < max(5, int(len(original.split()) * 0.40)):
-            return original
-
-        return cleaned
-
+        return {
+            "question": guard_hit.response_text or "",
+            "evaluation": None,
+            "decision_type": guard_hit.decision_type,
+            "latency_ms": 0,
+        }
 
     def handle_turn(self, transcript):
         raw_transcript_for_debug = transcript
@@ -179,103 +145,20 @@ class DialogueManager:
             else ""
         )
 
-        # Candidate intent gate:
-        # Before scoring, classify whether the user is answering, asking for repeat,
-        # asking for clarification, reporting audio issue, going off-topic, or echoing
-        # an external prompt. Only ANSWER_ATTEMPT should be evaluated.
-        if self._looks_like_bot_question_echo(transcript, last_question):
-            if not hasattr(self.context, "non_evaluated_events"):
-                self.context.non_evaluated_events = []
-            self.context.non_evaluated_events.append({
-                "type": "BOT_OR_EXTERNAL_PROMPT_ECHO",
-                "transcript": transcript,
-                "last_question": last_question,
-            })
-
-            echo_response = (
-                "I detected that the interviewer prompt may have been repeated instead of a candidate answer. "
-                "Please answer in your own words. "
-                + self._short_repeat_question(last_question)
+        # -- Pre-evaluation guard pipeline --
+        guard_ctx = GuardContext(
+            transcript=transcript,
+            last_question=last_question,
+            interview_context=self.context,
+            llm_client=self.llm.client,
+            llm_model=self.llm.model,
+        )
+        guard_hit = self.guard_pipeline.run(guard_ctx)
+        if guard_hit:
+            return final_log_and_return(
+                self._response_from_guard(guard_hit, transcript, last_question),
+                f"{guard_hit.decision_type} - ignored transcript, no scoring",
             )
-
-            res = {
-                "question": echo_response,
-                "evaluation": None,
-                "decision_type": "BOT_OR_EXTERNAL_PROMPT_ECHO",
-                "latency_ms": 0,
-            }
-            return final_log_and_return(res, "BOT_OR_EXTERNAL_PROMPT_ECHO - ignored transcript, no scoring")
-
-        candidate_intent = self._classify_candidate_intent(transcript, last_question)
-
-        if candidate_intent != "ANSWER_ATTEMPT":
-            question = self._intent_redirect_response(candidate_intent, transcript, last_question)
-
-            # Store separately as non-evaluated event.
-            if not hasattr(self.context, "non_evaluated_events"):
-                self.context.non_evaluated_events = []
-
-            self.context.non_evaluated_events.append({
-                "type": candidate_intent,
-                "transcript": transcript,
-                "response": question,
-            })
-
-            res = {
-                "question": question,
-                "evaluation": None,
-                "decision_type": candidate_intent,
-                "latency_ms": 0,
-            }
-            return final_log_and_return(res, f"{candidate_intent} - ignored transcript, no scoring")
-
-        # Incomplete transcript gate:
-        # If STT only captured a tiny fragment, do not score it.
-        # Ask the candidate to continue/repeat the current answer.
-        if self._looks_like_incomplete_transcript(transcript, last_question):
-            question = self._incomplete_transcript_response(transcript, last_question)
-
-            if not hasattr(self.context, "non_evaluated_events"):
-                self.context.non_evaluated_events = []
-
-            self.context.non_evaluated_events.append({
-                "type": "INCOMPLETE_TRANSCRIPT_REDIRECT",
-                "transcript": transcript,
-                "response": question,
-                "question": last_question,
-            })
-
-            res = {
-                "question": question,
-                "evaluation": None,
-                "decision_type": "INCOMPLETE_TRANSCRIPT_REDIRECT",
-                "latency_ms": 0,
-            }
-            return final_log_and_return(res, "INCOMPLETE_TRANSCRIPT_REDIRECT - ignored transcript, no scoring")
-
-        # Domain relevance gate:
-        # If the candidate gives an answer attempt but it clearly does not answer
-        # the current domain/question, do not score it. Redirect to the same question.
-        if not self._is_answer_relevant_to_question(transcript, last_question):
-            question = self._domain_relevance_redirect_response(last_question)
-
-            if not hasattr(self.context, "non_evaluated_events"):
-                self.context.non_evaluated_events = []
-
-            self.context.non_evaluated_events.append({
-                "type": "DOMAIN_RELEVANCE_REDIRECT",
-                "transcript": transcript,
-                "response": question,
-                "question": last_question,
-            })
-
-            res = {
-                "question": question,
-                "evaluation": None,
-                "decision_type": "DOMAIN_RELEVANCE_REDIRECT",
-                "latency_ms": 0,
-            }
-            return final_log_and_return(res, "DOMAIN_RELEVANCE_REDIRECT - ignored transcript, no scoring")
 
         try:
             adaptive_result = self.evaluator.adaptive_evaluate(
@@ -364,6 +247,10 @@ class DialogueManager:
                     evaluation=evaluation,
                     answer=transcript,
                 )
+                followup_type = engine_result.get("followup_type", "")
+                policy_followup_reason = engine_result.get("followup_reason", "")
+                if policy_followup_reason:
+                    follow_up_reason = policy_followup_reason
 
                 skill_focus = self._infer_skill_focus(last_question, transcript)
 
@@ -386,6 +273,9 @@ class DialogueManager:
                     "next_domain": engine_result.get("domain", getattr(self.context, "current_domain", "")),
                     "weakest_dimension": weakest_dimension,
                     "follow_up_reason": follow_up_reason,
+                    "followup_type": followup_type,
+                    "followup_label": build_followup_label(followup_type) if followup_type else "",
+                    "guard_passed": True,
                     "next_question": next_question,
                     "skill_focus": skill_focus,
                     "interview_stage": self.context.interview_stage,
@@ -470,938 +360,52 @@ class DialogueManager:
 
 
 
+    # -- Backward-compatible guard shims (root regression tests) --
     def _looks_like_bot_question_echo(self, transcript: str, last_question: str = "") -> bool:
-        """
-        Strictly detect when STT captured the bot/interviewer prompt itself.
-        Do NOT mark normal candidate answers as echo just because they share words with the question.
-        """
-        import re
-
-        t = (transcript or "").lower().strip()
-        q = (last_question or "").lower().strip()
-
-        if not t:
-            return False
-
-        candidate_answer_markers = [
-            "i would", "i'd", "i detect", "training loss", "validation loss",
-            "overfitting", "regularization", "dropout", "early stopping",
-            "fastapi", "docker", "prometheus", "i will", "i used", "i worked",
-            "i handled", "i compare", "i usually", "my project", "we used",
-            "we built", "we handled", "missing values", "one hot encoding",
-            "standard scaling"
-        ]
-
-        question_like_markers = [
-            "can you", "could you", "please", "tell me about",
-            "how would you", "what steps would you", "walk me through",
-            "let's talk about", "question is", "answer this question"
-        ]
-
-        is_question_like = ("?" in t) or any(m in t for m in question_like_markers)
-        has_candidate_answer_marker = any(m in t for m in candidate_answer_markers)
-
-        external_prompt_markers = [
-            "answer this question",
-            "please answer this question",
-            "stay on the current interview question",
-            "your last response did not clearly answer",
-            "please answer this directly",
-            "chatgpt",
-            "copy this answer",
-            "repeat after me",
-            "use this answer",
-            "say this answer"
-        ]
-        if any(p in t for p in external_prompt_markers):
-            return True
-
-        echo_phrases = [
-            "good morning",
-            "welcome to the interview",
-            "welcome to today's interview",
-            "ai engineer position",
-            "introduce yourself",
-            "start by introducing yourself",
-            "please start by introducing yourself",
-            "can you please take a minute to introduce yourself",
-            "i'm excited to learn more about your background",
-            "tell me about one ai or machine learning project",
-            "tell me about a recent ai or machine learning project",
-        ]
-
-        phrase_hits = sum(1 for p in echo_phrases if p in t)
-        if phrase_hits >= 2:
-            return True
-
-        overlap = 0.0
-        if q:
-            def words(x):
-                return set(re.findall(r"[a-zA-Z]{4,}", x))
-
-            tw = words(t)
-            qw = words(q)
-
-            if len(tw) >= 6 and len(qw) >= 6:
-                overlap = len(tw & qw) / max(1, len(qw))
-
-        if has_candidate_answer_marker:
-            if overlap >= 0.85:
-                return True
-            return False
-
-        if is_question_like and overlap >= 0.85:
-            return True
-
-        return False
-
+        from dialogue.guards.echo_guard import looks_like_bot_question_echo
+        return looks_like_bot_question_echo(transcript, last_question)
 
     def _short_repeat_question(self, last_question: str = "") -> str:
-        """
-        Repeat only the core interview question without replaying long greeting text.
-        """
-        q = (last_question or "").strip()
-        lq = q.lower()
-
-        if not q:
-            return "Please answer the current interview question in your own words."
-
-        # Any intro/project-overview greeting should be shortened.
-        intro_markers = [
-            "good morning",
-            "welcome to the interview",
-            "welcome to today's interview",
-            "ai engineer position",
-            "introducing yourself",
-            "introduce yourself",
-            "start by introducing yourself",
-            "please start by introducing yourself",
-            "tell me about a project",
-            "tell me about one project",
-            "project you've worked on",
-            "project you have worked on",
-            "showcases your ai",
-            "machine learning skills",
-            "ai or machine learning",
-            "background and experience",
-        ]
-
-        if any(m in lq for m in intro_markers):
-            return "Please introduce yourself and tell me about one AI or machine learning project you worked on."
-
-        # Remove follow-up labels.
-        for prefix in ["[Follow-up]", "[follow-up]", "Follow-up:", "follow-up:"]:
-            q = q.replace(prefix, "").strip()
-
-        # If a long greeting somehow remains, cut to a cleaner question.
-        if len(q.split()) > 28 and ("?" in q):
-            parts = [p.strip() for p in q.split(".") if p.strip()]
-            question_parts = [p for p in parts if "?" in p]
-            if question_parts:
-                q = question_parts[-1].strip()
-
-        return q
-
+        from dialogue.guards.echo_guard import short_repeat_question
+        return short_repeat_question(last_question)
 
     def _classify_candidate_intent(self, transcript: str, last_question: str = "") -> str:
-        """
-        Classify candidate utterance before evaluation.
-        This prevents repeat requests, audio issues, off-topic chatter, and
-        external interviewer prompts from being scored as answers.
-        """
-        text = (transcript or "").strip().lower()
-        if not text:
-            return "AUDIO_ISSUE"
-
-        clean = text.strip(" .,!?'\"").lower()
-        words = clean.split()
-
-        # Very short speech is often a mic/check/clarification signal, not an answer.
-        audio_issue_phrases = [
-            "hello", "hello?", "can you hear me", "are you there",
-            "can't hear you", "cant hear you", "i can't hear you", "i cant hear you",
-            "i could not hear", "could not hear", "couldn't hear", "i didn't hear",
-            "i didnt hear", "not audible", "voice is low", "your voice is low",
-            "audio issue", "mic issue"
-        ]
-
-        repeat_phrases = [
-            "repeat", "repeat the question", "can you repeat", "please repeat",
-            "say that again", "say it again", "ask again", "question again",
-            "come again", "pardon"
-        ]
-
-        clarification_phrases = [
-            "what do you mean", "what does that mean", "i don't understand",
-            "i dont understand", "i did not understand", "didn't understand",
-            "didnt understand", "couldn't understand", "couldnt understand",
-            "i couldn't understand", "i couldnt understand",
-            "sorry i couldn't understand", "sorry i couldnt understand",
-            "can you explain", "please explain", "clarify",
-            "can you clarify", "about what", "which one", "which model",
-            "what model", "specific model", "what specific model",
-            "what specific model are you talking about"
-        ]
-
-        external_prompt_phrases = [
-            "i don't want buzzwords", "i dont want buzzwords",
-            "don't want buzzwords", "dont want buzzwords",
-            "skip the general stuff", "don't just throw general techniques",
-            "dont just throw general techniques",
-            "tell me exactly", "be practical", "not theoretical",
-            "give me a structure you'd actually implement",
-            "give me a structure you would actually implement",
-            "before you start", "keep it specific",
-            "generic intro", "focus on a concrete project",
-            "what you actually did", "why it was impactful",
-            "i want a clear set of steps", "go."
-        ]
-
-        off_topic_phrases = [
-            "let's talk about something else", "lets talk about something else",
-            "i don't want this interview", "i dont want this interview",
-            "change the topic", "leave this question", "next question please",
-            "i am not here for", "i'm not here for"
-        ]
-
-        # Direct phrase checks.
-        if any(p in clean for p in audio_issue_phrases):
-            return "AUDIO_ISSUE"
-
-        if any(p in clean for p in repeat_phrases):
-            return "REPEAT_REQUEST"
-
-        if any(p in clean for p in clarification_phrases):
-            return "CLARIFICATION_REQUEST"
-
-        if any(p in clean for p in external_prompt_phrases):
-            return "EXTERNAL_PROMPT_ECHO"
-
-        if any(p in clean for p in off_topic_phrases):
-            return "OFF_TOPIC"
-
-        # Short question-like utterances are clarification, not answers.
-        if clean.endswith("?") and len(words) <= 10:
-            return "CLARIFICATION_REQUEST"
-
-        # Very short vague utterances should not be scored.
-        vague_short = {
-            "yes", "no", "okay", "ok", "yeah", "hmm", "um", "uh",
-            "what", "why", "how", "about what"
-        }
-        if clean in vague_short:
-            return "CLARIFICATION_REQUEST"
-
-        # Interviewer-instruction style: many imperatives, little candidate ownership.
-        instruction_markers = [
-            "tell me", "give me", "walk me through", "i want", "don't", "dont",
-            "focus on", "be specific", "be practical", "skip"
-        ]
-        answer_markers = [
-            "i built", "i worked", "i used", "i implemented", "i created",
-            "i trained", "i evaluated", "my project", "my model", "we built",
-            "we used", "python", "machine learning", "model", "dataset",
-            "accuracy", "precision", "recall", "api", "deployment"
-        ]
-
-        instruction_hits = sum(1 for p in instruction_markers if p in clean)
-        answer_hits = sum(1 for p in answer_markers if p in clean)
-
-        if instruction_hits >= 2 and answer_hits == 0:
-            return "EXTERNAL_PROMPT_ECHO"
-
-        # If it looks like a technical fragment, let the incomplete transcript
-        # gate handle it instead of letting semantic intent misclassify it as
-        # repeat/external/off-topic.
-        if self._looks_like_incomplete_transcript(transcript, last_question):
-            return "ANSWER_ATTEMPT"
-
-        # Semantic fallback for unseen wording.
-        # Example: "Sorry, I missed the first part" or
-        # "Are you asking about the dataset or the model?"
-        if self._should_use_semantic_intent_classifier(transcript):
-            return self._semantic_intent_classify(transcript, last_question)
-
-        return "ANSWER_ATTEMPT"
-
-
-
-    def _should_use_semantic_intent_classifier(self, transcript: str) -> bool:
-        """
-        Use LLM intent classifier only for ambiguous utterances.
-        This avoids extra latency on normal technical answers.
-        """
-        text = (transcript or "").strip().lower()
-        if not text:
-            return False
-
-        words = text.split()
-        word_count = len(words)
-
-        # Short utterances are often clarification/audio/off-topic, not real answers.
-        if word_count <= 12:
-            return True
-
-        # Question-like utterances should be semantically checked.
-        if "?" in text:
-            return True
-
-        ambiguous_markers = [
-            "sorry",
-            "not sure",
-            "i missed",
-            "missed that",
-            "say it another way",
-            "frame it differently",
-            "are you asking",
-            "do you mean",
-            "which part",
-            "which one",
-            "what angle",
-            "your voice",
-            "voice cut",
-            "audio",
-            "mic",
-        ]
-
-        if any(marker in text for marker in ambiguous_markers):
-            return True
-
-        # External/coaching style instructions are often longer.
-        instruction_markers = [
-            "tell me exactly",
-            "be specific",
-            "keep it specific",
-            "don't want",
-            "dont want",
-            "skip the general",
-            "not theoretical",
-            "be practical",
-            "focus on",
-            "walk me through",
-        ]
-
-        if any(marker in text for marker in instruction_markers):
-            return True
-
-        return False
-
-
-    def _semantic_intent_classify(self, transcript: str, last_question: str = "") -> str:
-        """
-        LLM fallback classifier for candidate intent.
-        Returns one of:
-        ANSWER_ATTEMPT, REPEAT_REQUEST, CLARIFICATION_REQUEST,
-        AUDIO_ISSUE, OFF_TOPIC, EXTERNAL_PROMPT_ECHO
-        """
-        import json
-        import re
-
-        allowed = {
-            "ANSWER_ATTEMPT",
-            "REPEAT_REQUEST",
-            "CLARIFICATION_REQUEST",
-            "AUDIO_ISSUE",
-            "OFF_TOPIC",
-            "EXTERNAL_PROMPT_ECHO",
-        }
-
-        prompt = f"""
-You are an intent classifier for a live AI job interview.
-
-Classify the candidate utterance into exactly one label:
-
-ANSWER_ATTEMPT:
-The candidate is trying to answer the interview question, even if weak, incomplete, grammatically poor, or technically shallow.
-
-REPEAT_REQUEST:
-The candidate asks to repeat the question or say it again.
-
-CLARIFICATION_REQUEST:
-The candidate asks what the question means, what specific model/topic is meant, or asks for explanation.
-
-AUDIO_ISSUE:
-The candidate says they cannot hear, audio is unclear, says hello/checking connection, or reports voice/mic issue.
-
-OFF_TOPIC:
-The candidate intentionally talks about something unrelated to the interview question.
-
-EXTERNAL_PROMPT_ECHO:
-The transcript sounds like an interviewer, coach, ChatGPT, instruction, or prompt telling someone how to answer, not the candidate's own answer.
-
-Current interview question:
-{last_question}
-
-Candidate utterance:
-{transcript}
-
-Return JSON only:
-{{"intent":"LABEL","confidence":0.0}}
-""".strip()
-
-        try:
-            response = self.llm.client.chat.completions.create(
-                model=self.llm.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Return only valid JSON. No explanation.",
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
-                ],
-                temperature=0,
-                max_tokens=60,
-            )
-
-            content = response.choices[0].message.content.strip()
-
-            # Extract JSON safely even if model wraps text around it.
-            match = re.search(r"\{.*\}", content, re.DOTALL)
-            if match:
-                content = match.group(0)
-
-            data = json.loads(content)
-            intent = str(data.get("intent", "ANSWER_ATTEMPT")).strip().upper()
-            confidence = float(data.get("confidence", 0))
-
-            if intent in allowed and confidence >= 0.55:
-                return intent
-
-        except Exception as e:
-            # Never block interview because classifier failed.
-            print(f"[IntentClassifier] Semantic fallback failed: {e}")
-
-        return "ANSWER_ATTEMPT"
-
-
-
-
-
-    def _looks_like_incomplete_transcript(self, transcript: str, last_question: str = "") -> bool:
-        """
-        Detect partial STT fragments that should not be evaluated yet.
-        Example: "For missing", "I would use", "The model was", etc.
-        """
-        text = (transcript or "").strip()
-        if not text:
-            return True
-
-        clean = text.strip(" .,!?'\"").lower()
-        words = clean.split()
-        word_count = len(words)
-
-        # Already handled by intent classifier, but keep safe.
-        if word_count <= 2:
-            return True
-
-        # Very short fragments often come from STT cutoff.
-        # Do not block short but complete clarification phrases because intent gate handles them earlier.
-        if word_count <= 4:
-            technical_keywords = [
-                "python", "model", "dataset", "accuracy", "precision", "recall",
-                "missing", "categorical", "scaling", "api", "deploy", "overfitting"
-            ]
-            # If it is only a tiny technical fragment, it is not enough to score.
-            if any(k in clean for k in technical_keywords):
-                return True
-
-        # For the intro/project-overview question, require more substance.
-        # Vague short fragments like "Worked on a project" should not be scored;
-        # they indicate STT captured only the beginning of a longer answer.
-        if word_count <= 6:
-            last_q = (last_question or "").lower()
-            is_intro_question = any(m in last_q for m in [
-                "introduce yourself", "project", "worked on",
-                "tell me about", "machine learning project",
-            ])
-            if is_intro_question:
-                substance_markers = [
-                    "random forest", "xgboost", "classification", "regression",
-                    "dataset", "accuracy", "precision", "recall", "f1",
-                    "training", "preprocessing", "api", "deploy", "nlp",
-                    "neural", "cnn", "lstm", "transformer", "pipeline",
-                    "scikit", "sklearn", "pytorch", "tensorflow",
-                ]
-                if not any(m in clean for m in substance_markers):
-                    return True
-
-        # Common unfinished starts.
-        unfinished_endings = [
-            "i would",
-            "i will",
-            "i used",
-            "i use",
-            "i was",
-            "i have",
-            "i had",
-            "for missing",
-            "for categorical",
-            "for scaling",
-            "the model",
-            "the dataset",
-            "my project",
-            "in python",
-            "because",
-            "and then",
-            "so",
-            "like",
-            "using",
-            "with",
-            "for",
-            "to",
-            "by",
-        ]
-
-        if clean in unfinished_endings:
-            return True
-
-        # If answer ends with connector/preposition, probably cut off.
-        last_word = words[-1] if words else ""
-        cut_words = {
-            "and", "or", "but", "because", "with", "for", "to", "by",
-            "using", "like", "then", "so", "when", "where", "which"
-        }
-
-        if last_word in cut_words:
-            return True
-
-        return False
-
-
-    def _incomplete_transcript_response(self, transcript: str, last_question: str = "") -> str:
-        """Ask candidate to continue/repeat without scoring partial STT fragments."""
-        partial = (transcript or "").strip()
-
-        if partial:
-            return (
-                f"I only caught part of your answer: \"{partial}\". "
-                "Please continue your answer clearly and directly."
-            )
-
-        return "I could not capture your full answer. Please continue or repeat your answer."
-
-
-
-    def _infer_question_domain_for_relevance(self, question: str) -> str:
-        """Infer expected answer domain from the current interview question."""
-        q = (question or "").lower()
-
-        if any(x in q for x in ["introduce yourself", "project you've worked", "project you worked", "ai or machine learning project"]):
-            return "project_overview"
-
-        if any(x in q for x in ["python", "code stays clean", "reusable", "debug", "module", "class", "function", "decorator", "context manager"]):
-            return "python"
-
-        if any(x in q for x in ["overfitting", "regularization", "cross-validation", "hyperparameter", "random forest", "training accuracy", "validation"]):
-            return "machine_learning"
-
-        if any(x in q for x in ["missing values", "categorical", "scaling", "preprocessing", "impute", "encoding", "feature"]):
-            return "data_preprocessing"
-
-        if any(x in q for x in ["accuracy", "precision", "recall", "f1", "confusion matrix", "roc", "auc", "metric"]):
-            return "model_evaluation"
-
-        if any(x in q for x in ["nlp", "speech", "text", "tokenization", "embedding", "transcript"]):
-            return "nlp_speech_ai"
-
-        if any(x in q for x in ["api", "request", "response", "endpoint", "fastapi", "flask", "error handling"]):
-            return "apis_backend"
-
-        if any(x in q for x in ["deploy", "deployment", "latency", "monitor", "production", "logs", "docker"]):
-            return "deployment"
-
-        return "unknown"
-
-
-    def _is_answer_relevant_to_question(self, transcript: str, last_question: str) -> bool:
-        """
-        Stricter domain relevance guard.
-        Blocks obvious wrong-domain answers before evaluation.
-
-        Important:
-        - Weak but relevant answers should still be scored.
-        - Wrong-topic answers should be redirected without scoring.
-        """
-        answer = (transcript or "").lower().strip()
-        question = (last_question or "").lower().strip()
-
-        if not answer or not question:
-            return True
-
-        words = answer.split()
-
-        # Very short fragments are handled by incomplete transcript guard.
-        if len(words) < 5:
-            return True
-
-        def has_any(items):
-            return any(x in answer for x in items)
-
-        def q_has_any(items):
-            return any(x in question for x in items)
-
-        # -------------------------
-        # Exact-question intent guards
-        # -------------------------
-
-        # Python structure question
-        if q_has_any(["python", "code stays clean", "reusable", "easy to debug", "structure a small machine learning project"]):
-            required = [
-                "module", "modules", "folder", "folders", "file", "files",
-                "function", "functions", "class", "classes", "package",
-                "config", "configuration", "logging", "logger", "test", "tests",
-                "debug", "reuse", "reusable", "structure", "separate",
-                "data loading", "preprocessing", "training", "evaluation"
-            ]
-
-            wrong_only_metric = [
-                "accuracy", "precision", "recall", "f1", "confusion matrix",
-                "roc", "auc", "false positive", "false negative"
-            ]
-
-            if has_any(required):
-                return True
-
-            # Metrics-only answer to Python structure question is wrong-domain.
-            if has_any(wrong_only_metric):
-                return False
-
-            return False
-
-        # Overfitting question
-        if q_has_any(["overfitting", "training accuracy", "validation performance", "reduce it"]):
-            strong_required = [
-                "overfitting",
-                "validation",
-                "validation score",
-                "validation performance",
-                "regularization",
-                "cross validation",
-                "cross-validation",
-                "early stopping",
-                "dropout",
-                "reduce complexity",
-                "simpler model",
-                "more data",
-                "hyperparameter",
-                "max depth",
-                "pruning",
-                "bias",
-                "variance",
-                "train validation gap",
-                "training and validation",
-                "training score and validation",
-                "training is high",
-                "validation is low",
-            ]
-
-            python_structure_only = [
-                "module", "modules", "folder", "folders", "configuration",
-                "separate scripts", "clean code", "reusable", "debugging and reusing",
-                "data loading", "project structure", "structuring into modules",
-                "scripts for training", "scripts for testing"
-            ]
-
-            # If it mainly talks about project/code structure, block it before weak keyword matches.
-            if has_any(python_structure_only) and not has_any(strong_required):
-                return False
-
-            # "training" alone is NOT enough for overfitting relevance.
-            if has_any(strong_required):
-                return True
-
-            return False
-
-        # Data preprocessing question
-        if q_has_any([
-            "missing values", "categorical features", "scaling", "before training",
-            "preprocessing", "preprocess", "imputation", "impute", "median", "mean",
-            "categorical", "encoding", "one-hot", "one hot", "one high", "won hot",
-            "standard scaling", "min-max", "numeric features", "preprocessing steps"
-        ]):
-            required = [
-                "missing", "impute", "imputation", "mean", "median", "mode",
-                "categorical", "encoding", "one hot", "one-hot", "one high", "won hot",
-                "label encoding", "scaling", "standard scaler", "standardscaler", "standard scale",
-                "normalize", "normalization", "outlier", "feature", "features", "min-max"
-            ]
-
-            api_deploy_only = [
-                "fastapi", "api", "endpoint", "request", "response",
-                "json", "deployment", "deploy", "docker", "latency"
-            ]
-
-            if has_any(required):
-                return True
-
-            if has_any(api_deploy_only):
-                return False
-
-            return False
-
-        # Model evaluation question
-        if q_has_any(["accuracy", "precision", "recall", "f1", "confusion matrix", "evaluation metrics"]):
-            required = [
-                "accuracy", "precision", "recall", "f1", "f1-score",
-                "confusion matrix", "roc", "auc", "false positive",
-                "false negative", "metric", "imbalanced", "classification report"
-            ]
-
-            if has_any(required):
-                return True
-
-            return False
-
-        # NLP / speech preprocessing question
-        if q_has_any(["speech", "nlp", "text", "preprocessing steps", "sending text to the model"]):
-            required = [
-                "text", "nlp", "speech", "audio", "transcript", "token",
-                "tokenization", "embedding", "lowercase", "punctuation",
-                "stop words", "lemmatize", "stemming", "clean", "noise"
-            ]
-
-            if has_any(required):
-                return True
-
-            return False
-
-        # API question
-        if q_has_any(["api", "request", "response", "error-handling", "error handling", "expose a trained"]):
-            required = [
-                "api", "endpoint", "fastapi", "flask", "request", "response",
-                "json", "input validation", "validation", "error handling",
-                "exception", "status code", "route", "prediction"
-            ]
-
-            if has_any(required):
-                return True
-
-            return False
-
-        # Deployment question
-        if q_has_any(["deploy", "deployment", "latency", "monitor", "performance after deployment"]):
-            required = [
-                "deploy", "deployment", "docker", "container", "server",
-                "cloud", "latency", "monitor", "logs", "logging",
-                "error", "metrics", "performance", "production",
-                "prometheus", "grafana", "ci/cd", "pipeline"
-            ]
-
-            if has_any(required):
-                return True
-
-            return False
-
-        # Debugging pipeline question
-        if q_has_any(["debug", "poor results", "data, preprocessing, model, or evaluation"]):
-            required = [
-                "debug", "data", "preprocessing", "model", "evaluation",
-                "metrics", "logs", "distribution", "missing", "bias",
-                "training", "validation", "pipeline"
-            ]
-
-            if has_any(required):
-                return True
-
-            return False
-
-        # Project overview should be broad.
-        if q_has_any(["introduce yourself", "project", "worked on", "showcases your ai", "machine learning skills"]):
-            required = [
-                "project", "built", "worked", "model", "dataset", "classification",
-                "prediction", "detection", "random forest", "xgboost",
-                "machine learning", "ai", "trained", "evaluated"
-            ]
-
-            if has_any(required):
-                return True
-
-            return False
-
-        # Unknown question type: don't block.
-        return True
-
-
-    def _domain_relevance_redirect_response(self, last_question: str) -> str:
-        """Redirect candidate back to the same question without scoring."""
-        return (
-            "Let's stay on the current interview question. "
-            "Your last response did not clearly answer what I asked. "
-            f"Please answer this directly: {last_question}"
+        from dialogue.guards.intent_guard import classify_candidate_intent
+        return classify_candidate_intent(
+            transcript, last_question,
+            llm_client=self.llm.client, llm_model=self.llm.model,
         )
 
+    def _should_use_semantic_intent_classifier(self, transcript: str) -> bool:
+        from dialogue.guards.intent_guard import should_use_semantic_intent_classifier
+        return should_use_semantic_intent_classifier(transcript)
 
+    def _semantic_intent_classify(self, transcript: str, last_question: str = "") -> str:
+        from dialogue.guards.intent_guard import semantic_intent_classify
+        return semantic_intent_classify(
+            transcript, last_question,
+            llm_client=self.llm.client, llm_model=self.llm.model,
+        )
+
+    def _looks_like_incomplete_transcript(self, transcript: str, last_question: str = "") -> bool:
+        from dialogue.guards.incomplete_guard import looks_like_incomplete_transcript
+        return looks_like_incomplete_transcript(transcript, last_question)
+
+    def _incomplete_transcript_response(self, transcript: str, last_question: str = "") -> str:
+        from dialogue.guards.incomplete_guard import incomplete_transcript_response
+        return incomplete_transcript_response(transcript, last_question)
+
+    def _is_answer_relevant_to_question(self, transcript: str, last_question: str) -> bool:
+        from dialogue.guards.domain_guard import is_answer_relevant_to_question
+        return is_answer_relevant_to_question(transcript, last_question)
+
+    def _domain_relevance_redirect_response(self, last_question: str) -> str:
+        from dialogue.guards.domain_guard import domain_relevance_redirect_response
+        return domain_relevance_redirect_response(last_question)
 
     def _intent_redirect_response(self, intent: str, transcript: str, last_question: str = "") -> str:
-        """Generate a no-score redirect based on classified candidate intent."""
-        last_question = (last_question or "").strip()
-
-        if intent == "REPEAT_REQUEST":
-            return f"Sure, I'll repeat the question. {self._short_repeat_question(last_question)}"
-
-        if intent == "AUDIO_ISSUE":
-            return f"No problem, I'll repeat it clearly. {self._short_repeat_question(last_question)}"
-
-        if intent == "CLARIFICATION_REQUEST":
-            t_clean = (transcript or "").lower()
-            if any(phrase in t_clean for phrase in ["understand", "not clear", "unclear"]):
-                return f"Sure, I'll repeat the question. {self._short_repeat_question(last_question)}"
-            return (
-                "Good question. I'm asking you to answer the current interview question directly. "
-                f"Here it is again: {self._short_repeat_question(last_question)}"
-            )
-
-        if intent == "OFF_TOPIC":
-            return (
-                "Let's stay focused on the interview. "
-                f"Please answer this question directly: {self._short_repeat_question(last_question)}"
-            )
-
-        if intent == "EXTERNAL_PROMPT_ECHO":
-            return (
-                "I may have captured an instruction or external prompt instead of your answer. "
-                f"Please answer the current interview question directly: {self._short_repeat_question(last_question)}"
-            )
-
-        return f"Please answer the current interview question directly: {self._short_repeat_question(last_question)}"
-
-
-
-    def _is_clarification_request(self, transcript: str) -> bool:
-        """
-        Detect valid candidate clarification/repeat requests.
-        These should NOT be scored, but should be answered politely.
-        """
-        t = (transcript or "").strip().lower()
-        if not t:
-            return False
-
-        clarification_markers = [
-            "repeat the question",
-            "can you repeat",
-            "could you repeat",
-            "please repeat",
-            "say that again",
-            "come again",
-            "i didn't understand",
-            "i did not understand",
-            "what do you mean",
-            "what does that mean",
-            "can you explain",
-            "could you explain",
-            "explain the question",
-            "clarify the question",
-            "what is meant by",
-            "what do you mean by",
-        ]
-
-        return any(marker in t for marker in clarification_markers)
-
-
-    def _is_external_prompt_echo(self, transcript: str, last_question: str = "") -> bool:
-        """
-        Detect external interviewer/ChatGPT prompt, bot prompt echo, or wrong-speaker capture.
-        These should NOT be scored as candidate answers.
-        """
-        import re
-
-        t = (transcript or "").strip().lower()
-        q = (last_question or "").strip().lower()
-
-        if not t:
-            return False
-
-        words = t.split()
-        if len(words) < 5:
-            return False
-
-        external_prompt_markers = [
-            "i'm not here for pleasantries",
-            "i am not here for pleasantries",
-            "don't waste time on fluff",
-            "dont waste time on fluff",
-            "just give me one ai",
-            "just give me one ml",
-            "what problem did you tackle",
-            "what did you actually achieve",
-            "give me the real impact",
-            "tell me about one ai",
-            "tell me about one machine learning",
-            "can you start by introducing yourself",
-            "start by introducing yourself",
-            "your reality check",
-            "if you skip these",
-
-            # External interviewer / coaching / off-topic style phrases
-            "let's get serious",
-            "lets get serious",
-            "i'm here to challenge you",
-            "i am here to challenge you",
-            "i hear you",
-            "trust me",
-            "that's on you",
-            "thats on you",
-            "you're asking for trouble",
-            "you are asking for trouble",
-            "you're setting yourself up",
-            "you are setting yourself up",
-            "you're failing",
-            "you are failing",
-            "don't be lazy",
-            "dont be lazy",
-            "if you're blindly",
-            "if you are blindly",
-            "garbage output",
-            "garbage in garbage out",
-            "raw truth",
-            "bottom line",
-            "in short",
-        ]
-
-        if any(marker in t for marker in external_prompt_markers):
-            return True
-
-        # Detect if candidate transcript is mostly the same as the question.
-        # This catches bot/question echo from speaker or external interviewer.
-        if q:
-            t_words = set(re.findall(r"[a-zA-Z]+", t))
-            q_words = set(re.findall(r"[a-zA-Z]+", q))
-
-            if len(t_words) >= 6 and len(q_words) >= 6:
-                overlap = len(t_words & q_words) / max(1, len(q_words))
-                if overlap >= 0.70:
-                    return True
-
-        return False
-
-
-    def _clarification_response(self, transcript: str, last_question: str = "") -> str:
-        """
-        Return a helpful clarification without scoring the candidate.
-        """
-        t = (transcript or "").strip().lower()
-        last_question = (last_question or "").strip()
-
-        if "repeat" in t or "say that again" in t or "come again" in t:
-            return "Sure, I'll repeat the question. " + (last_question or "Please tell me about one AI or machine learning project you worked on.")
-
-        if "preprocessing" in t:
-            return "Preprocessing means cleaning and preparing data before training, such as handling missing values, encoding categories, and scaling numbers. Now please answer the question."
-
-        if "model evaluation" in t or "evaluation" in t:
-            return "Model evaluation means checking how well your model performs using metrics like accuracy, precision, recall, F1-score, or confusion matrix. Now please answer the question."
-
-        if "deployment" in t or "deploy" in t:
-            return "Deployment means making your model available for real use, usually through an API or server, and monitoring latency, errors, and performance. Now please answer the question."
-
-        if "overfitting" in t:
-            return "Overfitting means the model performs well on training data but poorly on unseen data. Now please answer how you would detect and reduce it."
-
-        return "Sure. I?m asking this: " + (last_question or "Please tell me about one AI or machine learning project you worked on.")
-
+        from dialogue.guards.intent_guard import intent_redirect_response
+        return intent_redirect_response(intent, transcript, last_question)
 
     def _build_follow_up_reason(self, weakest_dimension, decision_type, evaluation, answer):
         """Create a readable reason explaining why the next question was selected."""
