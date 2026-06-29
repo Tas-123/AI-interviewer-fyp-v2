@@ -18,6 +18,7 @@ load_dotenv()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
 
 from core.config import settings
+from core.role_registry import DEFAULT_TARGET_ROLE, list_target_roles
 from core.session_service import SessionNotFoundError, get_session_service
 from dialogue import database as db
 from dialogue.recruiter_report import (
@@ -54,15 +55,23 @@ def startup_event():
 
 # ── Request / Response Models ──────────────────────────────────
 class StartRequest(BaseModel):
-    resume_data: dict
+    """Session start — resume is optional; target_role defaults to Junior AI Engineer."""
+
+    target_role: str = DEFAULT_TARGET_ROLE
+    display_name: Optional[str] = None
+    resume_text: Optional[str] = None
+    resume_data: Optional[dict] = None
 
     class Config:
         json_schema_extra = {
             "example": {
+                "target_role": "junior_ai_engineer",
+                "display_name": "Alex",
+                "resume_text": "3 years Python, TensorFlow, NLP projects...",
                 "resume_data": {
+                    "skills": ["Python", "TensorFlow", "NLP"],
                     "experience": "3 years",
-                    "skills": ["Python", "Django", "REST APIs"],
-                }
+                },
             }
         }
 
@@ -70,6 +79,8 @@ class StartRequest(BaseModel):
 class StartResponse(BaseModel):
     session_id: str
     greeting: str
+    profile_source: str
+    target_role: str
 
 
 class ChatRequest(BaseModel):
@@ -118,12 +129,21 @@ class ChatResponse(BaseModel):
 def start_interview(req: StartRequest):
     """
     Start a new interview session.
-    Accepts resume data and returns a session ID + intro greeting.
-    Persists session to Postgres (graceful fallback to in-memory).
-    """
-    session_id, result = sessions.start_interview(req.resume_data)
 
-    return StartResponse(session_id=session_id, greeting=result["question"])
+    Resume is optional. When omitted, the system uses the default profile for
+    target_role (default: junior_ai_engineer).
+    """
+    session_start = req.model_dump(exclude_none=True)
+    session_id, result = sessions.start_interview(session_start=session_start)
+    stored = sessions.get(session_id)
+    resume_data = stored.resume_data if stored else {}
+
+    return StartResponse(
+        session_id=session_id,
+        greeting=result["question"],
+        profile_source=resume_data.get("profile_source", "default"),
+        target_role=resume_data.get("target_role", DEFAULT_TARGET_ROLE),
+    )
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -164,6 +184,12 @@ def get_session_status(session_id: str):
         return sessions.get_status(session_id)
     except SessionNotFoundError:
         raise HTTPException(status_code=404, detail="Session not found.")
+
+
+@app.get("/roles")
+def list_roles():
+    """List available target interview roles."""
+    return {"roles": list_target_roles(), "default": DEFAULT_TARGET_ROLE}
 
 
 @app.get("/health")

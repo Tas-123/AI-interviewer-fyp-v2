@@ -27,18 +27,24 @@ class InterviewDialogueAdapter:
     def __init__(self, session_service=None):
         self._sessions = get_session_service() if session_service is None else session_service
 
-    def start_interview(self, candidate_profile: dict) -> dict:
+    def start_interview(self, candidate_profile: dict | None = None, **session_start) -> dict:
         """
         Start/initialize an interview session.
 
         Args:
-            candidate_profile: Dict with candidate resume data (skills, experience).
+            candidate_profile: Legacy flat resume dict.
+            **session_start: target_role, resume_text, display_name, resume_data, etc.
 
         Returns:
             dict: Session start status and intro greeting suitable for TTS.
         """
         try:
-            session_id, result = self._sessions.start_interview(candidate_profile)
+            if session_start:
+                session_id, result = self._sessions.start_interview(session_start=session_start)
+            elif candidate_profile is not None:
+                session_id, result = self._sessions.start_interview(resume_data=candidate_profile)
+            else:
+                session_id, result = self._sessions.start_interview()
             dm = self._sessions.get_dialogue_manager(session_id)
             status = dm.get_status()
             current_state = status.get("state", "intro")

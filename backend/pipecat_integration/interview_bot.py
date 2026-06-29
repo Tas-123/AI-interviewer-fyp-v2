@@ -177,6 +177,7 @@ async def run_bot():
     class JSONSerializer(FrameSerializer):
         def __init__(self):
             super().__init__()
+            self.pending_start_payload: dict = {}
 
         async def serialize(self, frame: Frame) -> str | bytes | None:
             if isinstance(frame, OutputAudioRawFrame):
@@ -203,6 +204,9 @@ async def run_bot():
                 try:
                     msg = json.loads(data)
                     if msg.get("type") == "start":
+                        self.pending_start_payload = {
+                            k: v for k, v in msg.items() if k != "type"
+                        }
                         return ClientConnectedFrame()
                     elif msg.get("type") == "end":
                         return EndFrame()
@@ -214,8 +218,9 @@ async def run_bot():
                     pass
             return None
 
-    # 2. Instantiate core dialogue adapter
+    # 2. Instantiate core dialogue adapter and serializer
     adapter = InterviewDialogueAdapter()
+    json_serializer = JSONSerializer()
 
     # 3. Setup WebSocket server transport
     logger.info(f"Initializing WebsocketServerTransport on {config.WEBSOCKET_HOST}:{config.WEBSOCKET_PORT}")
@@ -226,7 +231,7 @@ async def run_bot():
             audio_in_enabled=True,
             audio_out_enabled=True,
             add_wav_header=True,
-            serializer=JSONSerializer()
+            serializer=json_serializer
         )
     )
 
@@ -275,9 +280,18 @@ async def run_bot():
         logger.info("New WebSocket audio client connected.")
         
         try:
-            # Start a new dialogue session with a default candidate profile
-            # In production, this can be customized/passed during handshake
-            result = adapter.start_interview(config.DEFAULT_CANDIDATE_PROFILE)
+            start_payload = json_serializer.pending_start_payload or {}
+            json_serializer.pending_start_payload = {}
+
+            if start_payload:
+                logger.info(
+                    "Starting interview with client profile (target_role=%s)",
+                    start_payload.get("target_role", "junior_ai_engineer"),
+                )
+                result = adapter.start_interview(**start_payload)
+            else:
+                logger.info("Starting interview with default profile (no resume supplied)")
+                result = adapter.start_interview()
             
             if result.get("error"):
                 logger.error(f"Failed to start dialogue session: {result['error']}")

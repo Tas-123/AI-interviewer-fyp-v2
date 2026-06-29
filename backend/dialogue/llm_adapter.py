@@ -41,6 +41,7 @@ class LLMAdapter:
             raise ValueError("GROQ_API_KEY is missing. Add it to your .env file.")
         self.client = Groq(api_key=api_key)
         self.model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+        self.question_selector = None
     def generate(self, action, context):
         """
         Generate a question based on the action dict from DecisionEngine.
@@ -76,11 +77,23 @@ class LLMAdapter:
         """Generate a warm professional greeting."""
         skills_str = ", ".join(context.skills) if context.skills else "general"
         experience = context.resume_data.get("experience", "not specified")
+        role_title = context.resume_data.get("role", "Junior AI Engineer")
+        name = context.resume_data.get("name", "Candidate")
+        profile_source = context.resume_data.get("profile_source", "default")
 
         prompt = INTRO_SYSTEM_PROMPT.format(
             skills=skills_str,
             experience=experience,
         )
+        prompt += f"""
+
+Session context:
+- Candidate name: {name}
+- Target role: {role_title}
+- Profile source: {profile_source}
+- If profile_source is resume, briefly reference their skills or experience.
+- If profile_source is default, explain this is a structured {role_title} practice interview.
+"""
         return self._call_llm(prompt)
 
     def _generate_technical(self, action, context):
@@ -88,6 +101,17 @@ class LLMAdapter:
         topic = action.get("topic", "general")
         domain = action.get("domain", topic)
         difficulty = action.get("difficulty", "medium")
+
+        # Resume / question-bank path for domains that support personalization.
+        if action.get("type") == "ask":
+            selector = getattr(context, "question_selector", None) or self.question_selector
+            if selector and domain in ("project_overview", "behavioral_ownership"):
+                bank_question = selector.select_for_domain(
+                    domain,
+                    asked_questions=context.question_history,
+                )
+                if bank_question:
+                    return _naturalize_static_question(domain, bank_question)
 
         # Deterministic Junior AI Engineer question bank.
         # Main domain questions are fixed so coverage stays balanced and defensible.
@@ -115,7 +139,7 @@ class LLMAdapter:
         system_prompt += f"""
         
 Interview policy:
-- You are interviewing for a Junior AI Engineer role.
+- You are interviewing for a {context.resume_data.get("role", "Junior AI Engineer")} role.
 - Current required domain: {domain}.
 - Ask exactly ONE focused question for this domain.
 - Keep it practical and junior-level.

@@ -59,11 +59,13 @@ def test_session_creation():
     mgr = VoiceSessionManager()
     resume = {"skills": ["Python", "Django"], "role": "Backend Engineer"}
 
-    session = mgr.create_session(resume, session_id="test-voice-1")
+    session = mgr.create_session(resume_data=resume, session_id="test-voice-1")
 
     assert session.session_id == "test-voice-1"
-    assert session.candidate_role == "Backend Engineer"
-    assert session.candidate_skills == ["Python", "Django"]
+    # Phase 3: target_role drives role title; resume personalizes skills
+    assert session.candidate_role == "Junior AI Engineer"
+    assert "Python" in session.candidate_skills
+    assert session.profile_source == "resume"
     assert session.is_closed is False
     assert session.transcript_buffer == ""
     assert session.conversation_history == []
@@ -88,7 +90,7 @@ def test_session_expiry():
     mgr = VoiceSessionManager()
     resume = {"skills": ["Java"]}
 
-    session = mgr.create_session(resume, session_id="expire-test")
+    session = mgr.create_session(resume_data=resume, session_id="expire-test")
 
     # Force the session to appear old
     session.last_activity = time.time() - SESSION_TIMEOUT_SECONDS - 10
@@ -107,7 +109,7 @@ def test_session_expiry():
 def test_session_close():
     """Closed sessions should not be retrievable."""
     mgr = VoiceSessionManager()
-    mgr.create_session({"skills": []}, session_id="close-test")
+    mgr.create_session(resume_data={"skills": []}, session_id="close-test")
 
     assert mgr.get_active_count() == 1
 
@@ -152,7 +154,7 @@ def test_vad_speech_end():
 def test_transcript_buffer():
     """Transcript chunks should accumulate and flush correctly."""
     mgr = VoiceSessionManager()
-    mgr.create_session({"skills": []}, session_id="buffer-test")
+    mgr.create_session(resume_data={"skills": []}, session_id="buffer-test")
 
     mgr.append_transcript_chunk("buffer-test", "I worked on")
     mgr.append_transcript_chunk("buffer-test", "a Django project")
@@ -308,8 +310,8 @@ def test_combined_interruption_check():
 def test_session_listing():
     """Should list all sessions with correct metadata."""
     mgr = VoiceSessionManager()
-    mgr.create_session({"skills": ["Go"], "role": "SRE"}, "s1")
-    mgr.create_session({"skills": ["Rust"], "role": "Dev"}, "s2")
+    mgr.create_session(resume_data={"skills": ["Go"], "role": "SRE"}, session_id="s1")
+    mgr.create_session(resume_data={"skills": ["Rust"], "role": "Dev"}, session_id="s2")
 
     listing = mgr.list_sessions()
     assert len(listing) == 2

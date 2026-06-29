@@ -14,6 +14,7 @@ from typing import Iterator, Optional
 
 from dialogue.dialogue_manager import DialogueManager
 from dialogue import database as db
+from dialogue.session_bootstrap import bootstrap_from_request, build_candidate_profile
 
 logger = logging.getLogger(__name__)
 
@@ -52,32 +53,51 @@ class SessionService:
 
     def create(
         self,
-        resume_data: dict,
+        resume_data: dict | None = None,
         session_id: Optional[str] = None,
+        *,
+        session_start: dict | None = None,
     ) -> InterviewSession:
         """
         Create a new session or return an existing active one for session_id.
 
         Reuse supports REST /start followed by dev WS attach on the same id.
+
+        Args:
+            resume_data: Legacy flat resume dict (bootstrapped automatically).
+            session_start: Full session-start payload (target_role, resume_text, etc.).
         """
         sid = session_id or str(uuid.uuid4())
         existing = self._sessions.get(sid)
         if existing and not existing.ended:
             return existing
 
-        dm = DialogueManager(resume_data, session_id=sid)
+        if session_start is not None:
+            profile = bootstrap_from_request(session_start)
+        elif resume_data is not None:
+            profile = build_candidate_profile(resume_data=resume_data)
+        else:
+            profile = build_candidate_profile()
+
+        normalized = profile.to_resume_data()
+        dm = DialogueManager(normalized, session_id=sid)
         db.save_session(
             session_id=sid,
-            resume_data=resume_data,
-            role_applied=resume_data.get("role", ""),
+            resume_data=normalized,
+            role_applied=normalized.get("role", ""),
         )
         session = InterviewSession(
             session_id=sid,
             dialogue_manager=dm,
-            resume_data=resume_data,
+            resume_data=normalized,
         )
         self._sessions[sid] = session
-        logger.info("Session created: %s", sid)
+        logger.info(
+            "Session created: %s (source=%s, role=%s)",
+            sid,
+            profile.profile_source,
+            profile.target_role,
+        )
         return session
 
     def get(self, session_id: str) -> Optional[InterviewSession]:
@@ -101,8 +121,10 @@ class SessionService:
 
     def start_interview(
         self,
-        resume_data: dict,
+        resume_data: dict | None = None,
         session_id: Optional[str] = None,
+        *,
+        session_start: dict | None = None,
     ) -> tuple[str, dict]:
         """
         Create session and run the intro turn (empty transcript).
@@ -110,7 +132,11 @@ class SessionService:
         Returns:
             (session_id, handle_turn result dict)
         """
-        session = self.create(resume_data, session_id=session_id)
+        session = self.create(
+            resume_data=resume_data,
+            session_id=session_id,
+            session_start=session_start,
+        )
         result = session.dialogue_manager.handle_turn("")
         return session.session_id, result
 

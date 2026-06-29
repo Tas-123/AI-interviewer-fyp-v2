@@ -34,6 +34,12 @@ STAGE_TO_CATEGORIES = {
     "role_specific": ["role_specific"],
 }
 
+# Mapping from blueprint domain to question bank category
+DOMAIN_TO_QUESTION_TYPE = {
+    "project_overview": "role_specific",
+    "behavioral_ownership": "behavioral",
+}
+
 
 class QuestionSelector:
     """
@@ -58,8 +64,20 @@ class QuestionSelector:
         self._resume_questions = questions or []
         self._resume_question_index = 0
 
-    def select_question(self, question_type: str,
-                        asked_questions: list = None) -> str | None:
+    def select_for_domain(
+        self,
+        domain: str,
+        asked_questions: list | None = None,
+    ) -> str | None:
+        """Select a question for a blueprint domain (resume-first, then bank)."""
+        question_type = DOMAIN_TO_QUESTION_TYPE.get(domain, "role_specific")
+        return self.select_question(question_type, asked_questions)
+
+    def select_question(
+        self,
+        question_type: str,
+        asked_questions: list | None = None,
+    ) -> str | None:
         """
         Select a question using the priority pipeline.
 

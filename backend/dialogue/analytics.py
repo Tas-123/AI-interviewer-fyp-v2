@@ -880,6 +880,10 @@ def generate_final_report(context) -> dict:
             "interview_stage": context.interview_stage,
             "skills_assessed": context.skills,
             "behavioral_categories_covered": context.behavioral_categories_used,
+            "target_role": getattr(context, "target_role", "junior_ai_engineer"),
+            "profile_source": getattr(context, "profile_source", "default"),
+            "role_title": context.resume_data.get("role", "Junior AI Engineer"),
+            "domain_coverage": context.get_domain_summary(),
         },
     }
 

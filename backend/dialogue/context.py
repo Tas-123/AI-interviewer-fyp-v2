@@ -2,6 +2,8 @@
 Interview Context — Tracks all session state for one interview.
 """
 
+from core.role_registry import get_role_config
+from dialogue.coverage_engine import CoverageEngine
 from dialogue.states import InterviewState
 
 
@@ -27,38 +29,29 @@ class InterviewContext:
         self.transcript_history = []
         self.turn_count = 0
 
-        # Technical skills extracted from resume
+        # Session metadata (Phase 3 bootstrap)
+        self.target_role = resume_data.get("target_role", "junior_ai_engineer")
+        self.profile_source = resume_data.get("profile_source", "default")
+
+        # Technical skills extracted from resume / default profile
         self.skills = [skill.lower() for skill in resume_data.get("skills", [])]
 
-        # Junior AI Engineer interview blueprint.
-        # This controls balanced domain coverage so the bot does not over-probe one topic.
-        self.interview_blueprint = [
-            "project_overview",
-            "python",
-            "machine_learning",
-            "data_preprocessing",
-            "model_evaluation",
-            "nlp_speech_ai",
-            "apis_backend",
-            "deployment",
-            "debugging_problem_solving",
-            "behavioral_ownership",
-        ]
+        # Blueprint coverage via CoverageEngine (role-driven structure)
+        role_cfg = get_role_config(self.target_role)
+        self.coverage = CoverageEngine(role_cfg)
+        self.interview_blueprint = self.coverage.interview_blueprint
+        self.domain_coverage = self.coverage.domain_coverage
+        self.domain_probe_counts = self.coverage.domain_probe_counts
+        self.current_domain = self.coverage.current_domain
+        self.max_turns_per_domain = self.coverage.max_turns_per_domain
+        self.max_probes_per_domain = self.coverage.max_probes_per_domain
+        self.max_total_interview_turns = self.coverage.max_total_interview_turns
+        self.max_context_followups_total = self.coverage.max_context_followups_total
+        self.context_followups_used = self.coverage.context_followups_used
+        self.context_followup_domains = self.coverage.context_followup_domains
 
-        self.domain_coverage = {domain: 0 for domain in self.interview_blueprint}
-        self.domain_probe_counts = {domain: 0 for domain in self.interview_blueprint}
-        self.current_domain = self.interview_blueprint[0]
-
-        # Hard limits to prevent long, repetitive interviews.
-        self.max_turns_per_domain = 1
-        self.max_probes_per_domain = 1
-        self.max_total_interview_turns = 12
-
-        # Controlled adaptive context follow-ups.
-        # Keeps the interview adaptive without becoming too long.
-        self.max_context_followups_total = 3
-        self.context_followups_used = 0
-        self.context_followup_domains = set()
+        # Resume-conditioned question pipeline (optional)
+        self.question_selector = None
 
         # Legacy compatibility
         self.topic_coverage = {skill: 0 for skill in self.skills}
@@ -218,67 +211,42 @@ class InterviewContext:
 
     def can_context_followup(self, domain: str) -> bool:
         """Allow limited answer-aware follow-ups across the whole interview."""
-        if not domain:
-            return False
-
-        if self.context_followups_used >= self.max_context_followups_total:
-            return False
-
-        if domain in self.context_followup_domains:
-            return False
-
-        return True
+        return self.coverage.can_context_followup(domain)
 
     def mark_context_followup(self, domain: str):
         """Record that a context follow-up was used for this domain."""
-        if not domain:
-            return
-
-        self.context_followups_used += 1
-        self.context_followup_domains.add(domain)
-
+        self.coverage.mark_context_followup(domain)
+        self._sync_coverage_state()
 
     def get_next_domain(self):
         """Return the next interview blueprint domain that still needs coverage."""
-        for domain in self.interview_blueprint:
-            if self.domain_coverage.get(domain, 0) < self.max_turns_per_domain:
-                return domain
-        return None
+        return self.coverage.get_next_domain()
 
     def mark_domain_covered(self, domain: str):
         """Increment coverage count for a domain."""
-        if not domain:
-            return
-        if domain not in self.domain_coverage:
-            self.domain_coverage[domain] = 0
-        self.domain_coverage[domain] += 1
-        self.current_domain = domain
+        self.coverage.mark_domain_covered(domain)
+        self._sync_coverage_state()
 
     def mark_domain_probe(self, domain: str):
         """Increment probe count for a domain."""
-        if not domain:
-            return
-        if domain not in self.domain_probe_counts:
-            self.domain_probe_counts[domain] = 0
-        self.domain_probe_counts[domain] += 1
+        self.coverage.mark_domain_probe(domain)
+        self._sync_coverage_state()
 
     def can_probe_domain(self, domain: str) -> bool:
         """Return whether the current domain can still be probed."""
-        if not domain:
-            return False
-        return self.domain_probe_counts.get(domain, 0) < self.max_probes_per_domain
+        return self.coverage.can_probe_domain(domain)
 
     def get_domain_summary(self) -> dict:
         """Return blueprint domain coverage/probe summary for reporting."""
-        return {
-            "blueprint": list(self.interview_blueprint),
-            "coverage": dict(self.domain_coverage),
-            "probe_counts": dict(self.domain_probe_counts),
-            "current_domain": self.current_domain,
-            "max_turns_per_domain": self.max_turns_per_domain,
-            "max_probes_per_domain": self.max_probes_per_domain,
-            "max_total_interview_turns": self.max_total_interview_turns,
-        }
+        return self.coverage.get_summary()
+
+    def _sync_coverage_state(self):
+        """Keep legacy attribute aliases in sync with CoverageEngine."""
+        self.domain_coverage = self.coverage.domain_coverage
+        self.domain_probe_counts = self.coverage.domain_probe_counts
+        self.current_domain = self.coverage.current_domain
+        self.context_followups_used = self.coverage.context_followups_used
+        self.context_followup_domains = self.coverage.context_followup_domains
 
     def get_next_behavioral_category(self):
         """

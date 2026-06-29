@@ -204,6 +204,8 @@ http://localhost:8766/latest-report
 
 See [docs/DIALOGUE_PIPELINE.md](docs/DIALOGUE_PIPELINE.md) for guard order and turn flow.
 
+See [docs/INTERVIEW_FLOW.md](docs/INTERVIEW_FLOW.md) for optional resume, blueprint coverage, and session bootstrap (Phase 3).
+
 A clean debug log may be available at:
 
 ```text

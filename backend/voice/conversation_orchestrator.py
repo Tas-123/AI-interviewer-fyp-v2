@@ -1,11 +1,10 @@
 """
 Conversation Orchestrator — Bridges voice layer to the interview engine.
 
-Takes a completed candidate transcript, processes it through the existing
-DialogueManager and InterviewFlowController, and returns a structured
-response for the WebSocket layer.
+Takes a completed candidate transcript, processes it through DialogueManager,
+and returns a structured response for the WebSocket layer.
 
-Does NOT modify any existing engine components — read-only integration.
+Phase 3: Uses blueprint domain stage from InterviewContext (no InterviewFlowController).
 """
 
 
@@ -28,15 +27,11 @@ class ConversationOrchestrator:
             Structured response dict with intro question.
         """
         dm = session.dialogue_manager
-        fc = session.flow_controller
-
-        # Advance flow controller to INTRO stage
-        fc.advance()
-        session.current_stage = fc.current_stage.value
 
         # Generate intro through DialogueManager (empty transcript)
         result = dm.handle_turn("")
-        session.turn_count = fc.turn_count
+        session.turn_count = dm.context.turn_count
+        session.current_stage = dm.context.get_domain_summary().get("current_domain", "intro")
 
         question = result.get("question", "")
 
@@ -53,6 +48,8 @@ class ConversationOrchestrator:
             "text": question,
             "stage": session.current_stage,
             "turn": session.turn_count,
+            "profile_source": session.profile_source,
+            "target_role": session.target_role,
         }
 
     def process_turn(self, session, transcript: str) -> dict:
@@ -67,11 +64,10 @@ class ConversationOrchestrator:
             Structured response dict with next question + evaluation.
         """
         dm = session.dialogue_manager
-        fc = session.flow_controller
 
         # Record candidate answer in history
         session.conversation_history.append({
-            "turn": fc.turn_count + 1,
+            "turn": session.turn_count + 1,
             "stage": session.current_stage,
             "speaker": "candidate",
             "text": transcript,
@@ -80,20 +76,15 @@ class ConversationOrchestrator:
         # Process through DialogueManager (handles evaluation internally)
         result = dm.handle_turn(transcript)
 
-        # Get the latest evaluation for flow controller decision
-        last_eval = result.get("evaluation")
-
-        # Advance the flow controller
-        new_stage = fc.advance(last_eval)
-        session.current_stage = new_stage.value
-        session.turn_count = fc.turn_count
+        session.turn_count = dm.context.turn_count
+        session.current_stage = dm.context.get_domain_summary().get("current_domain", session.current_stage)
 
         question = result.get("question", "")
         decision_type = result.get("decision_type")
         latency_ms = result.get("latency_ms", 0)
+        is_complete = dm.context.state.value == "wrapup"
 
-        # Check if interview is complete
-        if fc.is_complete():
+        if is_complete and not question:
             question = "Thank you for your time. This concludes the interview."
 
         # Record AI response in history
@@ -104,6 +95,8 @@ class ConversationOrchestrator:
             "text": question,
         })
 
+        last_eval = result.get("evaluation")
+
         return {
             "type": "ai_response",
             "text": question,
@@ -112,7 +105,8 @@ class ConversationOrchestrator:
             "decision_type": decision_type,
             "latency_ms": latency_ms,
             "evaluation_summary": _compact_eval(last_eval),
-            "is_complete": fc.is_complete(),
+            "is_complete": is_complete,
+            "domain_coverage": dm.context.get_domain_summary(),
         }
 
     def get_report(self, session) -> dict:

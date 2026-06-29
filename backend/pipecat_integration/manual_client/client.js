@@ -118,9 +118,14 @@ async function startSession() {
             log("WebSocket connection established successfully.", "success");
             setUIState(true);
 
-            // Send start control trigger to pipeline
+            // Send start control trigger to pipeline (optional resume profile)
             log("Sending startup handshake control frame...", "info");
-            ws.send(JSON.stringify({ type: "start" }));
+            const displayName = document.getElementById("input-name")?.value?.trim() || "";
+            const resumeText = document.getElementById("input-resume")?.value?.trim() || "";
+            const startPayload = { type: "start", target_role: "junior_ai_engineer" };
+            if (displayName) startPayload.display_name = displayName;
+            if (resumeText) startPayload.resume_text = resumeText;
+            ws.send(JSON.stringify(startPayload));
 
             // Setup mic processing nodes
             micSource = audioContext.createMediaStreamSource(micStream);

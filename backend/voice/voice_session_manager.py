@@ -3,6 +3,8 @@ Voice Session Manager — Manages active voice interview sessions.
 
 Tracks per-session conversation state, transcript buffers, and
 DialogueManager references. Supports automatic expiry of inactive sessions.
+
+Phase 3: InterviewFlowController removed — blueprint stage comes from DialogueManager.
 """
 
 import time
@@ -11,11 +13,20 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from core.session_service import get_session_service
-from dialogue.interview_flow_controller import InterviewFlowController
+from dialogue.dialogue_manager import DialogueManager
 
 
 # Sessions expire after 30 minutes of inactivity
 SESSION_TIMEOUT_SECONDS = 30 * 60
+
+
+def _blueprint_stage(dm: DialogueManager) -> str:
+    """Derive display stage from coverage engine (single source of truth)."""
+    summary = dm.context.get_domain_summary()
+    current = summary.get("current_domain") or "intro"
+    if dm.context.state.value == "wrapup":
+        return "wrapup"
+    return current
 
 
 @dataclass
@@ -24,10 +35,11 @@ class VoiceSession:
 
     session_id: str
     dialogue_manager: DialogueManager
-    flow_controller: InterviewFlowController
     candidate_role: str = ""
     candidate_skills: list = field(default_factory=list)
-    current_stage: str = "init"
+    profile_source: str = "default"
+    target_role: str = "junior_ai_engineer"
+    current_stage: str = "intro"
     turn_count: int = 0
     transcript_buffer: str = ""
     conversation_history: list = field(default_factory=list)
@@ -49,35 +61,37 @@ class VoiceSessionManager:
 
     def create_session(
         self,
-        resume_data: dict,
+        resume_data: dict | None = None,
         session_id: str = None,
+        *,
+        session_start: dict | None = None,
     ) -> VoiceSession:
         """
-        Create a new voice interview session.
-
-        Args:
-            resume_data: candidate resume data dict
-            session_id: optional pre-assigned session ID
-
-        Returns:
-            New VoiceSession instance.
+        Create a new voice interview session via unified SessionService.
         """
         sid = session_id or str(uuid.uuid4())
-        role = resume_data.get("role", "")
-        skills = resume_data.get("skills", [])
-
         svc = get_session_service()
-        stored = svc.create(resume_data, session_id=sid)
+
+        if session_start is not None:
+            stored = svc.create(session_start=session_start, session_id=sid)
+        elif resume_data is not None:
+            stored = svc.create(resume_data=resume_data, session_id=sid)
+        else:
+            stored = svc.create(session_id=sid)
+
         dm = stored.dialogue_manager
-        fc = InterviewFlowController(sid, candidate_role=role,
-                                     candidate_skills=skills)
+        rd = stored.resume_data
+        role = rd.get("role", "")
+        skills = rd.get("skills", [])
 
         session = VoiceSession(
             session_id=sid,
             dialogue_manager=dm,
-            flow_controller=fc,
             candidate_role=role,
             candidate_skills=skills,
+            profile_source=rd.get("profile_source", "default"),
+            target_role=rd.get("target_role", "junior_ai_engineer"),
+            current_stage=_blueprint_stage(dm),
         )
         self._sessions[sid] = session
         return session
@@ -133,8 +147,11 @@ class VoiceSessionManager:
             {
                 "session_id": s.session_id,
                 "current_stage": s.current_stage,
+                "current_domain": s.dialogue_manager.context.get_domain_summary().get("current_domain"),
                 "turn_count": s.turn_count,
                 "candidate_role": s.candidate_role,
+                "profile_source": s.profile_source,
+                "target_role": s.target_role,
                 "is_closed": s.is_closed,
                 "idle_seconds": round(time.time() - s.last_activity, 1),
             }
@@ -159,3 +176,8 @@ class VoiceSessionManager:
         transcript = session.transcript_buffer.strip()
         session.transcript_buffer = ""
         return transcript
+
+    def sync_stage(self, session: VoiceSession):
+        """Refresh current_stage from DialogueManager blueprint state."""
+        session.current_stage = _blueprint_stage(session.dialogue_manager)
+        session.turn_count = session.dialogue_manager.context.turn_count

@@ -126,23 +126,30 @@ async def test_processor_interview_completion():
 
     await processor.process_frame(frame, FrameDirection.DOWNSTREAM)
 
-    # Verify two frames were pushed: TTSSpeakFrame downstream and EndTaskFrame upstream
-    assert len(processor.pushed_frames) == 2
+    # Verify three frames: AI response, spoken closing, EndTaskFrame upstream
+    assert len(processor.pushed_frames) == 3
     
-    # 1. TTSSpeakFrame downstream
+    # 1. TTSSpeakFrame downstream (AI response)
     pushed_frame_1, direction_1 = processor.pushed_frames[0]
     assert isinstance(pushed_frame_1, TTSSpeakFrame)
     assert pushed_frame_1.text == "Thank you, this concludes the interview. Goodbye!"
     assert direction_1 == FrameDirection.DOWNSTREAM
 
-    # 2. EndTaskFrame upstream
+    # 2. TTSSpeakFrame downstream (closing message)
     pushed_frame_2, direction_2 = processor.pushed_frames[1]
-    assert isinstance(pushed_frame_2, EndTaskFrame)
-    assert direction_2 == FrameDirection.UPSTREAM
+    assert isinstance(pushed_frame_2, TTSSpeakFrame)
+    assert direction_2 == FrameDirection.DOWNSTREAM
+
+    # 3. EndTaskFrame upstream
+    pushed_frame_3, direction_3 = processor.pushed_frames[2]
+    assert isinstance(pushed_frame_3, EndTaskFrame)
+    assert direction_3 == FrameDirection.UPSTREAM
     print("[PASS] test_processor_interview_completion")
 
 async def test_session_lifecycle():
     """Verify standard session lifecycle: starts session, runs turns, ends session, checks database persistence."""
+    from core.session_service import reset_session_service
+    reset_session_service()
     adapter = InterviewDialogueAdapter()
     profile = {
         "name": "Jane QA",
@@ -171,8 +178,8 @@ async def test_session_lifecycle():
 
     # Apply mocks
     from unittest.mock import patch
-    with patch("integration.dialogue_adapter.DialogueManager", return_value=mock_dm), \
-         patch("integration.dialogue_adapter.db.save_session") as mock_save:
+    with patch("core.session_service.DialogueManager", return_value=mock_dm), \
+         patch("core.session_service.db.save_session") as mock_save:
          
         # 1. Start Interview
         start_res = adapter.start_interview(profile)
@@ -196,18 +203,20 @@ async def test_session_lifecycle():
         mock_dm.get_status.return_value = {"state": "wrapup", "turn_count": 2}
         await processor.process_frame(TranscriptionFrame(text="You use pytest mark parameterize decorator.", user_id="test-user", timestamp="0", finalized=True), FrameDirection.DOWNSTREAM)
         
-        # Pushed goodbye TTSSpeakFrame + EndTaskFrame
-        assert len(processor.pushed_frames) == 3
+        # Pushed goodbye TTSSpeakFrame + closing TTSSpeakFrame + EndTaskFrame
+        assert len(processor.pushed_frames) == 4
         p2, d2 = processor.pushed_frames[1]
         assert isinstance(p2, TTSSpeakFrame)
         assert p2.text == "Excellent. We will conclude here."
         p3, d3 = processor.pushed_frames[2]
-        assert isinstance(p3, EndTaskFrame)
+        assert isinstance(p3, TTSSpeakFrame)
+        p4, d4 = processor.pushed_frames[3]
+        assert isinstance(p4, EndTaskFrame)
 
         # 4. End Interview
         end_res = adapter.end_interview(session_id)
         assert end_res["status"] == "ended"
-        assert session_id not in adapter.sessions
+        assert not adapter._sessions.has(session_id)
 
     print("[PASS] test_session_lifecycle")
 
@@ -220,7 +229,7 @@ async def test_sanitize_tts_text():
     # Quota/Gemini errors get substituted
     error_1 = "[Error generating question. Please try again.]"
     error_2 = "Error generating question: API key invalid."
-    fallback = "Welcome to the interview. Please tell me about yourself and your experience with Python."
+    fallback = "Welcome to the interview. Please briefly introduce yourself and tell me what kind of role or area you would like this interview to focus on."
     
     assert sanitize_tts_text(error_1) == fallback
     assert sanitize_tts_text(error_2) == fallback

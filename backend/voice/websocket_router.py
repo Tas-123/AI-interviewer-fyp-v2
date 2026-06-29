@@ -83,9 +83,12 @@ async def voice_interview(websocket: WebSocket, session_id: str):
 
             # ── START INTERVIEW ──────────────────────────────────
             if msg_type == "start_interview":
-                resume_data = message.get("resume_data", {})
+                session_start = {
+                    k: v for k, v in message.items()
+                    if k not in ("type",)
+                }
                 session = voice_manager.create_session(
-                    resume_data=resume_data,
+                    session_start=session_start or None,
                     session_id=session_id,
                 )
 

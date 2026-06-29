@@ -47,7 +47,7 @@ def test_adapter_start_interview():
     assert res["turn_count"] == 0
     assert res["is_complete"] is False
     assert res["error"] is None
-    svc.start_interview.assert_called_once_with(profile)
+    svc.start_interview.assert_called_once_with(resume_data=profile)
     print("[PASS] test_adapter_start_interview")
 
 

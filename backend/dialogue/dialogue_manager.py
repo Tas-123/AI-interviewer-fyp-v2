@@ -16,6 +16,7 @@ from dialogue.transcript_utils import clean_live_transcript
 from dialogue.decision_engine import DecisionEngine
 from dialogue.llm_adapter import LLMAdapter
 from dialogue.evaluator import Evaluator
+from dialogue.question_selector import QuestionSelector
 
 
 class DialogueManager:
@@ -31,6 +32,16 @@ class DialogueManager:
             llm_client=self.llm.client,
             llm_model=self.llm.model,
         )
+        self._init_question_selector(resume_data)
+
+    def _init_question_selector(self, resume_data: dict):
+        """Wire resume-conditioned questions when profile came from a resume."""
+        selector = QuestionSelector()
+        resume_questions = resume_data.get("_resume_questions") or []
+        if resume_questions:
+            selector.set_resume_questions(resume_questions)
+        self.context.question_selector = selector
+        self.llm.question_selector = selector
 
     def _debug_live_log(self, label: str, value):
         """
@@ -511,6 +522,9 @@ class DialogueManager:
             "topic_coverage": dict(self.context.topic_coverage),
             "behavioral_categories_used": self.context.behavioral_categories_used,
             "evaluation_summary": self.context.get_evaluation_summary(),
+            "target_role": self.context.target_role,
+            "profile_source": self.context.profile_source,
+            "domain_coverage_summary": self.context.get_domain_summary(),
         }
 
         # Live analytics (only if we have scored data)
