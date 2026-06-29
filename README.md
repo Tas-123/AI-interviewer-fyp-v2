@@ -206,6 +206,8 @@ See [docs/DIALOGUE_PIPELINE.md](docs/DIALOGUE_PIPELINE.md) for guard order and t
 
 See [docs/INTERVIEW_FLOW.md](docs/INTERVIEW_FLOW.md) for optional resume, blueprint coverage, and session bootstrap (Phase 3).
 
+See [docs/PHASE_4_COMPLETE.md](docs/PHASE_4_COMPLETE.md) for evaluation rubric, ensemble scoring, and human-study export (Phase 4).
+
 A clean debug log may be available at:
 
 ```text

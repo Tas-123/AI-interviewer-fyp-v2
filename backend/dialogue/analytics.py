@@ -13,23 +13,31 @@ No external dependencies. No LLM calls. Fully testable.
 
 import math
 
+from evaluation.rubric import (
+    DIMENSION_WEIGHTS,
+    compute_weighted_score,
+    get_evaluation_methodology,
+)
+
+
+# Re-export for backward compatibility
+__all__ = [
+    "DIMENSION_WEIGHTS",
+    "compute_weighted_score",
+    "get_evaluation_methodology",
+]
+
+
+def _count_rethink_turns(context) -> int:
+    """Count turns where ensemble rethink was applied (stored on evaluations)."""
+    return sum(
+        1 for e in getattr(context, "evaluations", [])
+        if e.get("ensemble_merged")
+    )
+
 
 # ====================================================================
-#  Scoring Weights (sum = 1.0)
-# ====================================================================
-
-DIMENSION_WEIGHTS = {
-    "structure": 0.25,
-    "result_orientation": 0.20,
-    "ownership": 0.20,
-    "leadership": 0.15,
-    "clarity": 0.10,
-    "confidence": 0.10,
-}
-
-
-# ====================================================================
-#  1. Weighted Scoring
+#  1. Weighted Scoring — delegated to evaluation.rubric
 # ====================================================================
 
 
@@ -116,24 +124,6 @@ def _technical_report_followup_filter(items, trace_items=None):
         filtered.append(item)
 
     return filtered
-
-
-def compute_weighted_score(scores: dict) -> float:
-    """
-    Compute weighted overall score from 6-dimension scores.
-
-    Args:
-        scores: dict with keys matching DIMENSION_WEIGHTS
-                (clarity, structure, confidence, ownership,
-                 leadership, result_orientation)
-
-    Returns:
-        Weighted score rounded to 2 decimals.
-    """
-    total = 0.0
-    for dim, weight in DIMENSION_WEIGHTS.items():
-        total += scores.get(dim, 0) * weight
-    return round(total, 2)
 
 
 # ====================================================================
@@ -884,7 +874,10 @@ def generate_final_report(context) -> dict:
             "profile_source": getattr(context, "profile_source", "default"),
             "role_title": context.resume_data.get("role", "Junior AI Engineer"),
             "domain_coverage": context.get_domain_summary(),
+            "evaluation_methodology": get_evaluation_methodology(),
+            "ensemble_rethink_turns": _count_rethink_turns(context),
         },
+        "evaluation_methodology": get_evaluation_methodology(),
     }
 
 

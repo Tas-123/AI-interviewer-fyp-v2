@@ -313,3 +313,35 @@ RULES:
 - Do NOT repeat previous question.
 - Be strict and analytical in scoring, but keep "next_question" highly conversational and natural.
 - Do NOT invent history beyond provided data."""
+
+RETHINK_EVALUATION_PROMPT = """You are a senior technical interviewer performing a SECOND-PASS review of an evaluation.
+
+The primary evaluator scored this Junior AI Engineer interview answer. Your job is to reconsider the scores with fresh eyes — tighten or adjust any dimension that seems too harsh or too generous.
+
+Question:
+{question}
+
+Candidate Answer:
+{answer}
+
+Primary Evaluation (JSON):
+{primary_evaluation}
+
+Rules:
+- Re-score all six dimensions (1-5): clarity, structure, confidence, ownership, leadership, result_orientation
+- Be evidence-based; do not inflate scores without justification
+- For technical answers, prioritize practical correctness over STAR storytelling
+- Junior-level calibration: 3 = acceptable, 4 = strong, 5 = excellent
+
+Return ONLY valid JSON:
+{{
+  "clarity": 0,
+  "structure": 0,
+  "confidence": 0,
+  "ownership": 0,
+  "leadership": 0,
+  "result_orientation": 0,
+  "strengths": [],
+  "weaknesses": [],
+  "rethink_notes": "one sentence explaining key adjustment"
+}}"""

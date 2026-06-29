@@ -5,6 +5,8 @@ Transforms internal analytics data into structured recruiter-friendly outputs.
 Does NOT modify the evaluation engine or analytics logic — reads only.
 """
 
+from evaluation.rubric import RECRUITER_HIRE_THRESHOLDS, get_evaluation_methodology
+
 
 def generate_hr_report(dm) -> dict:
     """
@@ -100,6 +102,8 @@ def generate_hr_report(dm) -> dict:
         "trend_label": trend_label,
         "hire_recommendation": hire_recommendation,
         "risk_flags": risk_flags,
+        "evaluation_methodology": get_evaluation_methodology(),
+        "avg_weighted_score": avg_weighted,
     }
 
 
@@ -114,12 +118,12 @@ def derive_hire_recommendation(
     Returns:
         One of: STRONG_HIRE, HIRE, LEAN_HIRE, NO_HIRE
     """
-    # Base score tiers
-    if weighted_score >= 4.0:
+    # Base score tiers (from central rubric)
+    if weighted_score >= RECRUITER_HIRE_THRESHOLDS["strong_hire"]:
         base = "STRONG_HIRE"
-    elif weighted_score >= 3.0:
+    elif weighted_score >= RECRUITER_HIRE_THRESHOLDS["hire"]:
         base = "HIRE"
-    elif weighted_score >= 2.0:
+    elif weighted_score >= RECRUITER_HIRE_THRESHOLDS["lean_hire"]:
         base = "LEAN_HIRE"
     else:
         base = "NO_HIRE"

@@ -203,6 +203,38 @@ def health_check():
     }
 
 
+@app.get("/export/human-study/{session_id}")
+def export_human_study(session_id: str, fmt: str = "json"):
+    """
+    Export scored turns for manual human rating (thesis κ study).
+
+    Query param fmt: json (default) returns row data; csv returns file paths info.
+    """
+    from evaluation.human_study_export import export_from_dialogue_manager, extract_rows_from_context
+
+    try:
+        dm = sessions.get_dialogue_manager(session_id)
+    except SessionNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    rows = extract_rows_from_context(dm.context)
+    if fmt == "csv":
+        from core.config import settings
+        paths = export_from_dialogue_manager(
+            dm,
+            settings.reports_dir,
+            basename=f"human_study_{session_id[:8]}",
+        )
+        return {"session_id": session_id, **paths}
+
+    return {
+        "session_id": session_id,
+        "row_count": len(rows),
+        "rows": rows,
+        "instructions": "Fill human_rating_overall (1-5) for κ agreement study.",
+    }
+
+
 @app.get("/report/{session_id}")
 def get_final_report(session_id: str):
     """

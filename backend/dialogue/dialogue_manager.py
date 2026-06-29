@@ -177,11 +177,13 @@ class DialogueManager:
                 answer=transcript,
                 previous_evaluations=self.context.get_previous_evaluations_summary(),
                 interview_stage=self.context.interview_stage,
+                domain=getattr(self.context, "current_domain", ""),
             )
 
             evaluation = adaptive_result.get("evaluation", {})
             decision = adaptive_result.get("decision", {})
             latency_ms = adaptive_result.get("latency_ms", 0)
+            eval_method = adaptive_result.get("evaluation_method", {})
             self.latency_history.append(latency_ms)
 
             # Store evaluation in context
@@ -302,6 +304,10 @@ class DialogueManager:
                     },
                     "star_breakdown": evaluation.get("star_breakdown", {}),
                     "hire_signal": evaluation.get("hire_signal", "N/A"),
+                    "evaluation_method": {
+                        "rethink_applied": eval_method.get("rethink_applied", False),
+                        "method": eval_method.get("method", ""),
+                    },
                 })
             except Exception as trace_error:
                 print(f"[Adaptive Trace Warning] Could not store trace: {trace_error}")
