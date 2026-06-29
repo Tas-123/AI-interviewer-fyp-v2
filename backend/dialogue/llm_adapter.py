@@ -20,9 +20,11 @@ NATURAL INTERVIEWER STYLE RULES:
 
 
 
+import logging
 import os
 from dotenv import load_dotenv
 from groq import Groq
+from core.config import settings
 from dialogue.output_sanitizer import sanitize_interviewer_output
 from dialogue.prompts import (
     BEHAVIORAL_SYSTEM_PROMPT,
@@ -32,15 +34,18 @@ from dialogue.prompts import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 class LLMAdapter:
 
     def __init__(self):
         load_dotenv()
-        api_key = os.getenv("GROQ_API_KEY")
+        api_key = settings.groq_api_key
         if not api_key:
             raise ValueError("GROQ_API_KEY is missing. Add it to your .env file.")
         self.client = Groq(api_key=api_key)
-        self.model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+        self.model = settings.groq_model
         self.question_selector = None
     def generate(self, action, context):
         """
@@ -250,17 +255,17 @@ Follow-up policy:
                     return text
 
                 if attempt == 0:
-                    print("[Groq LLM] Empty/short response on attempt 1, retrying...")
+                    logger.warning("Empty/short response on attempt 1, retrying...")
                     continue
 
                 return text if text else "[Error generating question. Please try again.]"
 
             except Exception as e:
                 if attempt == 0:
-                    print(f"[Groq LLM] Attempt 1 failed: {e}, retrying...")
+                    logger.warning("Attempt 1 failed: %s, retrying...", e)
                     continue
 
-                print(f"[Groq LLM Error] {e}")
+                logger.error("Groq LLM error: %s", e)
                 return "[Error generating question. Please try again.]"
 
         return "[Error generating question. Please try again.]"

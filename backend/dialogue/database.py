@@ -6,9 +6,12 @@ All functions are safe to call regardless of DB availability.
 """
 
 import json
+import logging
 import os
 import time
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 # ====================================================================
@@ -28,7 +31,7 @@ def _get_connection():
         conn = psycopg2.connect(url)
         return conn
     except Exception as e:
-        print(f"[Database] Connection failed: {e}")
+        logger.warning("Connection failed: %s", e)
         return None
 
 
@@ -53,7 +56,7 @@ def create_tables():
     """Create sessions and responses tables if they don't exist."""
     conn = _get_connection()
     if not conn:
-        print("[Database] Postgres unavailable. Using in-memory storage only.")
+        logger.info("Postgres unavailable. Using in-memory storage only.")
         return False
 
     try:
@@ -90,10 +93,10 @@ def create_tables():
         conn.commit()
         cur.close()
         conn.close()
-        print("[Database] Tables created successfully.")
+        logger.info("Tables created successfully.")
         return True
     except Exception as e:
-        print(f"[Database] Table creation error: {e}")
+        logger.warning("Table creation error: %s", e)
         conn.close()
         return False
 
@@ -122,7 +125,7 @@ def save_session(session_id: str, resume_data: dict, role_applied: str = ""):
         conn.close()
         return True
     except Exception as e:
-        print(f"[Database] save_session error: {e}")
+        logger.warning("save_session error: %s", e)
         conn.close()
         return False
 
@@ -157,7 +160,7 @@ def update_session_finals(
         conn.close()
         return True
     except Exception as e:
-        print(f"[Database] update_session_finals error: {e}")
+        logger.warning("update_session_finals error: %s", e)
         conn.close()
         return False
 
@@ -203,7 +206,7 @@ def save_response(
         conn.close()
         return True
     except Exception as e:
-        print(f"[Database] save_response error: {e}")
+        logger.warning("save_response error: %s", e)
         conn.close()
         return False
 
@@ -249,7 +252,7 @@ def get_latency_metrics(session_id: str) -> dict:
         return {"avg_ms": avg, "p95_ms": p95, "max_ms": max_l, "source": "postgres"}
 
     except Exception as e:
-        print(f"[Database] get_latency_metrics error: {e}")
+        logger.warning("get_latency_metrics error: %s", e)
         conn.close()
         return {"avg_ms": 0, "p95_ms": 0, "max_ms": 0, "source": "error"}
 
@@ -286,7 +289,7 @@ def get_session_responses(session_id: str) -> list:
             })
         return results
     except Exception as e:
-        print(f"[Database] get_session_responses error: {e}")
+        logger.warning("get_session_responses error: %s", e)
         conn.close()
         return []
 
@@ -326,7 +329,7 @@ def list_sessions() -> list:
             })
         return results
     except Exception as e:
-        print(f"[Database] list_sessions error: {e}")
+        logger.warning("list_sessions error: %s", e)
         conn.close()
         return []
 
@@ -363,6 +366,6 @@ def get_session(session_id: str) -> dict | None:
             "resume_data": json.loads(r[7]) if r[7] else {},
         }
     except Exception as e:
-        print(f"[Database] get_session error: {e}")
+        logger.warning("get_session error: %s", e)
         conn.close()
         return None

@@ -49,6 +49,17 @@ COACHING_PHRASE_BLOCKLIST: tuple[str, ...] = (
     "hint:",
 )
 
+# Spoken copy (single source for TTS closing paths)
+INTERVIEW_CLOSING_SPOKEN = (
+    "Thank you for your time. This concludes the interview. "
+    "Your final report is now being generated."
+)
+INTERVIEW_CLOSING_TEXT = "Thank you for your time. This concludes the interview."
+LLM_ERROR_TTS_FALLBACK = (
+    "Welcome to the interview. Please briefly introduce yourself and tell me "
+    "what kind of role or area you would like this interview to focus on."
+)
+
 # Default candidate profile when none is supplied (voice demo fallback).
 DEFAULT_CANDIDATE_PROFILE: dict = {
     "name": "Candidate",

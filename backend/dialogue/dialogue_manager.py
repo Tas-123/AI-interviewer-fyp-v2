@@ -8,6 +8,8 @@ Supports two evaluation paths:
   2. LEGACY (fallback)  -- Separate evaluate() + decide() + generate() pipeline
 """
 
+import logging
+
 from dialogue.context import InterviewContext
 from dialogue.guards.pipeline import GuardPipeline
 from dialogue.guards.types import GuardContext, GuardResult
@@ -17,6 +19,8 @@ from dialogue.decision_engine import DecisionEngine
 from dialogue.llm_adapter import LLMAdapter
 from dialogue.evaluator import Evaluator
 from dialogue.question_selector import QuestionSelector
+
+logger = logging.getLogger(__name__)
 
 
 class DialogueManager:
@@ -71,7 +75,7 @@ class DialogueManager:
                 f.write(value_text.strip() + "\n")
                 f.write("-" * 80 + "\n")
         except Exception as e:
-            print(f"[LiveDebugLog] Failed: {e}")
+            logger.warning("LiveDebugLog failed: %s", e)
 
 
     def _clean_live_transcript(self, text: str) -> str:
@@ -310,7 +314,7 @@ class DialogueManager:
                     },
                 })
             except Exception as trace_error:
-                print(f"[Adaptive Trace Warning] Could not store trace: {trace_error}")
+                logger.warning("Could not store adaptive trace: %s", trace_error)
 
             # Persist to DB (non-blocking, graceful fallback)
             self._save_response_to_db(
@@ -330,7 +334,7 @@ class DialogueManager:
             return final_log_and_return(res, decision_log)
 
         except Exception as e:
-            print(f"[DialogueManager] Adaptive path failed, using legacy: {e}")
+            logger.warning("Adaptive path failed, using legacy: %s", e)
             res = self._legacy_handle_turn(transcript)
             return final_log_and_return(res, "LEGACY")
 
@@ -512,7 +516,7 @@ class DialogueManager:
                 weakest_dimension=evaluation.get("weakest_dimension", ""),
             )
         except Exception as e:
-            print(f"[DialogueManager] DB save_response failed (non-critical): {e}")
+            logger.warning("DB save_response failed (non-critical): %s", e)
 
     def get_status(self):
         """Return current interview status for debugging / API responses."""
@@ -669,4 +673,4 @@ class DialogueManager:
                 consistency_rating=consistency.get("consistency_rating", "N/A"),
             )
         except Exception as e:
-            print(f"[DialogueManager] update_session_finals failed (non-critical): {e}")
+            logger.warning("update_session_finals failed (non-critical): %s", e)

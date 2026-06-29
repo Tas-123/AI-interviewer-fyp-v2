@@ -1,6 +1,9 @@
 // Pipecat WebSocket Manual Client Logic
 
-const WS_URL = "ws://localhost:8765";
+const cfg = window.MANUAL_CLIENT_CONFIG || {};
+const WS_URL = cfg.wsUrl || "ws://localhost:8765";
+const REPORT_URL = cfg.reportUrl || "http://localhost:8766/latest-report";
+const bargeCfg = cfg.bargeIn || {};
 
 // UI Elements
 const btnConnect = document.getElementById("btn-connect");
@@ -10,7 +13,6 @@ const micStatusText = document.getElementById("mic-status");
 const logPanel = document.getElementById("log-panel");
 const visualizerBars = document.querySelectorAll(".bar");
 const reportPanel = document.getElementById("report-panel");
-const REPORT_URL = "http://localhost:8766/latest-report";
 
 // Audio state variables
 let audioContext = null;
@@ -24,17 +26,17 @@ let isConnected = false;
 let nextBotAudioTime = 0;
 let botAudioQueueDepth = 0;
 let isBotAudioPlaying = false;
-const suppressMicWhileBotSpeaking = true;
-const BOT_AUDIO_JITTER_BUFFER_SEC = 0.15;
+const suppressMicWhileBotSpeaking = cfg.suppressMicWhileBotSpeaking !== false;
+const BOT_AUDIO_JITTER_BUFFER_SEC = cfg.botAudioJitterBufferSec ?? 0.15;
 let botAudioCooldownTimeout = null;
 let botChunksReceived = 0;
 
-// Barge-in detection constants
-const BARGE_IN_RMS_THRESHOLD = 0.035;
-const BARGE_IN_MIN_FRAMES = 3;
-const BARGE_IN_IGNORE_AFTER_BOT_START_MS = 400;
-const BARGE_IN_MIC_ALLOW_MS = 2500;
-const BARGE_IN_DISCARD_BOT_AUDIO_MS = 1200;
+// Barge-in detection constants (from config.js)
+const BARGE_IN_RMS_THRESHOLD = bargeCfg.rmsThreshold ?? 0.035;
+const BARGE_IN_MIN_FRAMES = bargeCfg.minFrames ?? 3;
+const BARGE_IN_IGNORE_AFTER_BOT_START_MS = bargeCfg.ignoreAfterBotStartMs ?? 400;
+const BARGE_IN_MIC_ALLOW_MS = bargeCfg.micAllowMs ?? 2500;
+const BARGE_IN_DISCARD_BOT_AUDIO_MS = bargeCfg.discardBotAudioMs ?? 1200;
 
 // Barge-in state variables
 const activeBotSources = new Set();

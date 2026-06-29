@@ -38,6 +38,13 @@ class Settings:
     # LLM
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    groq_evaluator_model: str = os.getenv("GROQ_EVALUATOR_MODEL", "") or os.getenv(
+        "GROQ_MODEL", "llama-3.3-70b-versatile"
+    )
+
+    # Logging
+    log_level: str = os.getenv("LOG_LEVEL", "INFO")
+    processor_log_frames: bool = _env_bool("PROCESSOR_LOG_FRAMES", False)
 
     # Voice providers (Pipecat path)
     deepgram_api_key: str = os.getenv("DEEPGRAM_API_KEY", "")
@@ -59,10 +66,22 @@ class Settings:
     short_answer_grace_seconds: float = float(
         os.getenv("SHORT_ANSWER_GRACE_SECONDS", "2.5")
     )
+    short_answer_word_threshold: int = int(os.getenv("SHORT_ANSWER_WORD_THRESHOLD", "6"))
+    startup_audio_gate_seconds: float = float(
+        os.getenv("STARTUP_AUDIO_GATE_SECONDS", "4.0")
+    )
+    startup_refresh_seconds: float = float(os.getenv("STARTUP_REFRESH_SECONDS", "3.0"))
+    bot_echo_cooldown_seconds: float = float(
+        os.getenv("BOT_ECHO_COOLDOWN_SECONDS", "1.2")
+    )
+    bot_stop_echo_cooldown_seconds: float = float(
+        os.getenv("BOT_STOP_ECHO_COOLDOWN_SECONDS", "0.8")
+    )
+    closing_delay_seconds: float = float(os.getenv("CLOSING_DELAY_SECONDS", "2.5"))
 
     # Runtime flags
     enable_dev_text_voice_ws: bool = _env_bool("ENABLE_DEV_TEXT_VOICE_WS", False)
-    debug_live_logging: bool = _env_bool("DEBUG_LIVE_LOGGING", True)
+    debug_live_logging: bool = _env_bool("DEBUG_LIVE_LOGGING", False)
 
     def ensure_directories(self) -> None:
         """Create runtime directories if missing."""

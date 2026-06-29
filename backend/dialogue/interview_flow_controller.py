@@ -1,6 +1,9 @@
 """
 Interview Flow Controller — State-driven interview lifecycle manager.
 
+DEPRECATED (Phase 5): Superseded by SessionService + CoverageEngine + DialogueManager.
+Retained for reference and legacy tests only — not wired into the Pipecat voice path.
+
 Manages a structured interview progression through 9 stages:
     INIT → INTRO → WARMUP → BEHAVIORAL → PROBING → DEEP_DIVE
     → FINAL_EVALUATION → REPORT → END

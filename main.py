@@ -17,6 +17,10 @@ load_dotenv()
 # Add backend to path so dialogue package can be imported
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
 
+from core.logging_config import setup_logging
+
+setup_logging()
+
 from core.config import settings
 from core.role_registry import DEFAULT_TARGET_ROLE, list_target_roles
 from core.session_service import SessionNotFoundError, get_session_service

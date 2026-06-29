@@ -10,10 +10,12 @@ Public API:
 """
 
 import json
+import logging
 import os
 import time
 from dotenv import load_dotenv
 from groq import Groq
+from core.config import settings
 from dialogue.prompts import (
     EVALUATION_SYSTEM_PROMPT,
     WEAKNESS_FOLLOWUP_PROMPT,
@@ -22,11 +24,13 @@ from dialogue.prompts import (
 )
 from evaluation.rubric import compute_weighted_score, derive_hire_signal
 
+logger = logging.getLogger(__name__)
+
 
 def load_groq_client():
     """Load Groq client from environment."""
     load_dotenv()
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = settings.groq_api_key
     if not api_key:
         raise ValueError("GROQ_API_KEY not found.")
     return Groq(api_key=api_key)
@@ -36,7 +40,7 @@ class Evaluator:
 
     def __init__(self):
         self.client = load_groq_client()
-        self.model = os.getenv("GROQ_EVALUATOR_MODEL", os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"))
+        self.model = settings.groq_evaluator_model or settings.groq_model
         self._pipeline = None
 
     @property
@@ -144,7 +148,7 @@ class Evaluator:
             return {"evaluation": evaluation, "latency_ms": latency_ms}
         except Exception as exc:
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
-            print(f"[Evaluator] Rethink error: {exc}")
+            logger.warning("Rethink error: %s", exc)
             return {"evaluation": None, "latency_ms": latency_ms}
 
     def _run_primary_adaptive(
@@ -176,14 +180,14 @@ class Evaluator:
 
         except json.JSONDecodeError as exc:
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
-            print(f"[Evaluator] Adaptive JSON parse error: {exc}")
+            logger.warning("Adaptive JSON parse error: %s", exc)
             fallback = self._fallback_adaptive_result()
             fallback["latency_ms"] = latency_ms
             return fallback
 
         except Exception as exc:
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
-            print(f"[Evaluator] Adaptive error: {exc}")
+            logger.warning("Adaptive error: %s", exc)
             fallback = self._fallback_adaptive_result()
             fallback["latency_ms"] = latency_ms
             return fallback
@@ -205,11 +209,11 @@ class Evaluator:
             return self._validate_evaluation(evaluation)
 
         except json.JSONDecodeError as exc:
-            print(f"[Evaluator] JSON parse error: {exc}")
+            logger.warning("JSON parse error: %s", exc)
             return self._error_evaluation("Failed to parse LLM evaluation response.")
 
         except Exception as exc:
-            print(f"[Evaluator] Error: {exc}")
+            logger.warning("Evaluation error: %s", exc)
             return self._error_evaluation(str(exc))
 
     def generate_weakness_followup(
@@ -229,7 +233,7 @@ class Evaluator:
         try:
             return self._call_groq(prompt, json_mode=False)
         except Exception as exc:
-            print(f"[Evaluator] Follow-up generation error: {exc}")
+            logger.warning("Follow-up generation error: %s", exc)
             return None
 
     # ════════════════════════════════════════════════════════════

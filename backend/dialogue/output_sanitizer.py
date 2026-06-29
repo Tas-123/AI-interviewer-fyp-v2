@@ -7,6 +7,15 @@ import re
 from core.interviewer_policy import COACHING_PHRASE_BLOCKLIST
 
 
+def strip_followup_prefix(text: str) -> str:
+    """Remove internal follow-up labels from spoken or logged text."""
+    if not text:
+        return text
+    cleaned = text.replace("[Follow-up]", "").replace("[follow-up]", "")
+    cleaned = cleaned.replace("Follow-up:", "").replace("follow-up:", "")
+    return cleaned.strip()
+
+
 def sanitize_interviewer_output(text: str) -> str:
     """
     Strip coaching tone and enforce single-question spoken output.

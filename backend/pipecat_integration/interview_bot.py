@@ -20,15 +20,13 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 from core.config import settings
+from core.logging_config import setup_logging
 from pipecat_integration import config
 from pipecat_integration.interview_processor import InterviewProcessor, sanitize_tts_text
 from integration.dialogue_adapter import InterviewDialogueAdapter
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+setup_logging()
 logger = logging.getLogger("InterviewBot")
 
 def start_report_http_server(host="localhost", port=None):
@@ -195,9 +193,13 @@ async def run_bot():
 
         async def deserialize(self, data: str | bytes) -> Frame | None:
             if isinstance(data, bytes):
-                logger.info(f"deserialize: Received binary audio chunk from browser, length: {len(data)} bytes")
+                logger.debug("deserialize: Received binary audio chunk, length: %d bytes", len(data))
                 frame = InputAudioRawFrame(audio=data, sample_rate=16000, num_channels=1)
-                logger.info(f"deserialize: Created InputAudioRawFrame: sample_rate={frame.sample_rate}, num_channels={frame.num_channels}")
+                logger.debug(
+                    "deserialize: InputAudioRawFrame sample_rate=%s num_channels=%s",
+                    frame.sample_rate,
+                    frame.num_channels,
+                )
                 return frame
             elif isinstance(data, str):
                 import json

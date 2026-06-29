@@ -4,15 +4,15 @@ Real-time AI Voice Interviewer project for conducting AI Engineer interview prac
 
 ## Project Status
 
-This is version `v0.1 untuned`.
+**Phase 5 complete** — production hardening (config, async voice, logging, docs, regression).
 
-The project is currently under active development. Some live interview behavior may still need tuning, especially around:
+The Pipecat voice path is the primary demo runtime. Remaining tuning areas:
 
-* STT transcript cleanup
-* Echo detection
-* Incomplete answer handling
-* Final report formatting
-* Real-time voice flow stability
+* STT transcript cleanup edge cases
+* Echo detection in noisy environments
+* Final report formatting polish
+
+See `docs/PHASE_5_COMPLETE.md`, `docs/CONFIGURATION.md`, and `docs/MANUAL_TEST_GUIDE.md`.
 
 ## Main Features
 
@@ -53,8 +53,11 @@ All runtimes share one in-process `SessionService` when run in the same process.
 backend/
   core/
     config.py
+    logging_config.py
     session_service.py
     interviewer_policy.py
+  voice/
+    voice_turn_policy.py
   dialogue/
     guards/
     transcript_utils.py
