@@ -58,7 +58,7 @@ Make sure to set the following environment variables before running:
 ```bash
 export DEEPGRAM_API_KEY="your-deepgram-api-key"
 export CARTESIA_API_KEY="your-cartesia-api-key"
-export GEMINI_API_KEY="your-gemini-api-key" # Required for dialogue manager LLM calls
+export GROQ_API_KEY="your-groq-api-key"  # Required for dialogue manager LLM calls
 ```
 
 Optional settings:

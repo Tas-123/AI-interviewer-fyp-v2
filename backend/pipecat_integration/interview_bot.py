@@ -19,6 +19,7 @@ backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
+from core.config import settings
 from pipecat_integration import config
 from pipecat_integration.interview_processor import InterviewProcessor, sanitize_tts_text
 from integration.dialogue_adapter import InterviewDialogueAdapter
@@ -30,11 +31,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("InterviewBot")
 
-def start_report_http_server(host="localhost", port=8766):
+def start_report_http_server(host="localhost", port=None):
     """
     Small local HTTP server for the manual browser client.
     It serves the latest saved report from the reports folder.
     """
+    if port is None:
+        port = settings.report_http_port
     class ReportHandler(BaseHTTPRequestHandler):
         def _send_json(self, status_code, payload):
             body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
@@ -55,7 +58,7 @@ def start_report_http_server(host="localhost", port=8766):
                 self._send_json(404, {"error": "Not found"})
                 return
 
-            reports_dir = Path("reports")
+            reports_dir = settings.reports_dir
             if not reports_dir.exists():
                 self._send_json(404, {"error": "No reports folder found yet"})
                 return
@@ -325,7 +328,7 @@ async def run_bot():
                     logger.info(f"Total Turns: {metadata.get('total_turns', 0)}")
                     logger.info("===========================================")
 
-                    reports_dir = Path("reports")
+                    reports_dir = settings.reports_dir
                     reports_dir.mkdir(exist_ok=True)
                     report_path = reports_dir / f"interview_report_{session_id}.json"
 

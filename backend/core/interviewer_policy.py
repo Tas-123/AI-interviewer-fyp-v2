@@ -1,0 +1,69 @@
+"""
+Interviewer behavior contract — constants that define "interviewer mode".
+
+The system asks, evaluates, and redirects. It does not coach, tutor, or answer
+on behalf of the candidate.
+"""
+
+from __future__ import annotations
+
+# Junior AI Engineer interview blueprint (domain coverage order).
+INTERVIEW_BLUEPRINT: tuple[str, ...] = (
+    "project_overview",
+    "python",
+    "machine_learning",
+    "data_preprocessing",
+    "model_evaluation",
+    "nlp_speech_ai",
+    "apis_backend",
+    "deployment",
+    "debugging_problem_solving",
+    "behavioral_ownership",
+)
+
+# Turn limits
+MAX_TURNS_PER_DOMAIN: int = 1
+MAX_PROBES_PER_DOMAIN: int = 1
+MAX_TOTAL_INTERVIEW_TURNS: int = 12
+MAX_CONTEXT_FOLLOWUPS_TOTAL: int = 3
+
+# Persona constraints enforced in prompts and post-processing
+INTERVIEWER_PERSONA_RULES: tuple[str, ...] = (
+    "Ask exactly one question per turn.",
+    "Never provide the answer, hints, or step-by-step coaching.",
+    "Never say phrases like 'Here's how you could answer' or 'For example, you might say'.",
+    "Redirect off-topic answers back to the current question.",
+    "Use a professional interviewer tone — not a friendly tutor.",
+    "Probe weak answers with a focused follow-up; advance when sufficient.",
+)
+
+# Phrases that indicate assistant/coaching tone (used for sanitization checks)
+COACHING_PHRASE_BLOCKLIST: tuple[str, ...] = (
+    "here's how you could",
+    "you might want to mention",
+    "for example, you could say",
+    "let me explain",
+    "the correct answer is",
+    "you should say",
+    "tip:",
+    "hint:",
+)
+
+# Default candidate profile when none is supplied (voice demo fallback).
+DEFAULT_CANDIDATE_PROFILE: dict = {
+    "name": "Candidate",
+    "role": "Junior AI Engineer",
+    "skills": [
+        "Python",
+        "Machine Learning",
+        "Deep Learning",
+        "NLP",
+        "APIs",
+        "Data Preprocessing",
+        "Model Evaluation",
+    ],
+    "experience": (
+        "Entry-level to junior AI engineer with project experience in Python, "
+        "machine learning, deep learning, NLP, APIs, and AI applications."
+    ),
+}

@@ -27,7 +27,7 @@ import unittest.mock as mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 # ── Set dummy API key so Evaluator.__init__ doesn't raise ────────
-os.environ.setdefault("GEMINI_API_KEY", "test-dummy-key-not-real")
+os.environ.setdefault("GROQ_API_KEY", "test-dummy-key-not-real")
 
 # ── Mock the google.generativeai module before any imports ───────
 # This prevents the transitive import of google.generativeai through

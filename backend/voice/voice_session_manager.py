@@ -10,7 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
-from dialogue.dialogue_manager import DialogueManager
+from core.session_service import get_session_service
 from dialogue.interview_flow_controller import InterviewFlowController
 
 
@@ -66,7 +66,9 @@ class VoiceSessionManager:
         role = resume_data.get("role", "")
         skills = resume_data.get("skills", [])
 
-        dm = DialogueManager(resume_data, session_id=sid)
+        svc = get_session_service()
+        stored = svc.create(resume_data, session_id=sid)
+        dm = stored.dialogue_manager
         fc = InterviewFlowController(sid, candidate_role=role,
                                      candidate_skills=skills)
 

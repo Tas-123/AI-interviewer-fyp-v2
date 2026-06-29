@@ -30,13 +30,15 @@ class DialogueManager:
         This helps separate bot questions, candidate transcripts, decisions, and evaluations.
         """
         try:
-            from pathlib import Path
+            from core.config import settings
             import datetime
             import json
 
-            log_dir = Path(r"C:\Users\LENOVO\Desktop\ai_dialogue_manager\logs")
-            log_dir.mkdir(parents=True, exist_ok=True)
-            log_file = log_dir / "live_interview_debug.log"
+            if not settings.debug_live_logging:
+                return
+
+            log_file = settings.live_debug_log
+            log_file.parent.mkdir(parents=True, exist_ok=True)
 
             ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

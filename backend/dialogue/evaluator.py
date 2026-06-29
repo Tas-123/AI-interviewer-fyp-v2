@@ -103,10 +103,8 @@ class Evaluator:
 
         t_start = time.perf_counter()
         try:
-            
-            latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
             raw_text = self._call_groq(prompt, json_mode=True)
-            
+            latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
 
             # Strip markdown code fences if present
             if raw_text.startswith("```"):

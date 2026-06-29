@@ -1,73 +1,57 @@
 """
 Dialogue Manager Adapter — Bridges any voice/text pipeline to the dialogue engine.
-Provides a clean, plain text interface suitable for future integrations like Pipecat.
+Provides a clean, plain text interface suitable for Pipecat and other integrations.
 """
 
+import logging
 import sys
 import os
-import uuid
-import logging
 
 # Ensure backend directory is in path for robust module imports
 backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from dialogue.dialogue_manager import DialogueManager
-from dialogue import database as db
+from core.session_service import SessionNotFoundError, get_session_service
 
 logger = logging.getLogger("InterviewDialogueAdapter")
 
+
 class InterviewDialogueAdapter:
     """
-    Adapter class to interface between raw audio/text streams (such as Pipecat)
-    and the core Interview Dialogue Manager.
+    Adapter between raw audio/text streams and the core interview engine.
+
+    All session state is delegated to SessionService (single source of truth).
     """
-    def __init__(self):
-        # Local session registry: session_id -> DialogueManager instance
-        self.sessions = {}
+
+    def __init__(self, session_service=None):
+        self._sessions = get_session_service() if session_service is None else session_service
 
     def start_interview(self, candidate_profile: dict) -> dict:
         """
-        Start/initialize an interview session using the existing Dialogue Manager.
-        
+        Start/initialize an interview session.
+
         Args:
-            candidate_profile (dict): Dict containing candidate resume data (e.g. skills, experience).
-            
+            candidate_profile: Dict with candidate resume data (skills, experience).
+
         Returns:
-            dict: Interview session start status and intro greeting suitable for TTS.
+            dict: Session start status and intro greeting suitable for TTS.
         """
         try:
-            session_id = str(uuid.uuid4())
-            
-            # Initialize DialogueManager
-            dm = DialogueManager(candidate_profile, session_id=session_id)
-            self.sessions[session_id] = dm
-            
-            # Persist session to database (graceful fallback internally)
-            db.save_session(
-                session_id=session_id,
-                resume_data=candidate_profile,
-                role_applied=candidate_profile.get("role", "")
-            )
-            
-            # Generate intro greeting (first turn with empty transcript)
-            result = dm.handle_turn("")
-            ai_response_text = result.get("question", "")
-            
-            # Determine if state is wrapup (highly unlikely on turn 0, but good for consistency)
+            session_id, result = self._sessions.start_interview(candidate_profile)
+            dm = self._sessions.get_dialogue_manager(session_id)
             status = dm.get_status()
             current_state = status.get("state", "intro")
             turn_count = status.get("turn_count", 0)
-            
+
             return {
                 "session_id": session_id,
-                "ai_response_text": ai_response_text,
+                "ai_response_text": result.get("question", ""),
                 "current_state": current_state,
                 "turn_count": turn_count,
                 "is_complete": current_state == "wrapup",
                 "evaluation_summary": status.get("evaluation_summary"),
-                "error": None
+                "error": None,
             }
         except Exception as e:
             logger.exception("Failed to start interview")
@@ -78,21 +62,21 @@ class InterviewDialogueAdapter:
                 "turn_count": 0,
                 "is_complete": True,
                 "evaluation_summary": None,
-                "error": str(e)
+                "error": str(e),
             }
 
     def process_user_text(self, session_id: str, text: str) -> dict:
         """
-        Pass a candidate transcript/answer into the Dialogue Manager and get the next question.
-        
+        Pass a candidate transcript into the dialogue engine and get the next question.
+
         Args:
-            session_id (str): Session UUID identifier.
-            text (str): Candidate's answer text transcript.
-            
+            session_id: Session UUID.
+            text: Candidate answer transcript.
+
         Returns:
-            dict: response object containing session state and next question suitable for TTS.
+            dict: Response with session state and next question for TTS.
         """
-        if not session_id or session_id not in self.sessions:
+        if not session_id or not self._sessions.has(session_id):
             return {
                 "session_id": session_id or "",
                 "ai_response_text": "",
@@ -100,24 +84,15 @@ class InterviewDialogueAdapter:
                 "turn_count": 0,
                 "is_complete": True,
                 "evaluation_summary": None,
-                "error": f"Session ID '{session_id}' not found."
+                "error": f"Session ID '{session_id}' not found.",
             }
-            
-        dm = self.sessions[session_id]
-        
+
         try:
-            # Handle empty/whitespace transcript safely
-            user_text = (text or "").strip()
-            
-            # Process the turn
-            result = dm.handle_turn(user_text)
-            
-            status = dm.get_status()
-            ai_response_text = result.get("question", "")
+            result = self._sessions.process_turn(session_id, text)
+            status = self._sessions.get_status(session_id)
             current_state = status.get("state", "unknown")
             turn_count = status.get("turn_count", 0)
-            
-            # Extract latest turn evaluation summary
+
             last_eval = result.get("evaluation")
             evaluation_summary = None
             if last_eval:
@@ -125,91 +100,63 @@ class InterviewDialogueAdapter:
                     "overall_score": last_eval.get("overall_score", 0),
                     "weighted_score": last_eval.get("weighted_overall_score", 0),
                     "weakest_dimension": last_eval.get("weakest_dimension", "N/A"),
-                    "hire_signal": last_eval.get("hire_signal", "N/A")
+                    "hire_signal": last_eval.get("hire_signal", "N/A"),
                 }
-                
+
             return {
                 "session_id": session_id,
-                "ai_response_text": ai_response_text,
+                "ai_response_text": result.get("question", ""),
                 "current_state": current_state,
                 "turn_count": turn_count,
                 "is_complete": current_state == "wrapup",
                 "evaluation_summary": evaluation_summary,
-                "error": None
+                "error": None,
             }
-        except Exception as e:
-            logger.exception(f"Error processing text for session {session_id}")
+        except SessionNotFoundError:
             return {
                 "session_id": session_id,
                 "ai_response_text": "",
-                "current_state": dm.context.state.value if hasattr(dm, "context") and hasattr(dm.context, "state") else "unknown",
-                "turn_count": dm.context.turn_count if hasattr(dm, "context") else 0,
+                "current_state": "unknown",
+                "turn_count": 0,
+                "is_complete": True,
+                "evaluation_summary": None,
+                "error": f"Session ID '{session_id}' not found.",
+            }
+        except Exception as e:
+            logger.exception("Error processing text for session %s", session_id)
+            dm = self._sessions.get(session_id)
+            ctx = dm.dialogue_manager.context if dm else None
+            return {
+                "session_id": session_id,
+                "ai_response_text": "",
+                "current_state": ctx.state.value if ctx else "unknown",
+                "turn_count": ctx.turn_count if ctx else 0,
                 "is_complete": False,
                 "evaluation_summary": None,
-                "error": str(e)
+                "error": str(e),
             }
 
     def get_report(self, session_id: str) -> dict:
-        """
-        Retrieve the final evaluation report for an interview session.
-        
-        Args:
-            session_id (str): Session UUID identifier.
-            
-        Returns:
-            dict: Full structured report or error dict.
-        """
-        if not session_id or session_id not in self.sessions:
-            return {
-                "error": f"Session ID '{session_id}' not found."
-            }
-            
+        """Retrieve the final evaluation report for a session."""
+        if not session_id or not self._sessions.has(session_id):
+            return {"error": f"Session ID '{session_id}' not found."}
+
         try:
-            dm = self.sessions[session_id]
-            return dm.get_final_report()
+            return self._sessions.get_report(session_id)
+        except SessionNotFoundError:
+            return {"error": f"Session ID '{session_id}' not found."}
         except Exception as e:
-            logger.exception(f"Failed to generate report for session {session_id}")
-            return {
-                "error": str(e)
-            }
+            logger.exception("Failed to generate report for session %s", session_id)
+            return {"error": str(e)}
 
     def end_interview(self, session_id: str) -> dict:
         """
-        Concludes the interview session, saving final scores to database and cleaning up.
-        
-        Args:
-            session_id (str): Session UUID identifier.
-            
-        Returns:
-            dict: Status summary.
+        Conclude the interview, persist final scores, and remove from active store.
         """
-        if not session_id or session_id not in self.sessions:
-            return {
-                "session_id": session_id or "",
-                "status": "not_found",
-                "error": f"Session ID '{session_id}' not found."
-            }
-            
-        try:
-            dm = self.sessions[session_id]
-            
-            # This automatically computes finals, generates the report,
-            # and persists scores (weighted score, consistency, trend) to database.
-            final_report = dm.get_final_report()
-            
-            # Clean up session from active memory store to prevent leaks
-            self.sessions.pop(session_id)
-            
-            return {
-                "session_id": session_id,
-                "status": "ended",
-                "final_report": final_report,
-                "error": None
-            }
-        except Exception as e:
-            logger.exception(f"Error ending interview for session {session_id}")
-            return {
-                "session_id": session_id,
-                "status": "error",
-                "error": str(e)
-            }
+        end_result = self._sessions.end_session(session_id, remove=True)
+        return {
+            "session_id": end_result["session_id"],
+            "status": end_result["status"],
+            "final_report": end_result.get("final_report"),
+            "error": end_result.get("error"),
+        }

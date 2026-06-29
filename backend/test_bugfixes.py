@@ -8,7 +8,7 @@ import os
 import sys
 from unittest.mock import patch, MagicMock
 
-os.environ.setdefault("GEMINI_API_KEY", "test-key-not-real")
+os.environ.setdefault("GROQ_API_KEY", "test-key-not-real")
 sys.path.insert(0, os.path.dirname(__file__))
 
 # Mock google.generativeai before any dialogue imports touch it

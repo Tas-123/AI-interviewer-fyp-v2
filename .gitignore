@@ -5,3 +5,11 @@ __pycache__/
 logs/
 reports/
 *.log
+
+# Archived / legacy artifacts (do not commit)
+reports_old/
+debug_bundle_*/
+debug_bundle_*.zip
+dependency_audit.json
+dependency_report.json
+audit_*.json

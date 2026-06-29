@@ -37,10 +37,24 @@ The project is currently under active development. Some live interview behavior 
 * Groq / LLM-based evaluation
 * Browser manual client using HTML and JavaScript
 
+## Architecture (Phase 1)
+
+| Runtime | Command | Port | Role |
+|---------|---------|------|------|
+| **Pipecat voice** (primary) | `python backend/pipecat_integration/interview_bot.py` | WS `8765`, report HTTP `8766` | Product demo |
+| **FastAPI REST** | `uvicorn main:app --reload` | `8000` | API/testing without mic |
+| **Dev text WebSocket** | Set `ENABLE_DEV_TEXT_VOICE_WS=true` in `.env` | `8000` | Text simulation only |
+
+All runtimes share one in-process `SessionService` when run in the same process. REST `/start` and `/chat` use the same session store as the Pipecat voice adapter.
+
 ## Folder Structure
 
 ```text
 backend/
+  core/
+    config.py
+    session_service.py
+    interviewer_policy.py
   dialogue/
     analytics.py
     context.py
@@ -134,7 +148,15 @@ Important:
 Do not commit `.env` to GitHub.
 Only `.env.example` should be shared.
 
-## Running the Voice Interview Server
+## Running the REST API (optional — testing without microphone)
+
+```powershell
+uvicorn main:app --reload
+```
+
+Then `POST /start` with resume data, `POST /chat` with answers, `GET /report/{session_id}`.
+
+## Running the Voice Interview Server (primary)
 
 From the project root:
 

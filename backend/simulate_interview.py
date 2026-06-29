@@ -11,7 +11,7 @@ Runs a 3-turn automated interview with:
 Usage:
     python simulate_interview.py
 
-Requires GEMINI_API_KEY in environment. DATABASE_URL optional.
+Requires GROQ_API_KEY in environment. DATABASE_URL optional.
 Output: strict JSON to stdout.
 """
 
@@ -23,7 +23,7 @@ import uuid
 
 # Setup path and env
 sys.path.insert(0, os.path.dirname(__file__))
-os.environ.setdefault("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
+os.environ.setdefault("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
 
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -255,11 +255,11 @@ def _verify_simulation(log: dict) -> dict:
 # ====================================================================
 
 if __name__ == "__main__":
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    if not api_key or api_key == "your_api_key_here":
+    api_key = os.getenv("GROQ_API_KEY", "")
+    if not api_key or api_key == "your_groq_api_key_here":
         print(json.dumps({
-            "error": "GEMINI_API_KEY not set. Please set it in .env file.",
-            "hint": "Copy .env.example to .env and add your Gemini API key.",
+            "error": "GROQ_API_KEY not set. Please set it in .env file.",
+            "hint": "Copy .env.example to .env and add your Groq API key.",
         }, indent=2))
         sys.exit(1)
 

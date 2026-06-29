@@ -40,7 +40,7 @@ Ensure your API keys are loaded in your terminal:
 ```powershell
 $env:DEEPGRAM_API_KEY="your-deepgram-key"
 $env:CARTESIA_API_KEY="your-cartesia-key"
-$env:GEMINI_API_KEY="your-gemini-key"
+$env:GROQ_API_KEY="your-groq-key"
 ```
 
 ### **Step 2: Start the Pipecat Bot**

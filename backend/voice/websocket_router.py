@@ -1,11 +1,8 @@
 """
-WebSocket Router — Real-time interview conversation endpoint.
+WebSocket Router — Dev-only text interview simulation endpoint.
 
-Provides a WebSocket endpoint at /ws/interview/{session_id} for streaming
-candidate speech, processing turns, and delivering AI responses.
-
-Integrates with VoiceSessionManager, VADSimulator, ConversationOrchestrator,
-InterruptionManager, and StreamingResponseHandler.
+NOT the product voice path. Enable via ENABLE_DEV_TEXT_VOICE_WS=true.
+Real voice interviews use Pipecat: backend/pipecat_integration/interview_bot.py
 """
 
 import json

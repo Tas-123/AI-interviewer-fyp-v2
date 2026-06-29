@@ -3,7 +3,6 @@ FastAPI Entry Point — AI Interviewer API with session management.
 Persists sessions and responses to Postgres (graceful fallback to in-memory).
 """
 
-import uuid
 import sys
 import os
 from typing import Optional
@@ -18,7 +17,8 @@ load_dotenv()
 # Add backend to path so dialogue package can be imported
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
 
-from dialogue.dialogue_manager import DialogueManager
+from core.config import settings
+from core.session_service import SessionNotFoundError, get_session_service
 from dialogue import database as db
 from dialogue.recruiter_report import (
     generate_hr_report,
@@ -26,21 +26,24 @@ from dialogue.recruiter_report import (
     derive_hire_recommendation,
     rank_candidates,
 )
-from voice.websocket_router import router as voice_router
 
 app = FastAPI(
-    title="AI Interviewer — Dialogue Manager",
-    description="Conducts AI-powered interviews with technical and behavioral questions, with LLM-based answer evaluation.",
-    version="4.0.0",
+    title="AI Interviewer — API Layer",
+    description=(
+        "REST API for interview sessions and reports. "
+        "Primary voice runtime: python backend/pipecat_integration/interview_bot.py"
+    ),
+    version="5.0.0",
 )
 
-# ── Register Voice WebSocket Router ─────────────────────────────
-app.include_router(voice_router)
+# Dev-only text WebSocket simulation (not the product voice path)
+if settings.enable_dev_text_voice_ws:
+    from voice.websocket_router import router as voice_router
 
+    app.include_router(voice_router)
 
-# ── Session Storage ─────────────────────────────────────────────
-# In-memory session store: session_id → DialogueManager instance
-sessions: dict[str, DialogueManager] = {}
+# ── Unified Session Service ─────────────────────────────────────
+sessions = get_session_service()
 
 
 @app.on_event("startup")
@@ -118,19 +121,7 @@ def start_interview(req: StartRequest):
     Accepts resume data and returns a session ID + intro greeting.
     Persists session to Postgres (graceful fallback to in-memory).
     """
-    session_id = str(uuid.uuid4())
-    dm = DialogueManager(req.resume_data, session_id=session_id)
-    sessions[session_id] = dm
-
-    # Persist session to Postgres
-    db.save_session(
-        session_id=session_id,
-        resume_data=req.resume_data,
-        role_applied=req.resume_data.get("role", ""),
-    )
-
-    # Generate intro greeting (first turn with empty transcript)
-    result = dm.handle_turn("")
+    session_id, result = sessions.start_interview(req.resume_data)
 
     return StartResponse(session_id=session_id, greeting=result["question"])
 
@@ -141,15 +132,14 @@ def chat(req: ChatRequest):
     Send a candidate's answer and receive the next interview question
     along with evaluation of the previous answer.
     """
-    dm = sessions.get(req.session_id)
-    if dm is None:
+    try:
+        result = sessions.process_turn(req.session_id, req.input_text)
+        status = sessions.get_status(req.session_id)
+    except SessionNotFoundError:
         raise HTTPException(
             status_code=404,
             detail="Session not found. Start a new interview with POST /start.",
         )
-
-    result = dm.handle_turn(req.input_text)
-    status = dm.get_status()
 
     # Build evaluation response if one was generated
     eval_data = None
@@ -170,16 +160,21 @@ def get_session_status(session_id: str):
     Get the current status of an interview session, including
     aggregate evaluation scores.
     """
-    dm = sessions.get(session_id)
-    if dm is None:
+    try:
+        return sessions.get_status(session_id)
+    except SessionNotFoundError:
         raise HTTPException(status_code=404, detail="Session not found.")
-    return dm.get_status()
 
 
 @app.get("/health")
 def health_check():
     """Health check endpoint."""
-    return {"status": "ok", "active_sessions": len(sessions)}
+    return {
+        "status": "ok",
+        "active_sessions": sessions.active_count(),
+        "primary_runtime": "pipecat",
+        "dev_text_voice_ws": settings.enable_dev_text_voice_ws,
+    }
 
 
 @app.get("/report/{session_id}")
@@ -193,10 +188,10 @@ def get_final_report(session_id: str):
     - Behavioral profile (5-axis)
     - Bias awareness section
     """
-    dm = sessions.get(session_id)
-    if dm is None:
+    try:
+        return sessions.get_report(session_id)
+    except SessionNotFoundError:
         raise HTTPException(status_code=404, detail="Session not found.")
-    return dm.get_final_report()
 
 
 # ── Recruiter Report Endpoints ─────────────────────────────────
@@ -210,8 +205,9 @@ def get_hr_report(session_id: str):
     - Hire recommendation (STRONG_HIRE / HIRE / LEAN_HIRE / NO_HIRE)
     - Risk flags
     """
-    dm = sessions.get(session_id)
-    if dm is None:
+    try:
+        dm = sessions.get_dialogue_manager(session_id)
+    except SessionNotFoundError:
         raise HTTPException(status_code=404, detail="Session not found.")
     return generate_hr_report(dm)
 
@@ -237,7 +233,7 @@ def get_all_sessions():
 
     # Fallback: build from in-memory sessions
     results = []
-    for sid, dm in sessions.items():
+    for sid, dm in sessions.iter_active():
         summary = generate_candidate_summary(dm)
         results.append({
             "session_id": sid,
@@ -271,7 +267,7 @@ def get_ranked_candidates():
 
     # Fallback: rank in-memory sessions
     data = []
-    for sid, dm in sessions.items():
+    for sid, dm in sessions.iter_active():
         summary = generate_candidate_summary(dm)
         data.append({
             "session_id": sid,
@@ -286,7 +282,8 @@ def get_ranked_candidates():
 @app.get("/sessions/{session_id}/summary")
 def get_session_summary(session_id: str):
     """Return a compact candidate summary for a session."""
-    dm = sessions.get(session_id)
-    if dm is None:
+    try:
+        dm = sessions.get_dialogue_manager(session_id)
+    except SessionNotFoundError:
         raise HTTPException(status_code=404, detail="Session not found.")
     return generate_candidate_summary(dm)

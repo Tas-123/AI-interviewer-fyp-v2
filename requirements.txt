@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-google-generativeai
 python-dotenv
 psycopg2-binary
 websockets
+groq
