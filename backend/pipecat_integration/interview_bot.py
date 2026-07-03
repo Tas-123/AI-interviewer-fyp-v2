@@ -270,7 +270,8 @@ async def run_bot():
     ])
 
     # 7. Create Pipeline Task and Runner
-    task = PipelineTask(pipeline)
+    # Disable Pipecat's 5-minute idle shutdown so the bot stays up waiting for clients.
+    task = PipelineTask(pipeline, idle_timeout_secs=None)
     runner = PipelineRunner()
 
     # Store the active session ID per connection (supporting one active session at a time in this single runner)
