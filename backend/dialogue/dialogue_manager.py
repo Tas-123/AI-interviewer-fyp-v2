@@ -14,7 +14,8 @@ from dialogue.context import InterviewContext
 from dialogue.guards.pipeline import GuardPipeline
 from dialogue.guards.types import GuardContext, GuardResult
 from dialogue.followup_policy import build_followup_label
-from dialogue.transcript_utils import clean_live_transcript
+from dialogue.transcript_utils import clean_live_transcript, prepare_transcript_for_evaluation
+from dialogue.question_dedup import is_semantic_duplicate
 from dialogue.decision_engine import DecisionEngine
 from dialogue.llm_adapter import LLMAdapter
 from dialogue.evaluator import Evaluator
@@ -88,8 +89,35 @@ class DialogueManager:
         payload = {"type": event_type, "transcript": transcript, **extra}
         self.context.non_evaluated_events.append(payload)
 
+    def _add_guard_trace(
+        self,
+        guard_hit: GuardResult,
+        transcript: str,
+        last_question: str,
+        next_question: str,
+        transcript_quality: dict | None = None,
+    ) -> None:
+        """Record adaptive trace for guard-blocked turns (Phase 6C)."""
+        if not hasattr(self.context, "add_adaptive_trace"):
+            return
+        self.context.add_adaptive_trace({
+            "turn": self.context.turn_count,
+            "question_answered": last_question,
+            "candidate_answer": transcript,
+            "decision_type": guard_hit.decision_type,
+            "guard_passed": False,
+            "next_question": next_question,
+            "domain": getattr(self.context, "current_domain", ""),
+            "transcript_quality": transcript_quality,
+            "metadata": guard_hit.metadata,
+        })
+
     def _response_from_guard(
-        self, guard_hit: GuardResult, transcript: str, last_question: str
+        self,
+        guard_hit: GuardResult,
+        transcript: str,
+        last_question: str,
+        transcript_quality: dict | None = None,
     ) -> dict:
         self._record_non_evaluated_event(
             guard_hit.decision_type,
@@ -98,22 +126,134 @@ class DialogueManager:
             question=last_question,
             metadata=guard_hit.metadata,
         )
+        question = guard_hit.response_text or ""
+        self.context.add_turn(question, transcript)
+        self._add_guard_trace(
+            guard_hit, transcript, last_question, question, transcript_quality
+        )
         return {
-            "question": guard_hit.response_text or "",
+            "question": question,
             "evaluation": None,
             "decision_type": guard_hit.decision_type,
             "latency_ms": 0,
         }
 
+    def _handle_guard_hit(
+        self,
+        guard_hit: GuardResult,
+        transcript: str,
+        last_question: str,
+        transcript_quality: dict | None = None,
+    ) -> dict:
+        """Route guard results — including Phase 6A flow actions — without scoring."""
+        flow_action = (guard_hit.metadata or {}).get("flow_action")
+
+        if flow_action == "skip_domain":
+            return self._guard_skip_domain(
+                guard_hit, transcript, last_question, transcript_quality
+            )
+
+        if flow_action in ("rephrase_idk", "hint_idk"):
+            return self._response_from_guard(
+                guard_hit, transcript, last_question, transcript_quality
+            )
+
+        return self._response_from_guard(
+            guard_hit, transcript, last_question, transcript_quality
+        )
+
+    def _guard_skip_domain(
+        self,
+        guard_hit: GuardResult,
+        transcript: str,
+        last_question: str,
+        transcript_quality: dict | None = None,
+    ) -> dict:
+        """Mark current domain covered and ask the next blueprint question."""
+        from dialogue.states import InterviewState
+
+        domain = getattr(self.context, "current_domain", "")
+        if domain:
+            if hasattr(self.context, "mark_domain_skipped"):
+                self.context.mark_domain_skipped(domain)
+            if hasattr(self.context, "mark_domain_covered"):
+                self.context.mark_domain_covered(domain)
+
+        next_domain = self.engine._advance_to_next_domain(self.context)
+        prefix = (guard_hit.response_text or "Let's move on.").strip()
+
+        if next_domain is None:
+            self.context.state = InterviewState.WRAPUP
+            closing = "Thank you for your time. This concludes the interview."
+            self.context.add_turn(closing, transcript)
+            self._add_guard_trace(
+                guard_hit, transcript, last_question, closing, transcript_quality
+            )
+            self._record_non_evaluated_event(
+                guard_hit.decision_type,
+                transcript,
+                response=closing,
+                metadata=guard_hit.metadata,
+            )
+            return {
+                "question": closing,
+                "evaluation": None,
+                "decision_type": "CLOSING",
+                "latency_ms": 0,
+            }
+
+        action = {
+            "type": "ask",
+            "topic": self.engine._domain_to_topic(next_domain),
+            "domain": next_domain,
+            "difficulty": "medium",
+        }
+        next_q = self._ensure_unique_question(
+            self.llm.generate(action, self.context)
+        )
+        question = f"{prefix} {next_q}".strip()
+        self.context.add_turn(question, transcript)
+        self._add_guard_trace(
+            guard_hit, transcript, last_question, question, transcript_quality
+        )
+        self._record_non_evaluated_event(
+            guard_hit.decision_type,
+            transcript,
+            response=question,
+            metadata={**(guard_hit.metadata or {}), "next_domain": next_domain},
+        )
+        return {
+            "question": question,
+            "evaluation": None,
+            "decision_type": guard_hit.decision_type,
+            "latency_ms": 0,
+        }
+
+    def _ensure_unique_question(self, question: str) -> str:
+        """Avoid asking the same question twice in one session."""
+        if not question or not is_semantic_duplicate(
+            question, self.context.question_history
+        ):
+            return question
+        domain = getattr(self.context, "current_domain", "general")
+        fallback = (
+            f"Let's approach {self.engine._domain_to_topic(domain)} from another angle — "
+            "what would you do step by step in a real project?"
+        )
+        if is_semantic_duplicate(fallback, self.context.question_history):
+            return "Please share any relevant experience you have with this topic."
+        return fallback
+
     def handle_turn(self, transcript):
         raw_transcript_for_debug = transcript
-        transcript = self._clean_live_transcript(transcript)
+        transcript, transcript_quality = prepare_transcript_for_evaluation(transcript)
 
         try:
             last_q_for_debug = self.context.question_history[-1] if getattr(self.context, "question_history", []) else ""
             self._debug_live_log("BOT_LAST_QUESTION", last_q_for_debug)
             self._debug_live_log("CANDIDATE_RAW_TRANSCRIPT", raw_transcript_for_debug)
             self._debug_live_log("CANDIDATE_CLEAN_TRANSCRIPT", transcript)
+            self._debug_live_log("TRANSCRIPT_QUALITY", transcript_quality.to_dict())
         except Exception:
             pass
 
@@ -171,20 +311,31 @@ class DialogueManager:
         guard_hit = self.guard_pipeline.run(guard_ctx)
         if guard_hit:
             return final_log_and_return(
-                self._response_from_guard(guard_hit, transcript, last_question),
+                self._handle_guard_hit(
+                    guard_hit,
+                    transcript,
+                    last_question,
+                    transcript_quality.to_dict(),
+                ),
                 f"{guard_hit.decision_type} - ignored transcript, no scoring",
             )
 
         try:
+            answered_domain = getattr(self.context, "current_domain", "")
+
             adaptive_result = self.evaluator.adaptive_evaluate(
                 question=last_question,
                 answer=transcript,
                 previous_evaluations=self.context.get_previous_evaluations_summary(),
                 interview_stage=self.context.interview_stage,
-                domain=getattr(self.context, "current_domain", ""),
+                domain=answered_domain,
+                transcript_quality=transcript_quality.to_dict(),
             )
 
             evaluation = adaptive_result.get("evaluation", {})
+            if evaluation.get("overall_score", 0) > 0 and answered_domain:
+                if hasattr(self.context, "mark_domain_assessed"):
+                    self.context.mark_domain_assessed(answered_domain)
             decision = adaptive_result.get("decision", {})
             latency_ms = adaptive_result.get("latency_ms", 0)
             eval_method = adaptive_result.get("evaluation_method", {})
@@ -193,11 +344,7 @@ class DialogueManager:
             # Store evaluation in context
             self.context.add_evaluation(evaluation)
 
-            # Capture the domain of the question that was just answered BEFORE
-            # DecisionEngine advances current_domain to the next domain.
-            answered_domain = getattr(self.context, "current_domain", "")
-
-            # Let the engine handle state transitions.
+            # answered_domain captured before DecisionEngine advances current_domain.
             # Store the current transcript temporarily so DecisionEngine can make
             # probe decisions using the actual current answer, not the previous turn.
             self.context.latest_answer_for_decision = transcript
@@ -215,7 +362,9 @@ class DialogueManager:
 
             if engine_reason == "probe_limit_reached_moving_to_next_domain" or engine_action_type == "ask":
                 # Force next blueprint domain question through LLMAdapter.
-                question = self.llm.generate(engine_result, self.context)
+                question = self._ensure_unique_question(
+                    self.llm.generate(engine_result, self.context)
+                )
                 decision_type = "ADVANCE"
             elif engine_action_type == "closing" or engine_decision_type == "CLOSING":
                 question = engine_result.get("next_question", "Thank you for your time. This concludes the interview.")
@@ -293,6 +442,11 @@ class DialogueManager:
                     "followup_type": followup_type,
                     "followup_label": build_followup_label(followup_type) if followup_type else "",
                     "guard_passed": True,
+                    "transcript_quality": transcript_quality.to_dict(),
+                    "transcript_quality_adjusted": evaluation.get(
+                        "transcript_quality_adjusted", False
+                    ),
+                    "score_profiles": evaluation.get("score_profiles", {}),
                     "next_question": next_question,
                     "skill_focus": skill_focus,
                     "interview_stage": self.context.interview_stage,

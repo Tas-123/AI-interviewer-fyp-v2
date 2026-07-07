@@ -2,11 +2,14 @@
 Shared ASR transcript cleanup for DialogueManager and voice processor.
 
 Removes repeated n-grams and phrase echoes while preserving candidate meaning.
+Phase 6B: stutter-prefix removal + quality assessment hook.
 """
 
 from __future__ import annotations
 
 import re
+
+from dialogue.transcript_quality import TranscriptQuality, assess_transcript_quality
 
 
 def _norm_token(token: str) -> str:
@@ -82,6 +85,22 @@ def _remove_overlapping_repeated_phrases(text_value: str) -> str:
     return text_value
 
 
+def _remove_stutter_prefix(text_value: str) -> str:
+    """Remove duplicated opening phrases from partial STT restarts."""
+    words = text_value.split()
+    if len(words) < 6:
+        return text_value
+
+    for n in (4, 3, 2):
+        if len(words) < n * 2:
+            continue
+        first = [w.lower().strip(".,!?") for w in words[:n]]
+        second = [w.lower().strip(".,!?") for w in words[n : n * 2]]
+        if first == second:
+            return " ".join(words[n:])
+    return text_value
+
+
 def clean_live_transcript(text: str) -> str:
     """Clean repeated ASR fragments before evaluation and reporting."""
     original = (text or "").strip()
@@ -90,6 +109,7 @@ def clean_live_transcript(text: str) -> str:
 
     cleaned = re.sub(r"\s+", " ", original).strip()
     cleaned = cleaned.replace(" ,", ",").replace(" .", ".")
+    cleaned = _remove_stutter_prefix(cleaned)
 
     tokens = _remove_adjacent_repeated_ngrams(cleaned.split())
     cleaned = " ".join(tokens)
@@ -116,3 +136,11 @@ def clean_live_transcript(text: str) -> str:
         return original
 
     return cleaned
+
+
+def prepare_transcript_for_evaluation(text: str) -> tuple[str, TranscriptQuality]:
+    """Clean transcript and return quality assessment for evaluation fairness."""
+    raw = (text or "").strip()
+    cleaned = clean_live_transcript(raw)
+    quality = assess_transcript_quality(raw, cleaned)
+    return cleaned, quality

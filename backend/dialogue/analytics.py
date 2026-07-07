@@ -15,6 +15,7 @@ import math
 
 from evaluation.rubric import (
     DIMENSION_WEIGHTS,
+    aggregate_profile_scores,
     compute_weighted_score,
     get_evaluation_methodology,
 )
@@ -439,6 +440,70 @@ def _has_skill_evidence(skill: str, question: str, answer: str) -> bool:
     return False
 
 
+def build_domain_assessment_map(context, skill_coverage_map: dict) -> dict:
+    """
+    Phase 6C: blueprint-level assessment status including not_assessed domains.
+    """
+    blueprint = list(getattr(context, "interview_blueprint", []) or [])
+    assessed = set(getattr(context, "assessed_domains", set()) or set())
+    skipped = set(getattr(context, "skipped_domains", set()) or set())
+    domain_summary = context.get_domain_summary() if hasattr(context, "get_domain_summary") else {}
+    coverage_counts = domain_summary.get("coverage", {})
+
+    assessment_map: dict[str, dict] = {}
+    for domain in blueprint:
+        key = _canonical_skill_name(domain)
+        skill_entry = skill_coverage_map.get(key, {})
+        status = skill_entry.get("status", "")
+
+        if domain in assessed or status.startswith("covered_"):
+            assessment_status = status or "covered_weak"
+            reason = skill_entry.get(
+                "coverage_reason",
+                "Domain received a scored technical answer.",
+            )
+        elif domain in skipped:
+            assessment_status = "not_assessed"
+            reason = "Domain was skipped after meta-conversation or repeated IDK without a scored answer."
+        elif coverage_counts.get(domain, 0) > 0:
+            assessment_status = "not_assessed"
+            reason = "Domain was visited but did not receive a reliable scored evaluation."
+        else:
+            assessment_status = "not_assessed"
+            reason = "Interview ended before this blueprint domain was reached."
+
+        assessment_map[domain] = {
+            "status": assessment_status,
+            "coverage_turns": coverage_counts.get(domain, 0),
+            "reason": reason,
+        }
+
+    return assessment_map
+
+
+def build_interview_completion_summary(context, domain_assessment_map: dict) -> dict:
+    """Phase 6C: concise completion stats for reports."""
+    blueprint = list(getattr(context, "interview_blueprint", []) or [])
+    assessed = [d for d, info in domain_assessment_map.items() if info.get("status", "").startswith("covered")]
+    not_assessed = [
+        d for d, info in domain_assessment_map.items() if info.get("status") == "not_assessed"
+    ]
+    total = len(blueprint) or 1
+    return {
+        "completed": context.state.value == "wrapup",
+        "total_turns": context.turn_count,
+        "blueprint_domains_total": len(blueprint),
+        "domains_assessed": len(assessed),
+        "domains_not_assessed": len(not_assessed),
+        "coverage_percent": round(100.0 * len(assessed) / total, 1),
+        "not_assessed_domains": not_assessed,
+        "completion_note": (
+            "Interview reached wrap-up."
+            if context.state.value == "wrapup"
+            else "Interview ended before full blueprint coverage."
+        ),
+    }
+
 
 def generate_recruiter_summary(weighted_summary: dict, star_analysis: dict, profile: dict,
                                adaptive_trace: list, skill_coverage_map: dict) -> dict:
@@ -489,11 +554,14 @@ def generate_recruiter_summary(weighted_summary: dict, star_analysis: dict, prof
     # Skill coverage concerns
     # Avoid overwhelming the recruiter in very short/early interviews.
     not_covered_skills = []
+    not_assessed_skills = []
     weak_skills = []
 
     for skill, data in skill_coverage_map.items():
         status = data.get("status", "")
-        if status == "not_covered":
+        if status == "not_assessed":
+            not_assessed_skills.append(skill)
+        elif status == "not_covered":
             not_covered_skills.append(skill)
         elif status == "covered_weak":
             weak_skills.append(skill)
@@ -501,7 +569,10 @@ def generate_recruiter_summary(weighted_summary: dict, star_analysis: dict, prof
     for skill in weak_skills[:3]:
         follow_up_areas.append(f"Re-check {skill} with a deeper technical follow-up.")
 
-    for skill in not_covered_skills[:3]:
+    for skill in not_assessed_skills[:3]:
+        follow_up_areas.append(f"Re-assess {skill} in a follow-up session (not scored in this interview).")
+
+    for skill in not_covered_skills[:2]:
         follow_up_areas.append(f"Assess {skill} because it was not covered.")
 
     if total_evaluated <= 2 and len(not_covered_skills) > 3:
@@ -761,8 +832,8 @@ def generate_final_report(context) -> dict:
         avg_score = round(sum(scores) / len(scores), 2) if scores else 0
 
         if not evidence_turns:
-            status = "not_covered"
-            coverage_reason = "This skill/domain was not reached as a dedicated interview domain."
+            status = "not_assessed"
+            coverage_reason = "This skill/domain was not reliably assessed with a scored answer."
         elif avg_score >= 3.5:
             status = "covered_strong"
             coverage_reason = "Skill/domain was assessed in its dedicated domain with strong performance."
@@ -853,8 +924,13 @@ def generate_final_report(context) -> dict:
         ),
     }
 
+    score_profile_summary = aggregate_profile_scores(scored)
+    domain_assessment_map = build_domain_assessment_map(context, skill_coverage_map)
+    interview_completion = build_interview_completion_summary(context, domain_assessment_map)
+
     return {
         "weighted_score_summary": weighted_summary,
+        "score_profile_summary": score_profile_summary,
         "technical_evidence_analysis": technical_evidence_analysis,
         "star_effectiveness_analysis": star_effectiveness_analysis,
         "performance_trend_analysis": trend,
@@ -864,6 +940,8 @@ def generate_final_report(context) -> dict:
         "bias_awareness": bias_awareness,
         "adaptive_questioning_trace": adaptive_trace,
         "skill_coverage_map": skill_coverage_map,
+        "domain_assessment_map": domain_assessment_map,
+        "interview_completion": interview_completion,
         "interview_metadata": {
             "total_turns": context.turn_count,
             "final_state": context.state.value,
@@ -876,6 +954,8 @@ def generate_final_report(context) -> dict:
             "domain_coverage": context.get_domain_summary(),
             "evaluation_methodology": get_evaluation_methodology(),
             "ensemble_rethink_turns": _count_rethink_turns(context),
+            "assessed_domains": sorted(getattr(context, "assessed_domains", set()) or []),
+            "skipped_domains": sorted(getattr(context, "skipped_domains", set()) or []),
         },
         "evaluation_methodology": get_evaluation_methodology(),
     }

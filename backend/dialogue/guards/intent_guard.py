@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 from dialogue.guards.echo_guard import short_repeat_question
 from dialogue.guards.incomplete_guard import looks_like_incomplete_transcript
@@ -72,6 +75,7 @@ def classify_candidate_intent(
         "i don't want this interview", "i dont want this interview",
         "change the topic", "leave this question", "next question please",
         "i am not here for", "i'm not here for",
+        "what do you mean by how",
     ]
 
     if any(p in clean for p in audio_issue_phrases):
@@ -219,7 +223,7 @@ Return JSON only:
         if intent in allowed and confidence >= 0.55:
             return intent
     except Exception as exc:
-        print(f"[IntentClassifier] Semantic fallback failed: {exc}")
+        logger.warning("Semantic fallback failed: %s", exc)
 
     return "ANSWER_ATTEMPT"
 

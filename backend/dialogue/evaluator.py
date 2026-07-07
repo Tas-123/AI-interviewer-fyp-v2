@@ -88,6 +88,7 @@ class Evaluator:
         previous_evaluations: list,
         interview_stage: str,
         domain: str = "",
+        transcript_quality: dict | None = None,
     ) -> dict:
         """
         Evaluate answer and decide next question via EvaluationPipeline.
@@ -116,6 +117,7 @@ class Evaluator:
             previous_evaluations=previous_evaluations,
             interview_stage=interview_stage,
             domain=domain,
+            transcript_quality=transcript_quality,
         )
 
     def score_answer(self, question: str, answer: str, domain: str = "") -> dict:
@@ -157,14 +159,23 @@ class Evaluator:
         answer: str,
         previous_evaluations: list,
         interview_stage: str,
+        transcript_quality: dict | None = None,
     ) -> dict:
         """Primary adaptive LLM call — scores answer and suggests follow-up."""
+        quality_note = ""
+        if transcript_quality and transcript_quality.get("is_noisy"):
+            quality_note = (
+                "\n\nSTT quality note: The candidate answer may contain speech-to-text "
+                "repetition or fragmentation. Score technical intent and ownership generously. "
+                "Do not heavily penalize clarity or structure if repetition artifacts are present."
+            )
+
         prompt = ADAPTIVE_EVALUATION_PROMPT.format(
             current_question=question,
             candidate_answer=answer,
             previous_evaluations=json.dumps(previous_evaluations),
             interview_stage=interview_stage,
-        )
+        ) + quality_note
 
         t_start = time.perf_counter()
         try:

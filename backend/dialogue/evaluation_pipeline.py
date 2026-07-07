@@ -11,6 +11,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from evaluation.rubric import (
+    apply_transcript_quality_adjustment,
+    compute_profile_scores,
     get_evaluation_methodology,
     merge_evaluations,
     should_trigger_rethink,
@@ -42,6 +44,7 @@ class EvaluationPipeline:
         previous_evaluations: list,
         interview_stage: str,
         domain: str = "",
+        transcript_quality: dict | None = None,
     ) -> dict[str, Any]:
         """
         Run full evaluation for one candidate turn.
@@ -57,11 +60,16 @@ class EvaluationPipeline:
             answer=answer,
             previous_evaluations=previous_evaluations,
             interview_stage=interview_stage,
+            transcript_quality=transcript_quality,
         )
         total_latency += primary.get("latency_ms", 0)
 
         evaluation = primary.get("evaluation", {})
         decision = primary.get("decision", {})
+
+        evaluation = apply_transcript_quality_adjustment(evaluation, transcript_quality)
+        if evaluation and "score_profiles" not in evaluation:
+            evaluation["score_profiles"] = compute_profile_scores(evaluation)
 
         if should_trigger_rethink(evaluation):
             rethink_result = self._evaluator.rethink_evaluation(
@@ -73,6 +81,10 @@ class EvaluationPipeline:
             total_latency += rethink_result.get("latency_ms", 0)
             if rethink_result.get("evaluation"):
                 evaluation = merge_evaluations(evaluation, rethink_result["evaluation"])
+                evaluation = apply_transcript_quality_adjustment(
+                    evaluation, transcript_quality
+                )
+                evaluation["score_profiles"] = compute_profile_scores(evaluation)
                 rethink_applied = True
                 logger.debug(
                     "Rethink ensemble applied: primary=%.2f merged=%.2f",
@@ -84,6 +96,8 @@ class EvaluationPipeline:
         method["primary_pass"] = True
         method["rethink_applied"] = rethink_applied
         method["total_latency_ms"] = round(total_latency, 2)
+        if transcript_quality:
+            method["transcript_quality"] = transcript_quality
 
         return {
             "evaluation": evaluation,

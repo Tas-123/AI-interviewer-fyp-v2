@@ -26,6 +26,7 @@ from dotenv import load_dotenv
 from groq import Groq
 from core.config import settings
 from dialogue.output_sanitizer import sanitize_interviewer_output
+from dialogue.question_dedup import is_semantic_duplicate
 from dialogue.prompts import (
     BEHAVIORAL_SYSTEM_PROMPT,
     TECHNICAL_SYSTEM_PROMPT,
@@ -134,7 +135,10 @@ Session context:
                 "behavioral_ownership": "Tell me about a time you took ownership of a technical problem. What did you do, and what was the outcome?",
             }
             if domain in domain_questions:
-                return _naturalize_static_question(domain, domain_questions[domain])
+                candidate = _naturalize_static_question(domain, domain_questions[domain])
+                if not is_semantic_duplicate(candidate, context.question_history):
+                    return candidate
+                # Primary already asked — fall through to LLM for a fresh angle.
 
         system_prompt = TECHNICAL_SYSTEM_PROMPT.format(
             topic=topic,

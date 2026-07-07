@@ -48,6 +48,15 @@ class Settings:
 
     # Voice providers (Pipecat path)
     deepgram_api_key: str = os.getenv("DEEPGRAM_API_KEY", "")
+    deepgram_model: str = os.getenv("DEEPGRAM_MODEL", "nova-2")
+    deepgram_language: str = os.getenv("DEEPGRAM_LANGUAGE", "en")
+    deepgram_endpointing_ms: int = int(os.getenv("DEEPGRAM_ENDPOINTING_MS", "500"))
+    deepgram_smart_format: bool = _env_bool("DEEPGRAM_SMART_FORMAT", True)
+    deepgram_punctuate: bool = _env_bool("DEEPGRAM_PUNCTUATE", True)
+    deepgram_keywords: str = os.getenv(
+        "DEEPGRAM_KEYWORDS",
+        "FastAPI:1,Qdrant:1,Python:1,TensorFlow:1,scikit-learn:1",
+    )
     cartesia_api_key: str = os.getenv("CARTESIA_API_KEY", "")
     cartesia_voice_id: str = os.getenv(
         "CARTESIA_VOICE_ID", "2d1cc513-e4d7-466c-bb9a-cb7127e79391"

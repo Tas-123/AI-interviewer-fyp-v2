@@ -239,7 +239,22 @@ async def run_bot():
 
     # 4. Initialize AI services
     logger.info("Initializing Speech-to-Text (Deepgram) and Text-to-Speech (Cartesia) services")
-    stt_service = DeepgramSTTService(api_key=config.DEEPGRAM_API_KEY)
+    stt_service = DeepgramSTTService(
+        api_key=config.DEEPGRAM_API_KEY,
+        settings=DeepgramSTTService.Settings(
+            model=settings.deepgram_model,
+            language=settings.deepgram_language,
+            endpointing=settings.deepgram_endpointing_ms,
+            smart_format=settings.deepgram_smart_format,
+            punctuate=settings.deepgram_punctuate,
+            keywords=[
+                item.strip()
+                for item in settings.deepgram_keywords.split(",")
+                if item.strip()
+            ]
+            or None,
+        ),
+    )
     tts_service = CartesiaTTSService(
         api_key=config.CARTESIA_API_KEY,
         settings=CartesiaTTSService.Settings(

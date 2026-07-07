@@ -7,6 +7,7 @@ Uses adaptive evaluation (PROBE/ADVANCE) for intelligent follow-up decisions.
 
 from dialogue.states import InterviewState
 from dialogue.followup_policy import classify_followup_type
+from dialogue.question_dedup import domain_primary_already_asked
 
 
 # Threshold: if overall evaluation score is at or below this,
@@ -123,10 +124,27 @@ class DecisionEngine:
         """Move to the next domain that still needs coverage."""
         if not hasattr(context, "get_next_domain"):
             return None
-        next_domain = context.get_next_domain()
-        if next_domain:
-            context.current_domain = next_domain
-        return next_domain
+
+        history = getattr(context, "question_history", [])
+        safety = 0
+        while safety < len(getattr(context, "interview_blueprint", []) or []) + 2:
+            safety += 1
+            next_domain = context.get_next_domain()
+            if next_domain is None:
+                return None
+
+            # Skip domains whose primary question was already asked (Phase 6A).
+            if domain_primary_already_asked(next_domain, history):
+                context.mark_domain_covered(next_domain)
+                continue
+
+            if hasattr(context, "set_current_domain"):
+                context.set_current_domain(next_domain)
+            else:
+                context.current_domain = next_domain
+            return next_domain
+
+        return None
 
     def _handle_technical(self, context, latest_answer):
         """Handle TECHNICAL state using Junior AI Engineer blueprint."""
@@ -147,7 +165,10 @@ class DecisionEngine:
                 "difficulty": "medium",
             }
 
-        context.current_domain = domain
+        if hasattr(context, "set_current_domain"):
+            context.set_current_domain(domain)
+        else:
+            context.current_domain = domain
 
         if hasattr(context, "mark_domain_covered"):
             context.mark_domain_covered(domain)

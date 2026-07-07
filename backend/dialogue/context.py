@@ -78,6 +78,13 @@ class InterviewContext:
         # This is used in the final report to prove why each follow-up was asked.
         self.adaptive_trace = []
 
+        # Phase 6A: per-domain IDK attempts (rephrase → hint → skip)
+        self.domain_idk_counts: dict[str, int] = {}
+
+        # Phase 6C: domain assessment tracking for reporting
+        self.assessed_domains: set[str] = set()
+        self.skipped_domains: set[str] = set()
+
     def add_turn(self, question, transcript):
         """Record one Q&A exchange."""
         self.question_history.append(question)
@@ -226,6 +233,25 @@ class InterviewContext:
         """Increment coverage count for a domain."""
         self.coverage.mark_domain_covered(domain)
         self._sync_coverage_state()
+
+    def set_current_domain(self, domain: str):
+        """Set active blueprint domain on both context and coverage engine."""
+        self.coverage.set_current_domain(domain)
+        self._sync_coverage_state()
+
+    def record_idk_attempt(self, domain: str) -> int:
+        """Increment and return IDK attempt count for a domain."""
+        key = (domain or "general").strip().lower()
+        self.domain_idk_counts[key] = self.domain_idk_counts.get(key, 0) + 1
+        return self.domain_idk_counts[key]
+
+    def mark_domain_assessed(self, domain: str) -> None:
+        if domain:
+            self.assessed_domains.add(domain)
+
+    def mark_domain_skipped(self, domain: str) -> None:
+        if domain:
+            self.skipped_domains.add(domain)
 
     def mark_domain_probe(self, domain: str):
         """Increment probe count for a domain."""

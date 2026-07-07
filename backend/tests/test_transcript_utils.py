@@ -24,7 +24,14 @@ def test_preserves_meaningful_short_answer():
     assert clean_live_transcript(raw) == raw
 
 
+def test_stutter_prefix_cleanup():
+    raw = "Well, I Well, I use pandas for cleaning data."
+    cleaned = clean_live_transcript(raw)
+    assert cleaned.count("Well, I") == 1
+
+
 if __name__ == "__main__":
     test_removes_adjacent_repeated_phrases()
     test_preserves_meaningful_short_answer()
+    test_stutter_prefix_cleanup()
     print("[PASS] test_transcript_utils")

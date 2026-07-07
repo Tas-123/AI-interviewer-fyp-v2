@@ -6,8 +6,10 @@ from typing import Optional
 
 from dialogue.guards.domain_guard import DomainGuard
 from dialogue.guards.echo_guard import EchoGuard
+from dialogue.guards.idk_guard import IdkGuard
 from dialogue.guards.incomplete_guard import IncompleteGuard
 from dialogue.guards.intent_guard import IntentGuard
+from dialogue.guards.meta_conversation_guard import MetaConversationGuard
 from dialogue.guards.types import Guard, GuardContext, GuardResult
 
 
@@ -20,6 +22,8 @@ class GuardPipeline:
         else:
             self._guards = [
                 EchoGuard(),
+                MetaConversationGuard(),
+                IdkGuard(),
                 IntentGuard(llm_client=llm_client, llm_model=llm_model),
                 IncompleteGuard(),
                 DomainGuard(),

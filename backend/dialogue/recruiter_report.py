@@ -5,7 +5,11 @@ Transforms internal analytics data into structured recruiter-friendly outputs.
 Does NOT modify the evaluation engine or analytics logic — reads only.
 """
 
-from evaluation.rubric import RECRUITER_HIRE_THRESHOLDS, get_evaluation_methodology
+from evaluation.rubric import (
+    RECRUITER_HIRE_THRESHOLDS,
+    aggregate_profile_scores,
+    get_evaluation_methodology,
+)
 
 
 def generate_hr_report(dm) -> dict:
@@ -42,15 +46,17 @@ def generate_hr_report(dm) -> dict:
     scored = [e for e in context.evaluations
               if e.get("overall_score", 0) > 0 and not e.get("is_error")]
 
-    # ── Per-dimension scores ─────────────────────────────────────
+    # ── Per-dimension scores (Phase 6C: communication vs technical profiles) ──
+    score_profiles = aggregate_profile_scores(scored)
+    communication_score = score_profiles["communication"]["composite"]
+    technical_score = score_profiles["technical"]["composite"]
+
     def avg(field):
         vals = [e.get(field, 0) for e in scored if e.get(field, 0) > 0]
         return round(sum(vals) / len(vals), 2) if vals else 0.0
 
-    communication_score = avg("clarity")
     leadership_score = avg("leadership")
     problem_solving_score = avg("ownership")
-    technical_score = avg("result_orientation")
 
     # ── Weighted score ───────────────────────────────────────────
     weighted_scores = [s for _, s in context.weighted_score_history]
@@ -102,6 +108,7 @@ def generate_hr_report(dm) -> dict:
         "trend_label": trend_label,
         "hire_recommendation": hire_recommendation,
         "risk_flags": risk_flags,
+        "score_profile_summary": score_profiles,
         "evaluation_methodology": get_evaluation_methodology(),
         "avg_weighted_score": avg_weighted,
     }

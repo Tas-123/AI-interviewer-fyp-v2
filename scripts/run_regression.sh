@@ -9,6 +9,18 @@ export DEBUG_LIVE_LOGGING=false
 
 PY=python3
 
+echo "=== Phase 6A interview flow ==="
+$PY backend/tests/test_phase6a_interview_flow.py
+
+echo "=== Phase 6B transcript quality ==="
+$PY backend/tests/test_phase6b_transcript_quality.py
+
+echo "=== Phase 6C reporting ==="
+$PY backend/tests/test_phase6c_reporting.py
+
+echo "=== Transcript utils ==="
+$PY backend/tests/test_transcript_utils.py
+
 echo "=== Phase 5 voice turn policy ==="
 if $PY -m pytest backend/tests/test_voice_turn_policy.py -q 2>/dev/null; then
   :

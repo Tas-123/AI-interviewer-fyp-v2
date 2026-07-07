@@ -44,7 +44,11 @@ class CoverageEngine:
         if domain not in self.domain_coverage:
             self.domain_coverage[domain] = 0
         self.domain_coverage[domain] += 1
-        self.current_domain = domain
+
+    def set_current_domain(self, domain: str) -> None:
+        """Set active domain without incrementing coverage (Phase 6A)."""
+        if domain:
+            self.current_domain = domain
 
     def mark_domain_probe(self, domain: str) -> None:
         if not domain:
