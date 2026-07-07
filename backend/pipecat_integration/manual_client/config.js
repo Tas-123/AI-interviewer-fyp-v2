@@ -17,5 +17,6 @@
         },
         botAudioJitterBufferSec: parseFloat(params.get("jitter") || "0.15"),
         suppressMicWhileBotSpeaking: params.get("suppress_mic") !== "0",
+        micGain: parseFloat(params.get("mic_gain") || "2.5"),
     };
 })();

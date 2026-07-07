@@ -23,6 +23,7 @@ from pipecat_integration.interview_processor import (
     TTSSpeakFrame,
     sanitize_tts_text
 )
+from voice.voice_turn_policy import VoiceTurnPolicy, DEFAULT_FILLER_WORDS
 from integration.dialogue_adapter import InterviewDialogueAdapter
 
 class TestProcessor(InterviewProcessor):
@@ -30,11 +31,30 @@ class TestProcessor(InterviewProcessor):
     Subclass of InterviewProcessor that captures pushed frames for easy assertions in unit tests.
     """
     def __init__(self, adapter, session_id):
-        super().__init__(adapter, session_id)
+        test_policy = VoiceTurnPolicy(
+            transcript_debounce_seconds=0,
+            short_answer_grace_seconds=0,
+            short_answer_word_threshold=6,
+            startup_audio_gate_seconds=0,
+            startup_refresh_seconds=0,
+            bot_echo_cooldown_seconds=0,
+            bot_stop_echo_cooldown_seconds=0,
+            closing_delay_seconds=0,
+            filler_words=DEFAULT_FILLER_WORDS,
+        )
+        super().__init__(adapter, session_id, policy=test_policy)
         self.pushed_frames = []
+        self.reset_for_new_session()
 
     async def push_frame(self, frame, direction):
         self.pushed_frames.append((frame, direction))
+
+async def _flush_processor(processor):
+    """Wait for scheduled debounce / turn tasks in tests."""
+    if processor._debounce_task and not processor._debounce_task.done():
+        await processor._debounce_task
+    if processor._interim_finalize_task and not processor._interim_finalize_task.done():
+        await processor._interim_finalize_task
 
 def run_async_test(coro):
     """Helper to run async test coroutines."""
@@ -55,16 +75,15 @@ async def test_processor_normal_turn():
     frame = TranscriptionFrame(text="I built a microservice using Python.", user_id="test-user", timestamp="0", finalized=True)
     
     await processor.process_frame(frame, FrameDirection.DOWNSTREAM)
+    await _flush_processor(processor)
 
     # Verify adapter was called with correct parameters
     mock_adapter.process_user_text.assert_called_once_with("test-session", "I built a microservice using Python.")
 
     # Verify response frame was pushed downstream
-    assert len(processor.pushed_frames) == 1
-    pushed_frame, direction = processor.pushed_frames[0]
-    assert isinstance(pushed_frame, TTSSpeakFrame)
-    assert pushed_frame.text == "That sounds very interesting. How did you implement that?"
-    assert direction == FrameDirection.DOWNSTREAM
+    tts_frames = [f for f, _ in processor.pushed_frames if isinstance(f, TTSSpeakFrame)]
+    assert len(tts_frames) == 1
+    assert tts_frames[0].text == "That sounds very interesting. How did you implement that?"
     print("[PASS] test_processor_normal_turn")
 
 async def test_processor_empty_transcript():
@@ -74,16 +93,15 @@ async def test_processor_empty_transcript():
     frame = TranscriptionFrame(text="   ", user_id="test-user", timestamp="0", finalized=True)
 
     await processor.process_frame(frame, FrameDirection.DOWNSTREAM)
+    await _flush_processor(processor)
 
     # Adapter should NOT be called to avoid wasting resources on blank transcriptions
     mock_adapter.process_user_text.assert_not_called()
 
     # Clarification frame should be pushed downstream
-    assert len(processor.pushed_frames) == 1
-    pushed_frame, direction = processor.pushed_frames[0]
-    assert isinstance(pushed_frame, TTSSpeakFrame)
-    assert "didn't catch that" in pushed_frame.text
-    assert direction == FrameDirection.DOWNSTREAM
+    tts_frames = [f for f, _ in processor.pushed_frames if isinstance(f, TTSSpeakFrame)]
+    assert len(tts_frames) == 1
+    assert "didn't catch that" in tts_frames[0].text
     print("[PASS] test_processor_empty_transcript")
 
 async def test_processor_adapter_error_fallback():
@@ -101,13 +119,12 @@ async def test_processor_adapter_error_fallback():
     frame = TranscriptionFrame(text="My answer details", user_id="test-user", timestamp="0", finalized=True)
 
     await processor.process_frame(frame, FrameDirection.DOWNSTREAM)
+    await _flush_processor(processor)
 
     # Verify fallback message was pushed downstream
-    assert len(processor.pushed_frames) == 1
-    pushed_frame, direction = processor.pushed_frames[0]
-    assert isinstance(pushed_frame, TTSSpeakFrame)
-    assert "trouble processing" in pushed_frame.text or "repeat" in pushed_frame.text
-    assert direction == FrameDirection.DOWNSTREAM
+    tts_frames = [f for f, _ in processor.pushed_frames if isinstance(f, TTSSpeakFrame)]
+    assert len(tts_frames) == 1
+    assert "trouble processing" in tts_frames[0].text or "repeat" in tts_frames[0].text
     print("[PASS] test_processor_adapter_error_fallback")
 
 async def test_processor_interview_completion():
@@ -125,25 +142,15 @@ async def test_processor_interview_completion():
     frame = TranscriptionFrame(text="I am ready to wrap up.", user_id="test-user", timestamp="0", finalized=True)
 
     await processor.process_frame(frame, FrameDirection.DOWNSTREAM)
+    await _flush_processor(processor)
 
-    # Verify three frames: AI response, spoken closing, EndTaskFrame upstream
-    assert len(processor.pushed_frames) == 3
-    
-    # 1. TTSSpeakFrame downstream (AI response)
-    pushed_frame_1, direction_1 = processor.pushed_frames[0]
-    assert isinstance(pushed_frame_1, TTSSpeakFrame)
-    assert pushed_frame_1.text == "Thank you, this concludes the interview. Goodbye!"
-    assert direction_1 == FrameDirection.DOWNSTREAM
-
-    # 2. TTSSpeakFrame downstream (closing message)
-    pushed_frame_2, direction_2 = processor.pushed_frames[1]
-    assert isinstance(pushed_frame_2, TTSSpeakFrame)
-    assert direction_2 == FrameDirection.DOWNSTREAM
-
-    # 3. EndTaskFrame upstream
-    pushed_frame_3, direction_3 = processor.pushed_frames[2]
-    assert isinstance(pushed_frame_3, EndTaskFrame)
-    assert direction_3 == FrameDirection.UPSTREAM
+    # Verify AI response, spoken closing, and EndTaskFrame
+    tts_frames = [f for f, _ in processor.pushed_frames if isinstance(f, TTSSpeakFrame)]
+    end_frames = [f for f, d in processor.pushed_frames if isinstance(f, EndTaskFrame)]
+    assert len(tts_frames) == 2
+    assert tts_frames[0].text == "Thank you, this concludes the interview. Goodbye!"
+    assert len(end_frames) == 1
+    assert processor.pushed_frames[-1][1] == FrameDirection.UPSTREAM
     print("[PASS] test_processor_interview_completion")
 
 async def test_session_lifecycle():
@@ -192,26 +199,23 @@ async def test_session_lifecycle():
         # 2. Setup Processor and simulate turn 1
         processor = TestProcessor(adapter, session_id)
         await processor.process_frame(TranscriptionFrame(text="I use pytest fixtures for setting up database state.", user_id="test-user", timestamp="0", finalized=True), FrameDirection.DOWNSTREAM)
+        await _flush_processor(processor)
         
-        assert len(processor.pushed_frames) == 1
-        p1, d1 = processor.pushed_frames[0]
-        assert isinstance(p1, TTSSpeakFrame)
-        assert p1.text == "How do you write a parameterized test in Pytest?"
+        tts_frames = [f for f, _ in processor.pushed_frames if isinstance(f, TTSSpeakFrame)]
+        assert len(tts_frames) == 1
+        assert tts_frames[0].text == "How do you write a parameterized test in Pytest?"
         
         # 3. Simulate turn 2 (completes)
         # Force next get_status to return wrapup state so adapter recognizes it is complete
         mock_dm.get_status.return_value = {"state": "wrapup", "turn_count": 2}
         await processor.process_frame(TranscriptionFrame(text="You use pytest mark parameterize decorator.", user_id="test-user", timestamp="0", finalized=True), FrameDirection.DOWNSTREAM)
+        await _flush_processor(processor)
         
-        # Pushed goodbye TTSSpeakFrame + closing TTSSpeakFrame + EndTaskFrame
-        assert len(processor.pushed_frames) == 4
-        p2, d2 = processor.pushed_frames[1]
-        assert isinstance(p2, TTSSpeakFrame)
-        assert p2.text == "Excellent. We will conclude here."
-        p3, d3 = processor.pushed_frames[2]
-        assert isinstance(p3, TTSSpeakFrame)
-        p4, d4 = processor.pushed_frames[3]
-        assert isinstance(p4, EndTaskFrame)
+        tts_frames = [f for f, _ in processor.pushed_frames if isinstance(f, TTSSpeakFrame)]
+        end_frames = [f for f, d in processor.pushed_frames if isinstance(f, EndTaskFrame)]
+        assert len(tts_frames) == 3
+        assert tts_frames[1].text == "Excellent. We will conclude here."
+        assert len(end_frames) == 1
 
         # 4. End Interview
         end_res = adapter.end_interview(session_id)

@@ -27,6 +27,7 @@ let nextBotAudioTime = 0;
 let botAudioQueueDepth = 0;
 let isBotAudioPlaying = false;
 const suppressMicWhileBotSpeaking = cfg.suppressMicWhileBotSpeaking !== false;
+const MIC_GAIN = Number(cfg.micGain) > 0 ? Number(cfg.micGain) : 2.5;
 const BOT_AUDIO_JITTER_BUFFER_SEC = cfg.botAudioJitterBufferSec ?? 0.15;
 let botAudioCooldownTimeout = null;
 let botChunksReceived = 0;
@@ -210,10 +211,10 @@ async function startSession() {
                     updateVisualizer(rms);
                 }
 
-                // Convert Float32 values to signed 16-bit PCM Integers
+                // Convert Float32 values to signed 16-bit PCM (boost quiet browser mics)
                 const pcmData = new Int16Array(inputChannel.length);
                 for (let i = 0; i < inputChannel.length; i++) {
-                    let val = Math.floor(inputChannel[i] * 32767);
+                    let val = Math.floor(inputChannel[i] * 32767 * MIC_GAIN);
                     val = Math.max(-32768, Math.min(32767, val));
                     pcmData[i] = val;
                 }
@@ -229,7 +230,11 @@ async function startSession() {
 
                 const now_log = Date.now();
                 if (now_log - lastLogTime >= 1000) {
-                    log(`Audio stream: Sent ${chunksSent} chunks (${bytesSent} bytes) to server. Non-silent: ${nonSilentChunks}/${chunksSent}.`, "info");
+                    log(
+                        `Audio stream: Sent ${chunksSent} chunks (${bytesSent} bytes). ` +
+                        `Non-silent: ${nonSilentChunks}/${chunksSent}. RMS=${rms.toFixed(4)} gain=${MIC_GAIN}`,
+                        "info"
+                    );
                     chunksSent = 0;
                     bytesSent = 0;
                     nonSilentChunks = 0;
@@ -238,7 +243,12 @@ async function startSession() {
             };
 
             micSource.connect(scriptProcessor);
-            scriptProcessor.connect(audioContext.destination);
+            // Route through silent gain — ScriptProcessor must connect to the graph,
+            // but playing mic to speakers causes echo and weak STT levels.
+            const silentGain = audioContext.createGain();
+            silentGain.gain.value = 0;
+            scriptProcessor.connect(silentGain);
+            silentGain.connect(audioContext.destination);
             log("Microphone stream is live and routing audio.", "success");
         };
 
@@ -552,7 +562,8 @@ function disconnectSession() {
     if (ws) {
         if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
             try {
-                ws.send(JSON.stringify({ type: "end" }));
+                // Do not send {type:"end"} — that injects EndFrame server-side and kills STT/TTS
+                // for the next reconnect. Closing the socket is enough.
                 ws.close();
             } catch(e) {}
         }

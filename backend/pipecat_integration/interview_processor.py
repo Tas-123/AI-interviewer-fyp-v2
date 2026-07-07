@@ -144,6 +144,58 @@ class InterviewProcessor(FrameProcessor):
 
         self.startup_audio_ignore_until = time.time() + self.policy.startup_audio_gate_seconds
         self.first_real_user_turn_seen = False
+        self._interim_silence_seconds = 1.4
+        self._interim_finalize_task: asyncio.Task | None = None
+
+    def reset_for_new_session(self) -> None:
+        """Reset per-session processor state when a new WebSocket client connects."""
+        self.last_processed_transcript = ""
+        self.latest_user_transcript = ""
+        self.utterance_parts = []
+        self.bot_is_speaking = False
+        self.ignore_user_audio_until = 0.0
+        self.vad_enabled = False
+        self.last_barge_in_at = 0.0
+        self.barge_in_active = False
+        self.startup_audio_ignore_until = time.time() + self.policy.startup_audio_gate_seconds
+        self.first_real_user_turn_seen = False
+        if self._debounce_task and not self._debounce_task.done():
+            self._debounce_task.cancel()
+        self._debounce_task = None
+        if self._interim_finalize_task and not self._interim_finalize_task.done():
+            self._interim_finalize_task.cancel()
+        self._interim_finalize_task = None
+
+    def _schedule_turn_debounce(self) -> None:
+        """Queue transcript evaluation after the configured debounce window."""
+        if self._debounce_task and not self._debounce_task.done():
+            self._debounce_task.cancel()
+        self._debounce_task = asyncio.create_task(
+            self._process_buffered_transcript_after_delay()
+        )
+
+    def _schedule_interim_finalize(self) -> None:
+        """If VAD misses speech, finalize buffered interim STT after a short pause."""
+        if self._interim_finalize_task and not self._interim_finalize_task.done():
+            self._interim_finalize_task.cancel()
+        self._interim_finalize_task = asyncio.create_task(
+            self._finalize_buffered_interim_after_silence()
+        )
+
+    async def _finalize_buffered_interim_after_silence(self) -> None:
+        try:
+            await asyncio.sleep(self._interim_silence_seconds)
+            if self.bot_is_speaking:
+                return
+            if not self.latest_user_transcript.strip():
+                return
+            logger.info(
+                "Interim STT silence fallback — scheduling turn from buffered text: %r",
+                self.latest_user_transcript[:120],
+            )
+            self._schedule_turn_debounce()
+        except asyncio.CancelledError:
+            logger.debug("Interim finalize task cancelled — new speech detected.")
 
     def _merge_transcript_part(self, user_text: str) -> None:
         """Accumulate partial STT chunks into the longest useful utterance."""
@@ -369,6 +421,8 @@ class InterviewProcessor(FrameProcessor):
             if self._debounce_task and not self._debounce_task.done():
                 self._debounce_task.cancel()
                 logger.debug("Cancelled debounce task — user speaking again")
+            if self._interim_finalize_task and not self._interim_finalize_task.done():
+                self._interim_finalize_task.cancel()
 
             await self.push_frame(frame, direction)
             return
@@ -380,17 +434,16 @@ class InterviewProcessor(FrameProcessor):
             if self._debounce_task and not self._debounce_task.done():
                 self._debounce_task.cancel()
 
-            self._debounce_task = asyncio.create_task(
-                self._process_buffered_transcript_after_delay()
-            )
+            self._schedule_turn_debounce()
             await self.push_frame(frame, direction)
             return
 
         if isinstance(frame, InterimTranscriptionFrame):
             interim_text = (getattr(frame, "text", "") or "").strip()
-            if interim_text:
+            if interim_text and not self.bot_is_speaking:
                 self._merge_transcript_part(interim_text)
-                logger.debug("Buffered interim transcript: %r", interim_text)
+                logger.info("Buffered interim STT: %r", interim_text[:120])
+                self._schedule_interim_finalize()
             await self.push_frame(frame, direction)
             return
 
@@ -398,9 +451,10 @@ class InterviewProcessor(FrameProcessor):
             user_text = (frame.text or "").strip()
 
             if getattr(frame, "finalized", True) is False:
-                if user_text:
+                if user_text and not self.bot_is_speaking:
                     self._merge_transcript_part(user_text)
                     logger.debug("Stored non-final transcription: %r", user_text)
+                    self._schedule_interim_finalize()
                 await self.push_frame(frame, direction)
                 return
 
@@ -410,32 +464,20 @@ class InterviewProcessor(FrameProcessor):
                     logger.debug("Stored transcript while bot speaking: %r", user_text)
                 return
 
-            if self.vad_enabled:
-                if not user_text:
-                    logger.warning("Empty transcript in VAD mode — ignoring.")
-                    return
-                self._merge_transcript_part(user_text)
-                logger.debug("Buffered final transcript (VAD): %r", user_text)
-                return
-
-            # Non-VAD path (unit tests / providers without VAD)
             if not user_text:
-                logger.warning("Empty transcript (non-VAD) — requesting clarification.")
+                logger.warning("Empty final transcript — requesting clarification.")
                 await self.push_frame(
-                    TTSSpeakFrame("I didn't catch that. Could you please repeat or elaborate?"),
+                    TTSSpeakFrame(
+                        "I didn't catch that. Could you please repeat or elaborate?"
+                    ),
                     direction,
                 )
                 return
 
-            if user_text == self.last_processed_transcript:
-                logger.info("Duplicate transcript skipped (non-VAD): %r", user_text)
-                return
-
-            cleaned = self._clean_transcript_for_evaluation(user_text)
-            if cleaned:
-                user_text = cleaned
-
-            await self._submit_turn(user_text, direction)
+            self._merge_transcript_part(user_text)
+            logger.info("Final STT transcript received: %r", user_text[:160])
+            self._schedule_turn_debounce()
+            await self.push_frame(frame, direction)
             return
 
         await self.push_frame(frame, direction)

@@ -211,7 +211,10 @@ async def run_bot():
                         }
                         return ClientConnectedFrame()
                     elif msg.get("type") == "end":
-                        return EndFrame()
+                        # Client disconnect should close the WebSocket only.
+                        # EndFrame would tear down Deepgram/Cartesia and break the next reconnect.
+                        logger.info("Ignoring client end control message (session ends on WebSocket close).")
+                        return None
                     elif msg.get("type") == "interrupt":
                         reason = msg.get("reason", "unknown")
                         logger.info(f"SERVER_INTERRUPT_CONTROL_RECEIVED: reason={reason}")
@@ -271,13 +274,15 @@ async def run_bot():
     # Default thresholds (confidence=0.7, min_volume=0.6) are too strict for browser mic.
     vad_analyzer = DiagnosticSileroVADAnalyzer(
         params=VADParams(
-            confidence=0.5,   # lowered from default 0.7
-            min_volume=0.1,   # lowered from default 0.6 (browser mic volume is much lower)
+            confidence=0.30,
+            min_volume=0.015,
+            start_secs=0.12,
+            stop_secs=0.40,
         )
     )
     pipeline = Pipeline([
         transport.input(),
-        VADProcessor(vad_analyzer=vad_analyzer),
+        VADProcessor(vad_analyzer=vad_analyzer, audio_idle_timeout=2.0),
         stt_service,
         interview_processor,
         tts_service,
@@ -324,6 +329,7 @@ async def run_bot():
             # Map session to this connection and update the processor's active session_id
             active_sessions[websocket] = session_id
             interview_processor.session_id = session_id
+            interview_processor.reset_for_new_session()
             
             logger.info(f"Interview session {session_id} successfully started for new connection.")
             
