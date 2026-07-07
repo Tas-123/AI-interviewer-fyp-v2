@@ -147,6 +147,13 @@ class InterviewProcessor(FrameProcessor):
         self._interim_silence_seconds = 1.4
         self._interim_finalize_task: asyncio.Task | None = None
 
+    async def request_client_interrupt(self, reason: str = "client_interrupt") -> None:
+        """Stop bot TTS promptly when the browser client detects user barge-in."""
+        logger.info("Client interrupt received — broadcasting interruption (%s)", reason)
+        self.last_barge_in_at = time.time()
+        self.barge_in_active = True
+        await self.broadcast_interruption()
+
     def reset_for_new_session(self) -> None:
         """Reset per-session processor state when a new WebSocket client connects."""
         self.last_processed_transcript = ""
@@ -199,6 +206,8 @@ class InterviewProcessor(FrameProcessor):
 
     def _merge_transcript_part(self, user_text: str) -> None:
         """Accumulate partial STT chunks into the longest useful utterance."""
+        from dialogue.transcript_utils import _prefer_longest_overlapping_segment
+
         user_text = (user_text or "").strip()
         if not user_text:
             return
@@ -219,8 +228,24 @@ class InterviewProcessor(FrameProcessor):
             self.latest_user_transcript = current
             return
 
+        # Overlap at boundaries from interim + final STT (e.g. "...scaling" + "scaling below")
+        cur_words = current.split()
+        new_words = user_text.split()
+        max_overlap = 0
+        limit = min(len(cur_words), len(new_words), 20)
+        for size in range(limit, 2, -1):
+            if [w.lower() for w in cur_words[-size:]] == [w.lower() for w in new_words[:size]]:
+                max_overlap = size
+                break
+        if max_overlap:
+            merged = f"{current} {' '.join(new_words[max_overlap:])}".strip()
+            self.utterance_parts = [merged]
+            self.latest_user_transcript = merged
+            return
+
         self.utterance_parts.append(user_text)
-        self.latest_user_transcript = " ".join(self.utterance_parts).strip()
+        merged = _prefer_longest_overlapping_segment(self.utterance_parts)
+        self.latest_user_transcript = merged
 
     def _clean_transcript_for_evaluation(self, text: str) -> str:
         from dialogue.transcript_utils import clean_live_transcript

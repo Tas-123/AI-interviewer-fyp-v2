@@ -89,6 +89,8 @@ def assess_transcript_quality(raw: str, cleaned: str) -> TranscriptQuality:
         flags.append("high_cleanup_reduction")
     if rep_ratio >= 0.22:
         flags.append("repeated_tokens")
+    if rep_ratio >= 0.45:
+        flags.append("high_repetition")
     if stutter:
         flags.append("stutter_prefix")
     if raw_n >= 12 and clean_n < max(5, int(raw_n * 0.45)):
@@ -101,7 +103,11 @@ def assess_transcript_quality(raw: str, cleaned: str) -> TranscriptQuality:
         + (0.20 if stutter else 0.0)
         + (0.15 if "over_compressed" in flags else 0.0),
     )
-    is_noisy = noise_score >= 0.42 or len(flags) >= 2
+    is_noisy = (
+        noise_score >= 0.38
+        or len(flags) >= 2
+        or rep_ratio >= 0.50
+    )
 
     return TranscriptQuality(
         raw_word_count=raw_n,

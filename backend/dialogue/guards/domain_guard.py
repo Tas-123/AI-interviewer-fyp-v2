@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dialogue.guards.echo_guard import short_repeat_question
 from dialogue.guards.types import GuardContext, GuardResult
 
 
@@ -157,10 +158,11 @@ def is_answer_relevant_to_question(transcript: str, last_question: str) -> bool:
 
 def domain_relevance_redirect_response(last_question: str) -> str:
     """Redirect candidate back to the same question without scoring."""
+    core_q = short_repeat_question(last_question)
     return (
         "Let's stay on the current interview question. "
         "Your last response did not clearly answer what I asked. "
-        f"Please answer this directly: {last_question}"
+        f"Please answer this directly: {core_q}"
     )
 
 

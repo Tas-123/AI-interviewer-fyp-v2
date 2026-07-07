@@ -97,4 +97,25 @@ Browser mic (+ gain) → WebSocket PCM
 ## Related Commits
 
 - `534b860` — Phase 6A–6C (pushed)
-- Voice hotfix — local only until next commit
+- `379744c` — Voice reconnect + STT capture hotfix (pushed)
+- Interview flow fixes — skip intent, redirect dedup, transcript merge (see below)
+
+---
+
+## Interview Flow Fixes (post live test `2e2c4388`)
+
+**Date:** 2026-07-07  
+**Session analyzed:** `2e2c4388-44e2-4354-a3ca-27f61d8d749b`
+
+| # | Symptom | Fix |
+|---|---------|-----|
+| 1 | "Move to next question" blocked as OFF_TOPIC | `SKIP_REQUEST` intent + meta guard phrases → `skip_domain` |
+| 2 | Redirect text stacked in TTS (triple-nested prompts) | `canonical_interview_question()` strips guard prefixes |
+| 3 | Interim STT merge produced 60–70% repeated tokens | Progressive phrase collapse + smarter `_merge_transcript_part` |
+| 4 | High-repetition transcripts not flagged noisy | Lower `is_noisy` threshold when `repeated_token_ratio >= 0.50` |
+| 5 | VAD split one answer into many fragments | `stop_secs` 0.40 → 0.55 |
+| 6 | Client barge-in did not stop server TTS promptly | `request_client_interrupt()` on `{"type":"interrupt"}` |
+
+**Files:** `intent_guard.py`, `meta_conversation_guard.py`, `domain_guard.py`, `echo_guard.py`, `idk_policy.py`, `transcript_utils.py`, `transcript_quality.py`, `interview_processor.py`, `interview_bot.py`
+
+**Tests:** `backend/tests/test_guards/test_interview_flow_fixes.py`

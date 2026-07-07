@@ -63,12 +63,26 @@ def is_idk_response(transcript: str) -> bool:
     text = normalize_idk_text(transcript)
     if not text:
         return False
+
+    cannot_answer_phrases = (
+        "don't have answer",
+        "dont have answer",
+        "don't have an answer",
+        "dont have an answer",
+        "no answer for this",
+        "can't answer this",
+        "cant answer this",
+        "nothing coming to my mind",
+        "nothing comes to my mind",
+    )
+    if any(phrase in text for phrase in cannot_answer_phrases):
+        return True
+
     if any(phrase in text for phrase in IDK_PHRASES):
-        # Require short answers or explicit idk — avoid false positives on long attempts.
         words = text.split()
-        if len(words) <= 12:
+        if len(words) <= 18:
             return True
-        if text.strip() in IDK_PHRASES or text.startswith(("i don't know", "i dont know")):
+        if text.strip() in IDK_PHRASES or text.startswith(("i don't know", "i dont know", "i don't remember", "i dont remember")):
             return True
     return False
 
@@ -115,7 +129,9 @@ def idk_attempt_response(
 
 def _simplify_question(question: str) -> str:
     """Shorten/rephrase the last question for a second attempt."""
-    q = (question or "").strip()
+    from dialogue.guards.echo_guard import canonical_interview_question
+
+    q = canonical_interview_question(question)
     if not q:
         return "Could you walk me through your approach step by step?"
     for label in ("[Follow-up]", "[follow-up]", "Follow-up:", "follow-up:"):

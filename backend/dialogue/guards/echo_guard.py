@@ -7,9 +7,44 @@ import re
 from dialogue.guards.types import GuardContext, GuardResult
 
 
+_REDIRECT_PREFIXES = (
+    "let's stay on the current interview question.",
+    "your last response did not clearly answer what i asked.",
+    "please answer this directly:",
+    "let's stay focused on the interview.",
+    "please answer this question directly:",
+    "please answer the current interview question directly:",
+    "i'll rephrase the question.",
+    "sure, i'll repeat the question.",
+    "no problem, i'll repeat it clearly.",
+    "i may have captured an instruction or external prompt instead of your answer.",
+    "i detected that the interviewer prompt may have been repeated instead of a candidate answer.",
+    "please answer in your own words.",
+    "please answer with your own experience.",
+)
+
+
+def canonical_interview_question(last_question: str = "") -> str:
+    """Strip stacked guard redirects so we never nest redirect text in TTS."""
+    q = (last_question or "").strip()
+    if not q:
+        return ""
+
+    changed = True
+    while changed:
+        changed = False
+        lower = q.lower().strip()
+        for prefix in _REDIRECT_PREFIXES:
+            if lower.startswith(prefix):
+                q = q[len(prefix) :].strip()
+                changed = True
+                break
+    return q.strip()
+
+
 def short_repeat_question(last_question: str = "") -> str:
     """Repeat only the core interview question without long greeting text."""
-    q = (last_question or "").strip()
+    q = canonical_interview_question(last_question)
     lq = q.lower()
 
     if not q:

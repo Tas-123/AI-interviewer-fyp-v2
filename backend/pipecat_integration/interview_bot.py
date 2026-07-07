@@ -218,7 +218,10 @@ async def run_bot():
                     elif msg.get("type") == "interrupt":
                         reason = msg.get("reason", "unknown")
                         logger.info(f"SERVER_INTERRUPT_CONTROL_RECEIVED: reason={reason}")
-                        return None  # Don't inject a frame; VAD handles once mic audio resumes
+                        proc = getattr(self, "processor", None)
+                        if proc is not None:
+                            await proc.request_client_interrupt(reason)
+                        return None
                 except Exception:
                     pass
             return None
@@ -268,6 +271,7 @@ async def run_bot():
     # 5. Initialize our custom processor with a placeholder session_id
     # session_id will be dynamically updated when a client connects
     interview_processor = InterviewProcessor(adapter=adapter, session_id="")
+    json_serializer.processor = interview_processor
 
     # 6. Assemble Pipecat pipeline
     # Use DiagnosticSileroVADAnalyzer with more sensitive thresholds for browser mic audio.
@@ -277,7 +281,7 @@ async def run_bot():
             confidence=0.30,
             min_volume=0.015,
             start_secs=0.12,
-            stop_secs=0.40,
+            stop_secs=0.55,
         )
     )
     pipeline = Pipeline([

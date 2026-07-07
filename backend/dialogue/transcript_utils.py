@@ -85,6 +85,53 @@ def _remove_overlapping_repeated_phrases(text_value: str) -> str:
     return text_value
 
 
+def _collapse_progressive_interim_phrases(text_value: str) -> str:
+    """
+    Collapse Deepgram interim restarts where each chunk extends the prior phrase.
+    E.g. 'was doing was doing a project on ASR' -> 'was doing a project on ASR'.
+    """
+    words = text_value.split()
+    if len(words) < 6:
+        return text_value
+
+    i = 0
+    out: list[str] = []
+    while i < len(words):
+        merged = False
+        for n in range(min(12, (len(words) - i) // 2), 1, -1):
+            a = [w.lower().strip(".,!?") for w in words[i : i + n]]
+            b = [w.lower().strip(".,!?") for w in words[i + n : i + 2 * n]]
+            if a == b:
+                out.extend(words[i : i + n])
+                i += 2 * n
+                while i + n <= len(words) and [
+                    w.lower().strip(".,!?") for w in words[i : i + n]
+                ] == a:
+                    i += n
+                merged = True
+                break
+        if not merged:
+            out.append(words[i])
+            i += 1
+    return " ".join(out)
+
+
+def _prefer_longest_overlapping_segment(parts: list[str]) -> str:
+    """When STT emits overlapping finals, keep the longest coherent segment."""
+    cleaned = [p.strip() for p in parts if p and p.strip()]
+    if not cleaned:
+        return ""
+    best = cleaned[0]
+    for part in cleaned[1:]:
+        lower_best = best.lower()
+        lower_part = part.lower()
+        if lower_best in lower_part:
+            best = part
+        elif lower_part not in lower_best:
+            best = f"{best} {part}".strip()
+    return best
+
+
 def _remove_stutter_prefix(text_value: str) -> str:
     """Remove duplicated opening phrases from partial STT restarts."""
     words = text_value.split()
@@ -109,6 +156,7 @@ def clean_live_transcript(text: str) -> str:
 
     cleaned = re.sub(r"\s+", " ", original).strip()
     cleaned = cleaned.replace(" ,", ",").replace(" .", ".")
+    cleaned = _collapse_progressive_interim_phrases(cleaned)
     cleaned = _remove_stutter_prefix(cleaned)
 
     tokens = _remove_adjacent_repeated_ngrams(cleaned.split())

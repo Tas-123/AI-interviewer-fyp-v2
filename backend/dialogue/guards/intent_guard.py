@@ -70,10 +70,17 @@ def classify_candidate_intent(
         "what you actually did", "why it was impactful",
         "i want a clear set of steps", "go.",
     ]
+    skip_phrases = [
+        "move to the next question", "move to next question",
+        "go to the next question", "next question please",
+        "can we move to the next", "skip this question",
+        "don't have answer", "dont have answer",
+        "don't have an answer", "dont have an answer",
+    ]
     off_topic_phrases = [
         "let's talk about something else", "lets talk about something else",
         "i don't want this interview", "i dont want this interview",
-        "change the topic", "leave this question", "next question please",
+        "change the topic", "leave this question",
         "i am not here for", "i'm not here for",
         "what do you mean by how",
     ]
@@ -86,6 +93,8 @@ def classify_candidate_intent(
         return "CLARIFICATION_REQUEST"
     if any(p in clean for p in external_prompt_phrases):
         return "EXTERNAL_PROMPT_ECHO"
+    if any(p in clean for p in skip_phrases):
+        return "SKIP_REQUEST"
     if any(p in clean for p in off_topic_phrases):
         return "OFF_TOPIC"
 
@@ -251,6 +260,9 @@ def intent_redirect_response(
             "Please answer with your own experience."
         )
 
+    if intent == "SKIP_REQUEST":
+        return "Sure — let's move on to a different area of the interview."
+
     if intent == "OFF_TOPIC":
         return (
             "Let's stay focused on the interview. "
@@ -285,6 +297,10 @@ class IntentGuard:
         if intent == "ANSWER_ATTEMPT":
             return GuardResult(triggered=False)
 
+        metadata = {"guard": self.name, "intent": intent}
+        if intent == "SKIP_REQUEST":
+            metadata["flow_action"] = "skip_domain"
+
         return GuardResult(
             triggered=True,
             decision_type=intent,
@@ -292,5 +308,5 @@ class IntentGuard:
                 intent, ctx.transcript, ctx.last_question
             ),
             should_evaluate=False,
-            metadata={"guard": self.name, "intent": intent},
+            metadata=metadata,
         )
