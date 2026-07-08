@@ -12,6 +12,14 @@ PY=python3
 echo "=== Phase 6A interview flow ==="
 $PY backend/tests/test_phase6a_interview_flow.py
 
+echo "=== Phase 6 silence / duplicate / merge / barge / natural ==="
+$PY backend/tests/test_phase6_silence_handling.py
+$PY backend/tests/test_phase6_duplicate_questions.py
+$PY backend/tests/test_phase6_transcript_aggregation.py
+$PY backend/tests/test_phase6_barge_in.py
+$PY backend/tests/test_phase6_natural_conversation.py
+$PY backend/tests/test_guards/test_interview_flow_fixes.py
+
 echo "=== Phase 6B transcript quality ==="
 $PY backend/tests/test_phase6b_transcript_quality.py
 

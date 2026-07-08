@@ -32,14 +32,14 @@ def test_set_current_domain_survives_probe_sync():
 
 def test_domain_primary_already_asked():
     history = [
-        "Let's talk about Python project structure. In a small ML project, how would you organize the code?"
+        "In a small ML project, how would you organize the code so it stays clean?"
     ]
     assert domain_primary_already_asked("python", history)
     assert not domain_primary_already_asked("machine_learning", history)
 
 
 def test_is_semantic_duplicate():
-    a = "Let's move to overfitting. How would you detect overfitting?"
+    a = "Suppose your training score is high but validation performance drops. How would you detect overfitting?"
     b = "How would you expose a trained model through a REST API?"
     assert is_semantic_duplicate(a, [a])
     assert not is_semantic_duplicate(a, [b])
@@ -49,8 +49,8 @@ def test_advance_skips_duplicate_primary_domain():
     ctx = _minimal_context()
     engine = DecisionEngine()
     python_q = (
-        "Let's talk about Python project structure. In a small ML project, "
-        "how would you organize the code so it stays clean, reusable, and easy to debug?"
+        "In a small ML project, how would you organize the code so it stays "
+        "clean, reusable, and easy to debug?"
     )
     ctx.question_history.append(python_q)
     ctx.mark_domain_covered("project_overview")

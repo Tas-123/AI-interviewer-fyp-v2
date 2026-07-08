@@ -30,12 +30,13 @@ def test_skip_next_question_not_off_topic():
 
 def test_domain_redirect_uses_canonical_question():
     nested = (
-        "Let's stay on the current interview question. Please answer this directly: "
+        "Let's come back to this. "
         "How would you handle missing values?"
     )
     response = domain_relevance_redirect_response(nested)
-    assert response.count("Let's stay on the current interview question.") == 1
-    assert response.endswith("How would you handle missing values?")
+    assert response.count("Let's come back to this.") == 1
+    assert "How would you handle missing values?" in response
+    assert "Please answer this directly" not in response
 
 
 def test_collapse_progressive_interim_phrases():

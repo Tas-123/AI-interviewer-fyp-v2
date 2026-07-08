@@ -170,14 +170,14 @@ def test_adapter_preserves_session_state():
             )
             assert res1["current_state"] == "technical"
             assert res1["turn_count"] == 2
-            assert "Python project structure" in res1["ai_response_text"]
+            assert "organize the code" in res1["ai_response_text"].lower()
 
             res2 = adapter.process_user_text(
                 session_id, "They are syntax short-cuts for generating lists."
             )
             assert res2["current_state"] == "technical"
             assert res2["turn_count"] == 3
-            assert "overfitting" in res2["ai_response_text"]
+            assert "overfitting" in res2["ai_response_text"].lower()
 
     reset_session_service()
     print("[PASS] test_adapter_preserves_session_state")

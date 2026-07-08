@@ -245,15 +245,15 @@ def intent_redirect_response(
     repeat_q = short_repeat_question(last_question)
 
     if intent == "REPEAT_REQUEST":
-        return f"Sure, I'll repeat the question. {repeat_q}"
+        return f"Happy to repeat that. {repeat_q}"
 
     if intent == "AUDIO_ISSUE":
-        return f"No problem, I'll repeat it clearly. {repeat_q}"
+        return f"I'll say it again briefly. {repeat_q}"
 
     if intent == "CLARIFICATION_REQUEST":
         t_clean = (transcript or "").lower()
         if any(phrase in t_clean for phrase in ["understand", "not clear", "unclear"]):
-            return f"Sure, I'll repeat the question. {repeat_q}"
+            return f"Happy to repeat that. {repeat_q}"
         return (
             "I'll rephrase the question. "
             f"{repeat_q} "
@@ -264,18 +264,15 @@ def intent_redirect_response(
         return "Sure — let's move on to a different area of the interview."
 
     if intent == "OFF_TOPIC":
-        return (
-            "Let's stay focused on the interview. "
-            f"Please answer this question directly: {repeat_q}"
-        )
+        return f"We'll stay on the interview for now. {repeat_q}"
 
     if intent == "EXTERNAL_PROMPT_ECHO":
         return (
             "I may have captured an instruction or external prompt instead of your answer. "
-            f"Please answer the current interview question directly: {repeat_q}"
+            f"One more pass on that question. {repeat_q}"
         )
 
-    return f"Please answer the current interview question directly: {repeat_q}"
+    return f"One more pass on that question. {repeat_q}"
 
 
 class IntentGuard:

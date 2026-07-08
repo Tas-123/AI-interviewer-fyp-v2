@@ -123,13 +123,75 @@ def _prefer_longest_overlapping_segment(parts: list[str]) -> str:
         return ""
     best = cleaned[0]
     for part in cleaned[1:]:
-        lower_best = best.lower()
-        lower_part = part.lower()
-        if lower_best in lower_part:
-            best = part
-        elif lower_part not in lower_best:
-            best = f"{best} {part}".strip()
+        best = merge_stt_hypothesis(best, part)
     return best
+
+
+def merge_stt_hypothesis(current: str, incoming: str) -> str:
+    """Merge progressive STT fragments without concatenating near-duplicates.
+
+    Deepgram interims are usually *revisions* of the same utterance (each
+    longer/more accurate). VAD can still emit multiple short finals. Prefer
+    replace-when-extends / high overlap over blind append.
+    """
+    current = (current or "").strip()
+    incoming = (incoming or "").strip()
+    if not incoming:
+        return current
+    if not current:
+        return incoming
+
+    cur_l = current.lower()
+    inc_l = incoming.lower()
+
+    # Exact extension / containment — take the longer revision
+    if cur_l in inc_l:
+        return incoming
+    if inc_l in cur_l:
+        return current
+
+    # Prefix extension ignoring punctuation (progressive interim growth)
+    cur_words = [_norm_token(w) for w in current.split() if _norm_token(w)]
+    inc_words = [_norm_token(w) for w in incoming.split() if _norm_token(w)]
+    if cur_words and inc_words:
+        if len(inc_words) >= len(cur_words) and inc_words[: len(cur_words)] == cur_words:
+            return incoming
+        if len(cur_words) >= len(inc_words) and cur_words[: len(inc_words)] == inc_words:
+            return current
+
+        # Near-prefix: first N-1 tokens match and incoming is longer
+        share = min(len(cur_words), len(inc_words))
+        if share >= 3:
+            matched = sum(
+                1 for a, b in zip(cur_words[:share], inc_words[:share]) if a == b
+            )
+            if matched / share >= 0.85 and len(inc_words) >= len(cur_words):
+                return incoming
+            if matched / share >= 0.85 and len(cur_words) > len(inc_words):
+                return current
+
+    # Boundary overlap from interim + final (e.g. "...scaling" + "scaling below")
+    raw_cur = current.split()
+    raw_inc = incoming.split()
+    max_overlap = 0
+    limit = min(len(raw_cur), len(raw_inc), 20)
+    for size in range(limit, 0, -1):
+        if [_norm_token(w) for w in raw_cur[-size:]] == [
+            _norm_token(w) for w in raw_inc[:size]
+        ]:
+            max_overlap = size
+            break
+    if max_overlap:
+        return f"{current} {' '.join(raw_inc[max_overlap:])}".strip()
+
+    # High overall token overlap → keep longer (revision, not new clause)
+    if cur_words and inc_words:
+        set_c, set_i = set(cur_words), set(inc_words)
+        overlap = len(set_c & set_i) / max(1, min(len(set_c), len(set_i)))
+        if overlap >= 0.75:
+            return incoming if len(inc_words) >= len(cur_words) else current
+
+    return f"{current} {incoming}".strip()
 
 
 def _remove_stutter_prefix(text_value: str) -> str:

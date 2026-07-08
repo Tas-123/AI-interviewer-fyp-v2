@@ -17,6 +17,14 @@ DEFAULT_FILLER_WORDS = frozenset({
     "ok", "okay", "yes", "yeah", "yep", "hmm", "um", "uh", "alright", "right",
 })
 
+SILENCE_NUDGE_TEXT = (
+    "Take your time — whenever you're ready to answer."
+)
+SILENCE_REPHRASE_TEXT = (
+    "Are you still there? Feel free to answer when ready, "
+    "or say next question if you'd like to move on."
+)
+
 
 @dataclass(frozen=True)
 class VoiceTurnPolicy:
@@ -30,6 +38,9 @@ class VoiceTurnPolicy:
     bot_echo_cooldown_seconds: float
     bot_stop_echo_cooldown_seconds: float
     closing_delay_seconds: float
+    candidate_silence_nudge_seconds: float
+    candidate_silence_rephrase_seconds: float
+    barge_in_min_bot_speak_seconds: float
     filler_words: frozenset[str]
 
     @classmethod
@@ -43,6 +54,9 @@ class VoiceTurnPolicy:
             bot_echo_cooldown_seconds=cfg.bot_echo_cooldown_seconds,
             bot_stop_echo_cooldown_seconds=cfg.bot_stop_echo_cooldown_seconds,
             closing_delay_seconds=cfg.closing_delay_seconds,
+            candidate_silence_nudge_seconds=cfg.candidate_silence_nudge_seconds,
+            candidate_silence_rephrase_seconds=cfg.candidate_silence_rephrase_seconds,
+            barge_in_min_bot_speak_seconds=cfg.barge_in_min_bot_speak_seconds,
             filler_words=DEFAULT_FILLER_WORDS,
         )
 

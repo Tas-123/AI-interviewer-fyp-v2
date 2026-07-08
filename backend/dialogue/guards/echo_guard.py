@@ -21,6 +21,12 @@ _REDIRECT_PREFIXES = (
     "i detected that the interviewer prompt may have been repeated instead of a candidate answer.",
     "please answer in your own words.",
     "please answer with your own experience.",
+    # Phase 6 softer redirects
+    "let's come back to this.",
+    "we'll stay on the interview for now.",
+    "one more pass on that question.",
+    "happy to repeat that.",
+    "i'll say it again briefly.",
 )
 
 

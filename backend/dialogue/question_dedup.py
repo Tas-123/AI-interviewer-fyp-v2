@@ -67,7 +67,7 @@ def similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, na, nb).ratio()
 
 
-def is_semantic_duplicate(candidate: str, history: list[str], threshold: float = 0.82) -> bool:
+def is_semantic_duplicate(candidate: str, history: list[str], threshold: float = 0.80) -> bool:
     """True if candidate closely matches any prior question."""
     for prior in history or []:
         if similarity(candidate, prior) >= threshold:

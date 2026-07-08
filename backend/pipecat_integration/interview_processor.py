@@ -14,7 +14,11 @@ import time
 from core.config import settings
 from core.interviewer_policy import INTERVIEW_CLOSING_SPOKEN, LLM_ERROR_TTS_FALLBACK
 from dialogue.output_sanitizer import strip_followup_prefix
-from voice.voice_turn_policy import VoiceTurnPolicy
+from voice.voice_turn_policy import (
+    SILENCE_NUDGE_TEXT,
+    SILENCE_REPHRASE_TEXT,
+    VoiceTurnPolicy,
+)
 
 logger = logging.getLogger("InterviewProcessor")
 
@@ -141,17 +145,24 @@ class InterviewProcessor(FrameProcessor):
 
         self.last_barge_in_at = 0.0
         self.barge_in_active = False
+        self._bot_speech_started_at = 0.0
 
         self.startup_audio_ignore_until = time.time() + self.policy.startup_audio_gate_seconds
         self.first_real_user_turn_seen = False
         self._interim_silence_seconds = 1.4
         self._interim_finalize_task: asyncio.Task | None = None
+        self._silence_watch_task: asyncio.Task | None = None
+        self._silence_nudge_sent = False
+        self._awaiting_candidate_answer = False
+        # None | "watching" | "nudged" | "done" — prevents nudge TTS from restarting the watch
+        self._silence_stage: str | None = None
 
     async def request_client_interrupt(self, reason: str = "client_interrupt") -> None:
         """Stop bot TTS promptly when the browser client detects user barge-in."""
         logger.info("Client interrupt received — broadcasting interruption (%s)", reason)
         self.last_barge_in_at = time.time()
         self.barge_in_active = True
+        self._note_candidate_activity()
         await self.broadcast_interruption()
 
     def reset_for_new_session(self) -> None:
@@ -164,14 +175,92 @@ class InterviewProcessor(FrameProcessor):
         self.vad_enabled = False
         self.last_barge_in_at = 0.0
         self.barge_in_active = False
+        self._bot_speech_started_at = 0.0
         self.startup_audio_ignore_until = time.time() + self.policy.startup_audio_gate_seconds
         self.first_real_user_turn_seen = False
+        self._silence_nudge_sent = False
+        self._awaiting_candidate_answer = False
+        self._silence_stage = None
         if self._debounce_task and not self._debounce_task.done():
             self._debounce_task.cancel()
         self._debounce_task = None
         if self._interim_finalize_task and not self._interim_finalize_task.done():
             self._interim_finalize_task.cancel()
         self._interim_finalize_task = None
+        self._cancel_silence_watch()
+
+    def _cancel_silence_watch(self) -> None:
+        if self._silence_watch_task and not self._silence_watch_task.done():
+            self._silence_watch_task.cancel()
+        self._silence_watch_task = None
+
+    def _schedule_silence_watch(self) -> None:
+        """After bot finishes speaking, nudge / rephrase if the candidate stays silent."""
+        if self.policy.candidate_silence_nudge_seconds <= 0:
+            return
+        # Do not restart while a silence cycle is already in progress (nudge/rephrase TTS)
+        if self._silence_stage in ("watching", "nudged", "done"):
+            return
+        self._cancel_silence_watch()
+        self._silence_nudge_sent = False
+        self._silence_watch_task = asyncio.create_task(self._candidate_silence_watch())
+
+    async def _candidate_silence_watch(self) -> None:
+        """Soft nudge, then a rephrase prompt, if no speech/STT arrives.
+
+        Starts with a short settle delay so chained TTS (adaptive lead-in +
+        question) can finish before silence timing begins.
+        """
+        try:
+            # Wait for possible follow-on TTS chunks after this BotStopped.
+            await asyncio.sleep(0.85)
+            if self.bot_is_speaking:
+                # Another chunk started; its BotStopped will reschedule.
+                return
+            if self.latest_user_transcript.strip():
+                return
+
+            self._awaiting_candidate_answer = True
+            self._silence_stage = "watching"
+            nudge_at = self.policy.candidate_silence_nudge_seconds
+            rephrase_at = self.policy.candidate_silence_rephrase_seconds
+            if rephrase_at <= nudge_at:
+                rephrase_at = nudge_at + 0.5
+            await asyncio.sleep(nudge_at)
+            if not self._awaiting_candidate_answer:
+                return
+            if self.latest_user_transcript.strip():
+                return
+            logger.info("Candidate silence nudge after %.1fs", nudge_at)
+            self._silence_nudge_sent = True
+            self._silence_stage = "nudged"
+            await self.push_frame(
+                TTSSpeakFrame(SILENCE_NUDGE_TEXT),
+                FrameDirection.DOWNSTREAM,
+            )
+
+            remaining = rephrase_at - nudge_at
+            if remaining > 0:
+                await asyncio.sleep(remaining)
+            if not self._awaiting_candidate_answer:
+                return
+            if self.latest_user_transcript.strip():
+                return
+            logger.info("Candidate silence rephrase after %.1fs", rephrase_at)
+            self._silence_stage = "done"
+            await self.push_frame(
+                TTSSpeakFrame(SILENCE_REPHRASE_TEXT),
+                FrameDirection.DOWNSTREAM,
+            )
+            self._awaiting_candidate_answer = False
+        except asyncio.CancelledError:
+            logger.debug("Candidate silence watch cancelled — speech detected.")
+
+    def _note_candidate_activity(self) -> None:
+        """Cancel silence prompts once the candidate starts answering."""
+        self._awaiting_candidate_answer = False
+        self._silence_stage = None
+        self._cancel_silence_watch()
 
     def _schedule_turn_debounce(self) -> None:
         """Queue transcript evaluation after the configured debounce window."""
@@ -205,46 +294,25 @@ class InterviewProcessor(FrameProcessor):
             logger.debug("Interim finalize task cancelled — new speech detected.")
 
     def _merge_transcript_part(self, user_text: str) -> None:
-        """Accumulate partial STT chunks into the longest useful utterance."""
-        from dialogue.transcript_utils import _prefer_longest_overlapping_segment
+        """Accumulate partial STT chunks into one coherent utterance.
+
+        Prefers replace-when-extends so progressive Deepgram interims do not
+        concatenate into duplicated phrases.
+        """
+        from dialogue.transcript_utils import merge_stt_hypothesis
 
         user_text = (user_text or "").strip()
         if not user_text:
             return
 
         if not self.utterance_parts:
-            self.utterance_parts.append(user_text)
-            self.latest_user_transcript = user_text
-            return
-
-        current = " ".join(self.utterance_parts).strip()
-
-        if current and current.lower() in user_text.lower():
             self.utterance_parts = [user_text]
             self.latest_user_transcript = user_text
             return
 
-        if user_text.lower() in current.lower():
-            self.latest_user_transcript = current
-            return
-
-        # Overlap at boundaries from interim + final STT (e.g. "...scaling" + "scaling below")
-        cur_words = current.split()
-        new_words = user_text.split()
-        max_overlap = 0
-        limit = min(len(cur_words), len(new_words), 20)
-        for size in range(limit, 2, -1):
-            if [w.lower() for w in cur_words[-size:]] == [w.lower() for w in new_words[:size]]:
-                max_overlap = size
-                break
-        if max_overlap:
-            merged = f"{current} {' '.join(new_words[max_overlap:])}".strip()
-            self.utterance_parts = [merged]
-            self.latest_user_transcript = merged
-            return
-
-        self.utterance_parts.append(user_text)
-        merged = _prefer_longest_overlapping_segment(self.utterance_parts)
+        current = " ".join(self.utterance_parts).strip()
+        merged = merge_stt_hypothesis(current, user_text)
+        self.utterance_parts = [merged] if merged else []
         self.latest_user_transcript = merged
 
     def _clean_transcript_for_evaluation(self, text: str) -> str:
@@ -329,6 +397,9 @@ class InterviewProcessor(FrameProcessor):
 
     async def _submit_turn(self, user_text: str, direction: FrameDirection) -> None:
         """Process one complete transcript through the adapter and push TTS response."""
+        self._note_candidate_activity()
+        # Ready for a new silence cycle after the next interview question finishes.
+        self._silence_stage = None
         self.last_processed_transcript = user_text
         self.first_real_user_turn_seen = True
         was_barge_in = self.barge_in_active
@@ -408,8 +479,14 @@ class InterviewProcessor(FrameProcessor):
 
         if isinstance(frame, (BotStartedSpeakingFrame, BotSpeakingFrame)):
             logger.debug("Bot started speaking — mic echo cooldown active")
+            if not self.bot_is_speaking:
+                self._bot_speech_started_at = time.time()
             self.bot_is_speaking = True
             self.ignore_user_audio_until = time.time() + self.policy.bot_echo_cooldown_seconds
+            # Cancel settle debounce only — leave an active silence cycle alone
+            # (silence nudge/rephrase also emit BotStartedSpeakingFrame).
+            if self._silence_stage is None:
+                self._cancel_silence_watch()
 
             if not self.first_real_user_turn_seen:
                 self.startup_audio_ignore_until = max(
@@ -427,21 +504,38 @@ class InterviewProcessor(FrameProcessor):
         if isinstance(frame, BotStoppedSpeakingFrame):
             logger.debug("Bot stopped speaking — short mic echo cooldown")
             self.bot_is_speaking = False
+            self._bot_speech_started_at = 0.0
             self.ignore_user_audio_until = (
                 time.time() + self.policy.bot_stop_echo_cooldown_seconds
             )
+            if not self.latest_user_transcript.strip():
+                self._schedule_silence_watch()
             await self.push_frame(frame, direction)
             return
 
         if isinstance(frame, VADUserStartedSpeakingFrame):
             logger.debug("VAD: user started speaking")
             self.vad_enabled = True
+            self._note_candidate_activity()
             if self.bot_is_speaking:
-                logger.info("User interrupted bot — broadcasting interruption")
-                self.last_barge_in_at = time.time()
-                self.barge_in_active = True
-                await self.broadcast_interruption()
-                self.bot_is_speaking = False
+                spoken_for = (
+                    time.time() - self._bot_speech_started_at
+                    if self._bot_speech_started_at
+                    else 0.0
+                )
+                min_speak = self.policy.barge_in_min_bot_speak_seconds
+                if spoken_for < min_speak:
+                    logger.debug(
+                        "Ignoring early VAD barge-in (bot spoken %.2fs < %.2fs)",
+                        spoken_for,
+                        min_speak,
+                    )
+                else:
+                    logger.info("User interrupted bot — broadcasting interruption")
+                    self.last_barge_in_at = time.time()
+                    self.barge_in_active = True
+                    await self.broadcast_interruption()
+                    self.bot_is_speaking = False
 
             if self._debounce_task and not self._debounce_task.done():
                 self._debounce_task.cancel()
@@ -466,8 +560,9 @@ class InterviewProcessor(FrameProcessor):
         if isinstance(frame, InterimTranscriptionFrame):
             interim_text = (getattr(frame, "text", "") or "").strip()
             if interim_text and not self.bot_is_speaking:
+                self._note_candidate_activity()
                 self._merge_transcript_part(interim_text)
-                logger.info("Buffered interim STT: %r", interim_text[:120])
+                logger.debug("Buffered interim STT: %r", interim_text[:120])
                 self._schedule_interim_finalize()
             await self.push_frame(frame, direction)
             return
@@ -477,6 +572,7 @@ class InterviewProcessor(FrameProcessor):
 
             if getattr(frame, "finalized", True) is False:
                 if user_text and not self.bot_is_speaking:
+                    self._note_candidate_activity()
                     self._merge_transcript_part(user_text)
                     logger.debug("Stored non-final transcription: %r", user_text)
                     self._schedule_interim_finalize()
@@ -499,6 +595,7 @@ class InterviewProcessor(FrameProcessor):
                 )
                 return
 
+            self._note_candidate_activity()
             self._merge_transcript_part(user_text)
             logger.info("Final STT transcript received: %r", user_text[:160])
             self._schedule_turn_debounce()

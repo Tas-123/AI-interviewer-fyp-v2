@@ -33,11 +33,11 @@ let botAudioCooldownTimeout = null;
 let botChunksReceived = 0;
 
 // Barge-in detection constants (from config.js)
-const BARGE_IN_RMS_THRESHOLD = bargeCfg.rmsThreshold ?? 0.035;
-const BARGE_IN_MIN_FRAMES = bargeCfg.minFrames ?? 3;
-const BARGE_IN_IGNORE_AFTER_BOT_START_MS = bargeCfg.ignoreAfterBotStartMs ?? 400;
+const BARGE_IN_RMS_THRESHOLD = bargeCfg.rmsThreshold ?? 0.09;
+const BARGE_IN_MIN_FRAMES = bargeCfg.minFrames ?? 6;
+const BARGE_IN_IGNORE_AFTER_BOT_START_MS = bargeCfg.ignoreAfterBotStartMs ?? 1000;
 const BARGE_IN_MIC_ALLOW_MS = bargeCfg.micAllowMs ?? 2500;
-const BARGE_IN_DISCARD_BOT_AUDIO_MS = bargeCfg.discardBotAudioMs ?? 1200;
+const BARGE_IN_DISCARD_BOT_AUDIO_MS = bargeCfg.discardBotAudioMs ?? 900;
 
 // Barge-in state variables
 const activeBotSources = new Set();

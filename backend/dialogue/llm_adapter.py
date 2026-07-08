@@ -9,7 +9,8 @@ NATURAL INTERVIEWER STYLE RULES:
 - Sound like a calm senior technical interviewer, not a robotic questionnaire.
 - Keep the same domain and intent, but vary the wording naturally.
 - Ask only ONE question at a time.
-- Use short transitions like: "Let's move to...", "Now let's talk about...", "Suppose...", "In a real project..."
+- Use short, varied transitions (e.g. "Alright —", "Next up:", "Building on that —",
+  "Suppose…", "In a real project…"). Avoid opening every question with "Let's talk/move…".
 - Avoid repeating the exact same wording from previous questions.
 - Avoid long greetings after the first question.
 - Avoid overexplaining the question.
@@ -117,7 +118,10 @@ Session context:
                     asked_questions=context.question_history,
                 )
                 if bank_question:
-                    return _naturalize_static_question(domain, bank_question)
+                    seed = len(getattr(context, "question_history", []) or [])
+                    return _naturalize_static_question(
+                        domain, bank_question, variety_seed=seed
+                    )
 
         # Deterministic Junior AI Engineer question bank.
         # Main domain questions are fixed so coverage stays balanced and defensible.
@@ -135,7 +139,10 @@ Session context:
                 "behavioral_ownership": "Tell me about a time you took ownership of a technical problem. What did you do, and what was the outcome?",
             }
             if domain in domain_questions:
-                candidate = _naturalize_static_question(domain, domain_questions[domain])
+                seed = len(getattr(context, "question_history", []) or [])
+                candidate = _naturalize_static_question(
+                    domain, domain_questions[domain], variety_seed=seed
+                )
                 if not is_semantic_duplicate(candidate, context.question_history):
                     return candidate
                 # Primary already asked — fall through to LLM for a fresh angle.
@@ -277,10 +284,14 @@ Follow-up policy:
 
 
 
-def _naturalize_static_question(domain: str, question: str) -> str:
+def _naturalize_static_question(
+    domain: str, question: str, variety_seed: int = 0
+) -> str:
     """
     Lightly naturalize fixed blueprint questions without changing their intent.
-    This is deterministic and safe for tests.
+
+    Phase 6: rotate short transitions so consecutive interviews don't all
+    open with the same \"Let's talk / move…\" frame. Core ask stays fixed.
     """
     d = (domain or "").lower().strip()
     q = (question or "").strip()
@@ -289,20 +300,79 @@ def _naturalize_static_question(domain: str, question: str) -> str:
         return q
 
     # Avoid changing already conversational follow-ups.
-    if q.lower().startswith(("you mentioned", "can you walk me through", "let's", "suppose", "in a real")):
+    lower_q = q.lower()
+    if lower_q.startswith(
+        (
+            "you mentioned",
+            "can you walk me through",
+            "suppose",
+            "in a real",
+            "tell me about a time",
+            "building on",
+            "alright",
+            "next up",
+            "shifting",
+        )
+    ):
         return q
 
-    rewrites = {
-        "python": "Let's talk about Python project structure. In a small ML project, how would you organize the code so it stays clean, reusable, and easy to debug?",
-        "machine_learning": "Let's move to overfitting. Suppose your training score is high but validation performance drops. How would you detect overfitting, and what would you do to reduce it?",
-        "data_preprocessing": "Now let's talk about preprocessing. Before training a model, how would you handle missing values, categorical features, and scaling?",
-        "model_evaluation": "For a classification model, how would you choose between accuracy, precision, recall, F1-score, and the confusion matrix?",
-        "nlp_speech_ai": "Suppose you're building a speech or NLP-based AI system. What preprocessing would you apply before sending the text to the model?",
-        "apis_backend": "Now imagine your model is trained and ready. How would you expose it through an API, including request, response, and error handling?",
-        "deployment": "Let's move to deployment. How would you deploy a small AI model and monitor latency, errors, and model performance after release?",
-        "debugging_problem_solving": "Suppose your AI pipeline starts giving poor results. How would you debug whether the issue is in the data, preprocessing, model, or evaluation?",
-        "behavioral_ownership": "Tell me about a time you took ownership of a technical problem. What did you do, and what was the outcome?",
+    # Fixed cores (fairness / coverage). Transitions rotate separately.
+    cores = {
+        "python": (
+            "In a small ML project, how would you organize the code so it stays "
+            "clean, reusable, and easy to debug?"
+        ),
+        "machine_learning": (
+            "Suppose your training score is high but validation performance drops. "
+            "How would you detect overfitting, and what would you do to reduce it?"
+        ),
+        "data_preprocessing": (
+            "Before training a model, how would you handle missing values, "
+            "categorical features, and scaling?"
+        ),
+        "model_evaluation": (
+            "For a classification model, how would you choose between accuracy, "
+            "precision, recall, F1-score, and the confusion matrix?"
+        ),
+        "nlp_speech_ai": (
+            "Suppose you're building a speech or NLP-based AI system. "
+            "What preprocessing would you apply before sending the text to the model?"
+        ),
+        "apis_backend": (
+            "Once your model is trained and ready, how would you expose it through "
+            "an API, including request, response, and error handling?"
+        ),
+        "deployment": (
+            "How would you deploy a small AI model and monitor latency, errors, "
+            "and model performance after release?"
+        ),
+        "debugging_problem_solving": (
+            "Suppose your AI pipeline starts giving poor results. How would you "
+            "debug whether the issue is in the data, preprocessing, model, or evaluation?"
+        ),
+        "behavioral_ownership": (
+            "Tell me about a time you took ownership of a technical problem. "
+            "What did you do, and what was the outcome?"
+        ),
+        "project_overview": (
+            "Briefly explain one AI or machine learning project you worked on. "
+            "What problem did it solve, what did you build, and what was the result?"
+        ),
     }
 
-    return rewrites.get(d, q)
+    core = cores.get(d)
+    if not core:
+        return q
+
+    openers = (
+        "",
+        "Alright — ",
+        "Next up: ",
+        "Building on that — ",
+        "Shifting topics briefly — ",
+    )
+    # Deterministic rotation from seed (turn index) so tests stay stable for seed=0.
+    opener = openers[int(variety_seed) % len(openers)]
+    return f"{opener}{core}".strip()
+
 

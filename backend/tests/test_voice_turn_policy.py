@@ -29,8 +29,11 @@ def test_is_filler():
         bot_echo_cooldown_seconds=1.2,
         bot_stop_echo_cooldown_seconds=0.8,
         closing_delay_seconds=2.5,
-        filler_words=DEFAULT_FILLER_WORDS,
-    )
+            candidate_silence_nudge_seconds=8.0,
+            candidate_silence_rephrase_seconds=15.0,
+            barge_in_min_bot_speak_seconds=1.0,
+            filler_words=DEFAULT_FILLER_WORDS,
+        )
     assert policy.is_filler("ok")
     assert policy.is_filler("  Yeah! ")
     assert not policy.is_filler("I built a chatbot with Python")
@@ -46,6 +49,9 @@ def test_is_short_answer():
         bot_echo_cooldown_seconds=1.2,
         bot_stop_echo_cooldown_seconds=0.8,
         closing_delay_seconds=2.5,
+        candidate_silence_nudge_seconds=8.0,
+        candidate_silence_rephrase_seconds=15.0,
+        barge_in_min_bot_speak_seconds=1.0,
         filler_words=DEFAULT_FILLER_WORDS,
     )
     assert policy.is_short_answer("Worked on a small NLP project")

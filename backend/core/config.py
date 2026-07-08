@@ -87,6 +87,17 @@ class Settings:
         os.getenv("BOT_STOP_ECHO_COOLDOWN_SECONDS", "0.8")
     )
     closing_delay_seconds: float = float(os.getenv("CLOSING_DELAY_SECONDS", "2.5"))
+    # Candidate silence after bot finishes speaking (Phase 6)
+    candidate_silence_nudge_seconds: float = float(
+        os.getenv("CANDIDATE_SILENCE_NUDGE_SECONDS", "8.0")
+    )
+    candidate_silence_rephrase_seconds: float = float(
+        os.getenv("CANDIDATE_SILENCE_REPHRASE_SECONDS", "15.0")
+    )
+    # Ignore Silero barge-in for this long after bot TTS starts (reduces echo cuts)
+    barge_in_min_bot_speak_seconds: float = float(
+        os.getenv("BARGE_IN_MIN_BOT_SPEAK_SECONDS", "1.0")
+    )
 
     # Runtime flags
     enable_dev_text_voice_ws: bool = _env_bool("ENABLE_DEV_TEXT_VOICE_WS", False)

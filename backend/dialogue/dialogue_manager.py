@@ -370,7 +370,10 @@ class DialogueManager:
                 question = engine_result.get("next_question", "Thank you for your time. This concludes the interview.")
                 decision_type = "CLOSING"
             else:
-                question = decision.get("next_question", "")
+                # PROBE / ADVANCE from evaluator — always dedupe against history
+                question = self._ensure_unique_question(
+                    decision.get("next_question", "")
+                )
                 decision_type = decision.get("type", "ADVANCE")
 
             # Record this turn
@@ -516,13 +519,21 @@ class DialogueManager:
                 answer=transcript,
                 weaknesses=weaknesses,
             )
-            question = (
-                f"[Weakness Follow-up] {followup}"
+            raw = (
+                followup
                 if followup
                 else self.llm.generate(action, self.context)
             )
+            unique = self._ensure_unique_question(raw)
+            question = (
+                f"[Weakness Follow-up] {unique}"
+                if followup
+                else unique
+            )
         else:
-            question = self.llm.generate(action, self.context)
+            question = self._ensure_unique_question(
+                self.llm.generate(action, self.context)
+            )
 
         self.context.add_turn(question, transcript)
 

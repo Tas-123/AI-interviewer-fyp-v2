@@ -40,6 +40,9 @@ class TestProcessor(InterviewProcessor):
             bot_echo_cooldown_seconds=0,
             bot_stop_echo_cooldown_seconds=0,
             closing_delay_seconds=0,
+            candidate_silence_nudge_seconds=0,
+            candidate_silence_rephrase_seconds=0,
+            barge_in_min_bot_speak_seconds=0,
             filler_words=DEFAULT_FILLER_WORDS,
         )
         super().__init__(adapter, session_id, policy=test_policy)
