@@ -1,90 +1,93 @@
 # Pipecat WebSocket Bot — Manual Browser Client
 
-This directory contains a minimal, beautiful, high-performance browser test client for manual audio testing of the **Pipecat Voice Interview Bot** pipeline.
+Modular browser client for manual audio testing of the **Pipecat Voice Interview** pipeline.
 
-It connects directly to the WebSocket server running on `ws://localhost:8765`, streams your microphone audio in real-time, and plays back synthesized responses from the bot.
+## Architecture
 
----
+The client is split so UI, audio, and networking can evolve independently:
 
-## Files Included
-
-*   `index.html` — A premium responsive dark-mode dashboard showing connection indicators, active mic volume meters, and live conversation log messages.
-*   `client.js` — Core audio streaming logic that captures mic audio at 16kHz mono, downsamples/serializes it to Int16 PCM binary, manages the non-overlapping audio output playback queue, and handles WebSocket messages.
-*   `README.md` — This setup and run guide.
-
----
-
-## Behind the Scenes: Protocol Details
-
-Rather than relying on complex WebRTC setups, heavy React/Webpack/NPM build pipelines, or protobuf dependencies, this manual client utilizes a custom, ultra-lightweight **JSON/Binary hybrid WebSocket protocol** configured via `JSONSerializer` in `interview_bot.py`:
-
-### **1. Upstream (Browser Client → Pipecat Bot)**
-*   **Audio Stream**: Standard raw 16-bit, 16kHz, mono PCM binary audio data sent as raw WebSocket binary frames.
-*   **Startup Signal**: Client connects and immediately sends `{"type": "start"}` to trigger the bot's adapter initialization (`on_client_connected`) and play the introductory greeting.
-*   **Teardown Signal**: Client sends `{"type": "end"}` to wrap up database/adapter session tracking.
-
-### **2. Downstream (Pipecat Bot → Browser Client)**
-*   **Audio Stream**: The server sends binary WAV audio frames (containing WAV headers for simple decoder parsing), which the browser decodes via `AudioContext.decodeAudioData` and plays.
-*   **Text & State**: Control frames are sent as JSON string frames:
-    *   `{"type": "text", "text": "AI response text here"}` — Used to log transcriptions and AI replies on the page.
-    *   `{"type": "end"}` — Clean wrap-up signal from the dialogue adapter.
-
----
-
-## How to Run & Test
-
-Follow these simple steps to perform manual audio verification:
-
-### **Step 1: Set Your API Keys**
-Ensure your API keys are loaded in your terminal:
-```powershell
-$env:DEEPGRAM_API_KEY="your-deepgram-key"
-$env:CARTESIA_API_KEY="your-cartesia-key"
-$env:GROQ_API_KEY="your-groq-key"
+```
+manual_client/
+├── index.html              # Page shell only (no inline styles/scripts)
+├── config.js               # Runtime URLs + barge-in thresholds
+├── styles/
+│   ├── tokens.css          # Design tokens (colors, radii, fonts)
+│   ├── base.css            # Reset + global utilities
+│   ├── layout.css          # App grid + cards
+│   ├── components/         # One file per UI area
+│   └── main.css            # Imports all stylesheets
+└── js/
+    ├── app.js              # Entry point — wires modules together
+    ├── core/
+    │   └── appState.js     # Session phase constants
+    ├── ui/
+    │   ├── dom.js          # Central DOM id map (change layout here)
+    │   ├── statusView.js   # Connection / mic / phase indicators
+    │   ├── visualizerView.js
+    │   ├── conversationView.js   # Chat bubbles (bot / user / system)
+    │   ├── debugLogView.js       # Collapsible technical log
+    │   └── report/
+    │       ├── sections.js       # Report section HTML builders
+    │       └── renderReport.js   # Report orchestrator
+    ├── audio/
+    │   ├── bargeInController.js
+    │   └── playbackController.js
+    └── network/
+        ├── voiceSession.js       # WebSocket + mic pipeline
+        └── reportClient.js       # Fetch /latest-report
 ```
 
-### **Step 2: Start the Pipecat Bot**
-Launch the standalone voice layer WebSocket server:
-```powershell
-venv\Scripts\python.exe backend/pipecat_integration/interview_bot.py
-```
-*Expected console output:*
-```text
-2026-05-24 00:18:59,185 - InterviewBot - INFO - Starting Pipecat WebSocket Bot at ws://localhost:8765
-2026-05-24 00:18:59,256 - websockets.server - INFO - server listening on 127.0.0.1:8765
-```
+### How to change things later
 
-### **Step 3: Serve the Browser Client**
-Modern web browsers require pages using microphone permissions (`getUserMedia`) to be served either over `localhost` or an `https` connection (local file execution `file://` might block mic access in some versions).
+| Change | Edit |
+|--------|------|
+| Colors / spacing | `styles/tokens.css` |
+| Conversation bubble layout | `styles/components/conversation.css` + `js/ui/conversationView.js` |
+| Report sections | `js/ui/report/sections.js` (add a function per section) |
+| Barge-in sensitivity | `config.js` or query params (`?barge_rms=0.06`) |
+| WebSocket protocol | `js/network/voiceSession.js` |
+| DOM element ids | `index.html` + `js/ui/dom.js` |
 
-To ensure a highly compatible run, serve the page using Python's built-in HTTP server:
-1. Open a new terminal in the project root directory.
-2. Run:
-   ```powershell
-   venv\Scripts\python.exe -m http.server 8000
+## Protocol
+
+### Upstream (Browser → Bot)
+- **Audio**: 16-bit PCM, 16 kHz mono (binary WebSocket frames)
+- **Start**: `{"type":"start","target_role":"junior_ai_engineer",...}`
+- **Interrupt**: `{"type":"interrupt","reason":"user_barge_in"}`
+
+### Downstream (Bot → Browser)
+- **Audio**: WAV binary chunks
+- **Text**: `{"type":"text","text":"..."}`
+
+## Run
+
+1. Start the bot:
+   ```bash
+   ./venv/bin/python backend/pipecat_integration/interview_bot.py
    ```
-3. Open your browser and navigate to:
+
+2. Serve the client (required for microphone access):
+   ```bash
+   ./venv/bin/python -m http.server 8000
+   ```
+
+3. Open:
    [http://localhost:8000/backend/pipecat_integration/manual_client/](http://localhost:8000/backend/pipecat_integration/manual_client/)
 
----
+## Manual verification
 
-## Manual Verification Steps
+1. Click **Connect Mic & Bot** and allow microphone access.
+2. Confirm chat bubbles appear for bot speech (and user transcripts when sent by server).
+3. Speak during bot TTS to verify barge-in interruption.
+4. Click **Disconnect** — report loads in the Interview Report panel.
+5. Expand **Technical debug log** for PCM/WebSocket diagnostics.
 
-1. Click **Connect Mic & Bot**.
-2. Allow browser microphone access when prompted.
-3. Observe the logs page showing:
-   *   `WebSocket connection established successfully.`
-   *   `Bot says: "Welcome! ... [Intro Greeting]"`
-4. Listen to the introductory question spoken aloud.
-5. Speak clearly into your mic:
-   *"Hello, I am ready to begin the interview."*
-6. Watch the live volume visualizer react to your speech.
-7. Confirm that the bot transcribes your answer, processes it through the `InterviewDialogueAdapter` → `DialogueManager`, and speaks back the next follow-up question!
-8. Click **Disconnect** when you are ready to conclude and persist report metrics.
+## Query-string overrides
 
----
-
-## Known Limitations
-
-*   **Single active runner**: The `interview_bot.py` is configured with a single active runner, supporting one active WebSocket client session at a time.
-*   **WAV Headers**: The browser audio context parses WAV headers on each binary chunk. Gaps in streaming can occur under poor local network connections if chunk latency increases.
+```
+?ws=ws://localhost:8765
+&report=http://localhost:8766/latest-report
+&barge_rms=0.055
+&barge_frames=4
+&mic_gain=2.5
+```

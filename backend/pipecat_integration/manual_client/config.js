@@ -8,8 +8,7 @@
     window.MANUAL_CLIENT_CONFIG = {
         wsUrl: params.get("ws") || "ws://localhost:8765",
         reportUrl: params.get("report") || "http://localhost:8766/latest-report",
-        barge_in: {
-            // Balanced for real barge-in while limiting echo false triggers.
+        bargeIn: {
             rmsThreshold: parseFloat(params.get("barge_rms") || "0.055"),
             minFrames: parseInt(params.get("barge_frames") || "4", 10),
             ignoreAfterBotStartMs: parseInt(params.get("barge_ignore_ms") || "500", 10),

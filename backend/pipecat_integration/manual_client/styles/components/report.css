@@ -1,0 +1,120 @@
+.report-panel {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #cbd5e1;
+    min-height: 120px;
+}
+
+.report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.report-item {
+    background: rgba(30, 41, 59, 0.75);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+
+.report-label {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+
+.report-value {
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.report-section {
+    margin-top: 14px;
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+
+.report-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 8px;
+}
+
+.report-text {
+    color: #e2e8f0;
+    line-height: 1.65;
+}
+
+.report-muted {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin-top: 6px;
+}
+
+.report-list {
+    margin-left: 18px;
+    color: #cbd5e1;
+    line-height: 1.6;
+}
+
+.report-list li {
+    margin-bottom: 4px;
+}
+
+.trace-card {
+    background: rgba(30, 41, 59, 0.72);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.trace-section {
+    margin-top: 6px;
+    color: #cbd5e1;
+    line-height: 1.5;
+    font-size: 0.85rem;
+}
+
+.report-json {
+    margin-top: 10px;
+    max-height: 180px;
+    overflow: auto;
+    white-space: pre-wrap;
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+}
+
+.report-placeholder {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.hire-signal-strong {
+    color: #86efac;
+}
+
+.hire-signal-weak {
+    color: #fca5a5;
+}
+
+.hire-signal-borderline {
+    color: #fde047;
+}

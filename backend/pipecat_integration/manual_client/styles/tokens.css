@@ -1,0 +1,26 @@
+:root {
+    --bg-color: #0b1220;
+    --surface: #111827;
+    --card-bg: #1e293b;
+    --card-elevated: #243044;
+    --accent-primary: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-soft: rgba(99, 102, 241, 0.15);
+    --text-main: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --status-offline: #ef4444;
+    --status-connecting: #eab308;
+    --status-online: #22c55e;
+    --status-speaking: #38bdf8;
+    --border-color: #334155;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.55);
+    --font-sans: "Outfit", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --bot-bubble: #1e3a5f;
+    --user-bubble: #312e81;
+    --system-bubble: rgba(30, 41, 59, 0.9);
+}

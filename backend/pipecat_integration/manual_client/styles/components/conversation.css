@@ -1,0 +1,123 @@
+.conversation-panel {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    min-height: 320px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scroll-behavior: smooth;
+}
+
+.conversation-empty {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-align: center;
+    margin: auto;
+    max-width: 28ch;
+    line-height: 1.5;
+}
+
+.message {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 88%;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.message.bot {
+    align-self: flex-start;
+}
+
+.message.user {
+    align-self: flex-end;
+}
+
+.message.system {
+    align-self: center;
+    max-width: 100%;
+}
+
+.message-meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    padding: 0 4px;
+}
+
+.message-bubble {
+    padding: 10px 14px;
+    border-radius: 14px;
+    line-height: 1.5;
+    font-size: 0.92rem;
+    border: 1px solid transparent;
+}
+
+.message.bot .message-bubble {
+    background: var(--bot-bubble);
+    border-color: rgba(56, 189, 248, 0.25);
+    border-bottom-left-radius: 4px;
+}
+
+.message.user .message-bubble {
+    background: var(--user-bubble);
+    border-color: rgba(99, 102, 241, 0.35);
+    border-bottom-right-radius: 4px;
+}
+
+.message.system .message-bubble {
+    background: var(--system-bubble);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-family: var(--font-mono);
+}
+
+.debug-log {
+    margin-top: 4px;
+}
+
+.debug-log summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+
+.debug-log-panel {
+    background: #0b1220;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    max-height: 180px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+}
+
+.log-entry {
+    margin-bottom: 6px;
+    border-left: 2px solid transparent;
+    padding-left: 8px;
+}
+
+.log-entry.info { border-color: var(--accent-primary); }
+.log-entry.success { border-color: var(--status-online); color: #86efac; }
+.log-entry.error { border-color: var(--status-offline); color: #fca5a5; }
+.log-entry.server { border-color: var(--status-connecting); color: #fef08a; }
+
+.conversation-panel::-webkit-scrollbar,
+.debug-log-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.conversation-panel::-webkit-scrollbar-thumb,
+.debug-log-panel::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
