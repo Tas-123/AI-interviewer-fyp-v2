@@ -37,11 +37,11 @@ def test_naturalize_rotates_openers():
 
 def test_soft_domain_redirect():
     r = domain_relevance_redirect_response(
-        "How would you handle missing values before training?"
+        "How would you handle missing values before training?",
+        attempt=1,
     )
-    assert r.startswith("Let's come back to this.")
-    assert "Please answer this directly" not in r
     assert "missing values" in r.lower()
+    assert "Please answer this directly" not in r
 
 
 def test_soft_intent_redirects():

@@ -39,7 +39,8 @@ class CaptureProcessor(InterviewProcessor):
             closing_delay_seconds=0,
             candidate_silence_nudge_seconds=0.05,
             candidate_silence_rephrase_seconds=0.10,
-            barge_in_min_bot_speak_seconds=1.0,
+            barge_in_min_bot_speak_seconds=0.25,
+            final_transcript_debounce_seconds=0.35,
             filler_words=DEFAULT_FILLER_WORDS,
         )
         super().__init__(MagicMock(), "silence-test", policy=policy)

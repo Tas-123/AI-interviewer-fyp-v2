@@ -85,6 +85,9 @@ class InterviewContext:
         self.assessed_domains: set[str] = set()
         self.skipped_domains: set[str] = set()
 
+        # Guard redirect counter per canonical question (stops infinite loops)
+        self.guard_redirect_counts: dict[str, int] = {}
+
     def add_turn(self, question, transcript):
         """Record one Q&A exchange."""
         self.question_history.append(question)
@@ -252,6 +255,26 @@ class InterviewContext:
     def mark_domain_skipped(self, domain: str) -> None:
         if domain:
             self.skipped_domains.add(domain)
+
+    def _canonical_active_question(self) -> str:
+        from dialogue.guards.echo_guard import canonical_interview_question
+
+        if not self.question_history:
+            return ""
+        return canonical_interview_question(self.question_history[-1])
+
+    def get_domain_redirect_count(self) -> int:
+        key = self._canonical_active_question()
+        if not key:
+            return 0
+        return self.guard_redirect_counts.get(key, 0)
+
+    def increment_domain_redirect(self) -> int:
+        key = self._canonical_active_question()
+        if not key:
+            return 0
+        self.guard_redirect_counts[key] = self.guard_redirect_counts.get(key, 0) + 1
+        return self.guard_redirect_counts[key]
 
     def mark_domain_probe(self, domain: str):
         """Increment probe count for a domain."""

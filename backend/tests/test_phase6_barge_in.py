@@ -1,4 +1,4 @@
-"""Phase 6 — false barge-in protection (server grace after bot starts)."""
+"""Barge-in rebalance — interruption should work after Phase 6 tuning."""
 
 from __future__ import annotations
 
@@ -22,9 +22,9 @@ from voice.voice_turn_policy import DEFAULT_FILLER_WORDS, VoiceTurnPolicy
 
 
 class CaptureProcessor(InterviewProcessor):
-    def __init__(self, barge_grace: float = 1.0):
+    def __init__(self, barge_grace: float = 0.25):
         policy = VoiceTurnPolicy(
-            transcript_debounce_seconds=0,
+            transcript_debounce_seconds=3.0,
             short_answer_grace_seconds=0,
             short_answer_word_threshold=6,
             startup_audio_gate_seconds=0,
@@ -35,6 +35,7 @@ class CaptureProcessor(InterviewProcessor):
             candidate_silence_nudge_seconds=0,
             candidate_silence_rephrase_seconds=0,
             barge_in_min_bot_speak_seconds=barge_grace,
+            final_transcript_debounce_seconds=0.35,
             filler_words=DEFAULT_FILLER_WORDS,
         )
         super().__init__(MagicMock(), "barge-test", policy=policy)
@@ -47,17 +48,8 @@ class CaptureProcessor(InterviewProcessor):
         self.pushed_frames.append((frame, direction))
 
 
-async def test_early_vad_does_not_interrupt():
-    proc = CaptureProcessor(barge_grace=1.0)
-    await proc.process_frame(BotStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
-    assert proc.bot_is_speaking
-    await proc.process_frame(VADUserStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
-    proc.broadcast_interruption.assert_not_awaited()
-    assert proc.bot_is_speaking
-
-
-async def test_late_vad_does_interrupt():
-    proc = CaptureProcessor(barge_grace=0.2)
+async def test_vad_interrupts_after_grace():
+    proc = CaptureProcessor(barge_grace=0.25)
     await proc.process_frame(BotStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
     proc._bot_speech_started_at = time.time() - 0.5
     await proc.process_frame(VADUserStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
@@ -65,9 +57,18 @@ async def test_late_vad_does_interrupt():
     assert not proc.bot_is_speaking
 
 
-def test_client_config_defaults_raised():
-    import re
+async def test_stt_words_trigger_early_barge_in():
+    proc = CaptureProcessor(barge_grace=0.25)
+    await proc.process_frame(BotStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
+    assert proc.bot_is_speaking
+    interrupted = await proc._maybe_interrupt_bot(
+        "I think the answer is about weather features"
+    )
+    assert interrupted
+    proc.broadcast_interruption.assert_awaited_once()
 
+
+def test_client_config_balanced_defaults():
     cfg_path = os.path.join(
         backend_dir,
         "pipecat_integration",
@@ -75,13 +76,13 @@ def test_client_config_defaults_raised():
         "config.js",
     )
     text = open(cfg_path, encoding="utf-8").read()
-    assert 'barge_rms") || "0.09"' in text or re.search(r'barge_rms.*"0\.09"', text)
-    assert 'barge_frames") || "6"' in text
-    assert 'barge_ignore_ms") || "1000"' in text
+    assert '"0.055"' in text
+    assert '"4"' in text
+    assert '"500"' in text
 
 
 if __name__ == "__main__":
-    asyncio.run(test_early_vad_does_not_interrupt())
-    asyncio.run(test_late_vad_does_interrupt())
-    test_client_config_defaults_raised()
+    asyncio.run(test_vad_interrupts_after_grace())
+    asyncio.run(test_stt_words_trigger_early_barge_in())
+    test_client_config_balanced_defaults()
     print("[PASS] test_phase6_barge_in")

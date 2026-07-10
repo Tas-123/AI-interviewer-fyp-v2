@@ -96,7 +96,11 @@ class Settings:
     )
     # Ignore Silero barge-in for this long after bot TTS starts (reduces echo cuts)
     barge_in_min_bot_speak_seconds: float = float(
-        os.getenv("BARGE_IN_MIN_BOT_SPEAK_SECONDS", "1.0")
+        os.getenv("BARGE_IN_MIN_BOT_SPEAK_SECONDS", "0.25")
+    )
+    # Debounce after final STT (interim-only paths may wait longer)
+    final_transcript_debounce_seconds: float = float(
+        os.getenv("FINAL_TRANSCRIPT_DEBOUNCE_SECONDS", "0.35")
     )
 
     # Runtime flags

@@ -16,6 +16,7 @@ echo "=== Phase 6 silence / duplicate / merge / barge / natural ==="
 $PY backend/tests/test_phase6_silence_handling.py
 $PY backend/tests/test_phase6_duplicate_questions.py
 $PY backend/tests/test_phase6_transcript_aggregation.py
+$PY backend/tests/test_semantic_domain_guard.py
 $PY backend/tests/test_phase6_barge_in.py
 $PY backend/tests/test_phase6_natural_conversation.py
 $PY backend/tests/test_guards/test_interview_flow_fixes.py

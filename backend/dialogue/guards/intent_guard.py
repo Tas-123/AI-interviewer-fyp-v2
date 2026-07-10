@@ -76,6 +76,8 @@ def classify_candidate_intent(
         "can we move to the next", "skip this question",
         "don't have answer", "dont have answer",
         "don't have an answer", "dont have an answer",
+        "let's move on", "lets move on", "move on please",
+        "same question again", "asked me the same",
     ]
     off_topic_phrases = [
         "let's talk about something else", "lets talk about something else",
@@ -163,6 +165,60 @@ def should_use_semantic_intent_classifier(transcript: str) -> bool:
     return any(marker in text for marker in instruction_markers)
 
 
+def semantic_meta_intent_classify(
+    transcript: str,
+    last_question: str = "",
+    *,
+    llm_client=None,
+    llm_model: str = "",
+) -> str | None:
+    """LLM classifier for skip / change-topic / already-answered meta requests."""
+    if llm_client is None:
+        return None
+
+    allowed = {"CHANGE_TOPIC", "ALREADY_ANSWERED", "NONE"}
+    prompt = f"""
+Classify whether the candidate is making a meta request (not answering the question).
+
+Labels:
+- CHANGE_TOPIC: wants to skip or move to another question
+- ALREADY_ANSWERED: claims they already answered
+- NONE: normal answer attempt (even if confused)
+
+Interview question:
+{last_question}
+
+Candidate utterance:
+{transcript}
+
+Return JSON only: {{"intent":"LABEL","confidence":0.0}}
+""".strip()
+
+    try:
+        response = llm_client.chat.completions.create(
+            model=llm_model or "llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "Return only valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+            max_tokens=60,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        match = re.search(r"\{.*\}", content, re.DOTALL)
+        if match:
+            content = match.group(0)
+        data = json.loads(content)
+        intent = str(data.get("intent", "NONE")).strip().upper()
+        confidence = float(data.get("confidence", 0))
+        if intent in allowed and intent != "NONE" and confidence >= 0.55:
+            return intent
+    except Exception as exc:
+        logger.warning("Semantic meta intent failed: %s", exc)
+
+    return None
+
+
 def semantic_intent_classify(
     transcript: str,
     last_question: str = "",
@@ -173,7 +229,7 @@ def semantic_intent_classify(
     """LLM fallback classifier for candidate intent."""
     allowed = {
         "ANSWER_ATTEMPT", "REPEAT_REQUEST", "CLARIFICATION_REQUEST",
-        "AUDIO_ISSUE", "OFF_TOPIC", "EXTERNAL_PROMPT_ECHO",
+        "AUDIO_ISSUE", "OFF_TOPIC", "EXTERNAL_PROMPT_ECHO", "SKIP_REQUEST",
     }
 
     if llm_client is None:
@@ -183,6 +239,9 @@ def semantic_intent_classify(
 You are an intent classifier for a live AI job interview.
 
 Classify the candidate utterance into exactly one label:
+
+SKIP_REQUEST:
+The candidate wants to skip or move to the next question.
 
 ANSWER_ATTEMPT:
 The candidate is trying to answer the interview question.

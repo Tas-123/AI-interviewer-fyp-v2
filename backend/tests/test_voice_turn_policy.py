@@ -31,7 +31,8 @@ def test_is_filler():
         closing_delay_seconds=2.5,
             candidate_silence_nudge_seconds=8.0,
             candidate_silence_rephrase_seconds=15.0,
-            barge_in_min_bot_speak_seconds=1.0,
+            barge_in_min_bot_speak_seconds=0.25,
+            final_transcript_debounce_seconds=0.35,
             filler_words=DEFAULT_FILLER_WORDS,
         )
     assert policy.is_filler("ok")
@@ -51,7 +52,8 @@ def test_is_short_answer():
         closing_delay_seconds=2.5,
         candidate_silence_nudge_seconds=8.0,
         candidate_silence_rephrase_seconds=15.0,
-        barge_in_min_bot_speak_seconds=1.0,
+        barge_in_min_bot_speak_seconds=0.25,
+        final_transcript_debounce_seconds=0.35,
         filler_words=DEFAULT_FILLER_WORDS,
     )
     assert policy.is_short_answer("Worked on a small NLP project")

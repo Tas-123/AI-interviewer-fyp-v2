@@ -41,6 +41,7 @@ class VoiceTurnPolicy:
     candidate_silence_nudge_seconds: float
     candidate_silence_rephrase_seconds: float
     barge_in_min_bot_speak_seconds: float
+    final_transcript_debounce_seconds: float
     filler_words: frozenset[str]
 
     @classmethod
@@ -57,6 +58,7 @@ class VoiceTurnPolicy:
             candidate_silence_nudge_seconds=cfg.candidate_silence_nudge_seconds,
             candidate_silence_rephrase_seconds=cfg.candidate_silence_rephrase_seconds,
             barge_in_min_bot_speak_seconds=cfg.barge_in_min_bot_speak_seconds,
+            final_transcript_debounce_seconds=cfg.final_transcript_debounce_seconds,
             filler_words=DEFAULT_FILLER_WORDS,
         )
 

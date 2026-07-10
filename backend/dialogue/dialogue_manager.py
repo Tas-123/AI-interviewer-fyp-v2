@@ -583,7 +583,12 @@ class DialogueManager:
 
     def _is_answer_relevant_to_question(self, transcript: str, last_question: str) -> bool:
         from dialogue.guards.domain_guard import is_answer_relevant_to_question
-        return is_answer_relevant_to_question(transcript, last_question)
+        return is_answer_relevant_to_question(
+            transcript,
+            last_question,
+            llm_client=self.llm.client,
+            llm_model=self.llm.model,
+        )
 
     def _domain_relevance_redirect_response(self, last_question: str) -> str:
         from dialogue.guards.domain_guard import domain_relevance_redirect_response

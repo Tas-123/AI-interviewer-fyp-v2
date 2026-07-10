@@ -262,13 +262,43 @@ class InterviewProcessor(FrameProcessor):
         self._silence_stage = None
         self._cancel_silence_watch()
 
-    def _schedule_turn_debounce(self) -> None:
+    def _schedule_turn_debounce(self, delay_seconds: float | None = None) -> None:
         """Queue transcript evaluation after the configured debounce window."""
         if self._debounce_task and not self._debounce_task.done():
             self._debounce_task.cancel()
-        self._debounce_task = asyncio.create_task(
-            self._process_buffered_transcript_after_delay()
+        delay = (
+            self.policy.final_transcript_debounce_seconds
+            if delay_seconds is None
+            else delay_seconds
         )
+        self._debounce_task = asyncio.create_task(
+            self._process_buffered_transcript_after_delay(delay)
+        )
+
+    async def _maybe_interrupt_bot(self, stt_hint: str = "") -> bool:
+        """Barge-in when user speaks (VAD) or STT shows real words during bot TTS."""
+        if not self.bot_is_speaking:
+            return False
+        spoken_for = (
+            time.time() - self._bot_speech_started_at
+            if self._bot_speech_started_at
+            else 0.0
+        )
+        min_speak = self.policy.barge_in_min_bot_speak_seconds
+        word_count = len((stt_hint or "").split())
+        if spoken_for < min_speak and word_count < 3:
+            logger.debug(
+                "Ignoring early barge-in (spoken %.2fs, %d words)",
+                spoken_for,
+                word_count,
+            )
+            return False
+        logger.info("User interrupted bot — broadcasting interruption")
+        self.last_barge_in_at = time.time()
+        self.barge_in_active = True
+        await self.broadcast_interruption()
+        self.bot_is_speaking = False
+        return True
 
     def _schedule_interim_finalize(self) -> None:
         """If VAD misses speech, finalize buffered interim STT after a short pause."""
@@ -289,7 +319,7 @@ class InterviewProcessor(FrameProcessor):
                 "Interim STT silence fallback — scheduling turn from buffered text: %r",
                 self.latest_user_transcript[:120],
             )
-            self._schedule_turn_debounce()
+            self._schedule_turn_debounce(self.policy.transcript_debounce_seconds)
         except asyncio.CancelledError:
             logger.debug("Interim finalize task cancelled — new speech detected.")
 
@@ -451,9 +481,16 @@ class InterviewProcessor(FrameProcessor):
                 direction,
             )
 
-    async def _process_buffered_transcript_after_delay(self) -> None:
+    async def _process_buffered_transcript_after_delay(
+        self, delay_seconds: float | None = None
+    ) -> None:
         try:
-            await asyncio.sleep(self.policy.transcript_debounce_seconds)
+            delay = (
+                self.policy.final_transcript_debounce_seconds
+                if delay_seconds is None
+                else delay_seconds
+            )
+            await asyncio.sleep(delay)
 
             if self.bot_is_speaking:
                 logger.debug("Bot still speaking; processing saved transcript after debounce.")
@@ -518,24 +555,7 @@ class InterviewProcessor(FrameProcessor):
             self.vad_enabled = True
             self._note_candidate_activity()
             if self.bot_is_speaking:
-                spoken_for = (
-                    time.time() - self._bot_speech_started_at
-                    if self._bot_speech_started_at
-                    else 0.0
-                )
-                min_speak = self.policy.barge_in_min_bot_speak_seconds
-                if spoken_for < min_speak:
-                    logger.debug(
-                        "Ignoring early VAD barge-in (bot spoken %.2fs < %.2fs)",
-                        spoken_for,
-                        min_speak,
-                    )
-                else:
-                    logger.info("User interrupted bot — broadcasting interruption")
-                    self.last_barge_in_at = time.time()
-                    self.barge_in_active = True
-                    await self.broadcast_interruption()
-                    self.bot_is_speaking = False
+                await self._maybe_interrupt_bot()
 
             if self._debounce_task and not self._debounce_task.done():
                 self._debounce_task.cancel()
@@ -559,11 +579,15 @@ class InterviewProcessor(FrameProcessor):
 
         if isinstance(frame, InterimTranscriptionFrame):
             interim_text = (getattr(frame, "text", "") or "").strip()
-            if interim_text and not self.bot_is_speaking:
-                self._note_candidate_activity()
-                self._merge_transcript_part(interim_text)
-                logger.debug("Buffered interim STT: %r", interim_text[:120])
-                self._schedule_interim_finalize()
+            if interim_text:
+                if self.bot_is_speaking:
+                    await self._maybe_interrupt_bot(interim_text)
+                    self._merge_transcript_part(interim_text)
+                elif not self.bot_is_speaking:
+                    self._note_candidate_activity()
+                    self._merge_transcript_part(interim_text)
+                    logger.debug("Buffered interim STT: %r", interim_text[:120])
+                    self._schedule_interim_finalize()
             await self.push_frame(frame, direction)
             return
 
@@ -581,6 +605,7 @@ class InterviewProcessor(FrameProcessor):
 
             if self.bot_is_speaking:
                 if user_text:
+                    await self._maybe_interrupt_bot(user_text)
                     self._merge_transcript_part(user_text)
                     logger.debug("Stored transcript while bot speaking: %r", user_text)
                 return
@@ -598,7 +623,7 @@ class InterviewProcessor(FrameProcessor):
             self._note_candidate_activity()
             self._merge_transcript_part(user_text)
             logger.info("Final STT transcript received: %r", user_text[:160])
-            self._schedule_turn_debounce()
+            self._schedule_turn_debounce(self.policy.final_transcript_debounce_seconds)
             await self.push_frame(frame, direction)
             return
 
