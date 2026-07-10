@@ -33,6 +33,7 @@ class Settings:
     project_root: Path = PROJECT_ROOT
     log_dir: Path = PROJECT_ROOT / "logs"
     reports_dir: Path = PROJECT_ROOT / "reports"
+    aborted_reports_dir: Path = PROJECT_ROOT / "reports" / "aborted"
     live_debug_log: Path = PROJECT_ROOT / "logs" / "live_interview_debug.log"
 
     # LLM
@@ -111,6 +112,7 @@ class Settings:
         """Create runtime directories if missing."""
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.reports_dir.mkdir(parents=True, exist_ok=True)
+        self.aborted_reports_dir.mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()

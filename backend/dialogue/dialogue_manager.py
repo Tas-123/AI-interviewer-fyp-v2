@@ -824,7 +824,13 @@ class DialogueManager:
             except Exception:
                 pass
 
-        return report
+        from reporting.generator import build_report_v2
+
+        return build_report_v2(
+            context=self.context,
+            legacy_report=report,
+            session_id=self.session_id,
+        )
 
     def _persist_session_finals(self, report):
         """Persist final analytics to DB session record (graceful fallback)."""

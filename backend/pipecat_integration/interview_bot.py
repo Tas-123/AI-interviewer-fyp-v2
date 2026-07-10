@@ -372,12 +372,15 @@ async def run_bot():
 
                     reports_dir = settings.reports_dir
                     reports_dir.mkdir(exist_ok=True)
-                    report_path = reports_dir / f"interview_report_{session_id}.json"
 
-                    with report_path.open("w", encoding="utf-8") as f:
-                        json.dump(final_report, f, indent=2, ensure_ascii=False)
+                    from reporting.persistence import save_interview_report
 
-                    logger.info(f"Full report saved to: {report_path}")
+                    report_path = save_interview_report(final_report)
+
+                    if report_path:
+                        logger.info(f"Full report saved to: {report_path}")
+                    else:
+                        logger.warning(f"No report file written for session {session_id}")
                 else:
                     logger.warning(f"No final report returned for session {session_id}")
             except Exception as ex:

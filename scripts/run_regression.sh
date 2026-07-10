@@ -27,6 +27,9 @@ $PY backend/tests/test_phase6b_transcript_quality.py
 echo "=== Phase 6C reporting ==="
 $PY backend/tests/test_phase6c_reporting.py
 
+echo "=== Report v2 module ==="
+$PY backend/tests/test_reporting_v2.py
+
 echo "=== Transcript utils ==="
 $PY backend/tests/test_transcript_utils.py
 
