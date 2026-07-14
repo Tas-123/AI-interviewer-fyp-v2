@@ -353,6 +353,32 @@ class IntentGuard:
         if intent == "ANSWER_ATTEMPT":
             return GuardResult(triggered=False)
 
+        # Early intro: mic checks / tiny "hello?" should not burn redirect turns.
+        interview_ctx = getattr(ctx, "interview_context", None)
+        turn_count = int(getattr(interview_ctx, "turn_count", 0) or 0) if interview_ctx else 0
+        if turn_count <= 2 and intent in {"AUDIO_ISSUE", "CLARIFICATION_REQUEST"}:
+            text = (ctx.transcript or "").strip().lower()
+            words = text.split()
+            check_in = any(
+                p in text
+                for p in (
+                    "hello",
+                    "hear me",
+                    "are you there",
+                    "can you hear",
+                    "testing",
+                    "mic",
+                )
+            )
+            if check_in or len(words) <= 6:
+                logger.info(
+                    "Softening early %s intent (turn_count=%d): %r",
+                    intent,
+                    turn_count,
+                    ctx.transcript,
+                )
+                return GuardResult(triggered=False)
+
         metadata = {"guard": self.name, "intent": intent}
         if intent == "SKIP_REQUEST":
             metadata["flow_action"] = "skip_domain"

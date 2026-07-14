@@ -24,13 +24,16 @@ function floatToPcm16(channel, gain) {
     return pcm;
 }
 
-export function createVoiceSession(config, ui) {
+export function createVoiceSession(config, ui, hooks = {}) {
     const {
         wsUrl,
         micGain = 2.5,
         suppressMicWhileBotSpeaking = true,
         bargeIn = {},
     } = config;
+    const onSessionEnded = typeof hooks.onSessionEnded === "function"
+        ? hooks.onSessionEnded
+        : null;
 
     let audioContext = null;
     let micStream = null;
@@ -39,6 +42,7 @@ export function createVoiceSession(config, ui) {
     let ws = null;
     let isConnected = false;
     let botChunksReceived = 0;
+    let sessionEndNotified = false;
 
     const bargeInCtrl = createBargeInController(bargeIn, {
         onUserSpeaking: (speaking) => ui.status.setUserSpeaking(speaking),
@@ -171,6 +175,7 @@ export function createVoiceSession(config, ui) {
         ui.debug.log("Initializing AudioContext…", "info");
         bargeInCtrl.reset();
         botChunksReceived = 0;
+        sessionEndNotified = false;
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)({
             sampleRate: 16000,
@@ -293,6 +298,15 @@ export function createVoiceSession(config, ui) {
         bargeInCtrl.reset();
         botChunksReceived = 0;
         ui.debug.log("Session concluded.", "success");
+
+        if (onSessionEnded && !sessionEndNotified) {
+            sessionEndNotified = true;
+            try {
+                onSessionEnded();
+            } catch (err) {
+                ui.debug.log(`onSessionEnded failed: ${err.message || err}`, "error");
+            }
+        }
     }
 
     return { connect, disconnect, isConnected: () => isConnected };

@@ -146,10 +146,17 @@ class InterviewProcessor(FrameProcessor):
         self.last_barge_in_at = 0.0
         self.barge_in_active = False
         self._bot_speech_started_at = 0.0
+        # After barge-in, allow mic transcripts despite echo cooldown (seconds).
+        self._barge_in_mic_allow_until = 0.0
+        self._barge_in_mic_allow_seconds = 2.5
+        self._barge_in_echo_cooldown_seconds = 0.25
 
         self.startup_audio_ignore_until = time.time() + self.policy.startup_audio_gate_seconds
         self.first_real_user_turn_seen = False
         self._interim_silence_seconds = 1.4
+        self._interim_min_words = 8
+        self._user_vad_speaking = False
+        self._saw_final_stt_for_utterance = False
         self._interim_finalize_task: asyncio.Task | None = None
         self._silence_watch_task: asyncio.Task | None = None
         self._silence_nudge_sent = False
@@ -162,6 +169,7 @@ class InterviewProcessor(FrameProcessor):
         logger.info("Client interrupt received — broadcasting interruption (%s)", reason)
         self.last_barge_in_at = time.time()
         self.barge_in_active = True
+        self._barge_in_mic_allow_until = time.time() + self._barge_in_mic_allow_seconds
         self._note_candidate_activity()
         await self.broadcast_interruption()
 
@@ -176,6 +184,9 @@ class InterviewProcessor(FrameProcessor):
         self.last_barge_in_at = 0.0
         self.barge_in_active = False
         self._bot_speech_started_at = 0.0
+        self._barge_in_mic_allow_until = 0.0
+        self._user_vad_speaking = False
+        self._saw_final_stt_for_utterance = False
         self.startup_audio_ignore_until = time.time() + self.policy.startup_audio_gate_seconds
         self.first_real_user_turn_seen = False
         self._silence_nudge_sent = False
@@ -296,9 +307,55 @@ class InterviewProcessor(FrameProcessor):
         logger.info("User interrupted bot — broadcasting interruption")
         self.last_barge_in_at = time.time()
         self.barge_in_active = True
+        self._barge_in_mic_allow_until = time.time() + self._barge_in_mic_allow_seconds
         await self.broadcast_interruption()
         self.bot_is_speaking = False
         return True
+
+    def _in_barge_in_mic_allow_window(self) -> bool:
+        return self.barge_in_active or time.time() < self._barge_in_mic_allow_until
+
+    @staticmethod
+    def _is_check_in_or_junk(text: str) -> bool:
+        """Mic checks / tiny barge-in fragments that should not start a dialogue turn."""
+        clean = (text or "").strip().lower().strip(" .,!?'\"")
+        if not clean:
+            return True
+        words = clean.split()
+        check_ins = {
+            "hello",
+            "hello?",
+            "hi",
+            "hey",
+            "so",
+            "so hello",
+            "so hello?",
+            "hear me",
+            "hear me?",
+            "can you hear me",
+            "can you hear me?",
+            "are you there",
+            "are you there?",
+            "yes",
+            "yeah",
+            "ok",
+            "okay",
+        }
+        if clean in check_ins:
+            return True
+        if len(words) < 5 and any(
+            p in clean
+            for p in (
+                "hello",
+                "hear me",
+                "are you there",
+                "can you hear",
+                "testing",
+                "mic check",
+            )
+        ):
+            return True
+        return False
 
     def _schedule_interim_finalize(self) -> None:
         """If VAD misses speech, finalize buffered interim STT after a short pause."""
@@ -313,11 +370,35 @@ class InterviewProcessor(FrameProcessor):
             await asyncio.sleep(self._interim_silence_seconds)
             if self.bot_is_speaking:
                 return
-            if not self.latest_user_transcript.strip():
+            if self._user_vad_speaking:
+                logger.debug(
+                    "Interim silence fallback skipped — VAD still marks user as speaking"
+                )
+                return
+            buffered = self.latest_user_transcript.strip()
+            if not buffered:
+                return
+            word_count = len(buffered.split())
+            # Prefer VAD-stop + final STT. Only submit interim as last resort when we
+            # have a substantial utterance and the speaker is quiet.
+            if not self._saw_final_stt_for_utterance and word_count < 12:
+                logger.info(
+                    "Interim STT silence fallback skipped — waiting for VAD/final "
+                    "(%d words): %r",
+                    word_count,
+                    buffered[:120],
+                )
+                return
+            if word_count < self._interim_min_words:
+                logger.info(
+                    "Interim STT silence fallback skipped — too short (%d words): %r",
+                    word_count,
+                    buffered[:120],
+                )
                 return
             logger.info(
                 "Interim STT silence fallback — scheduling turn from buffered text: %r",
-                self.latest_user_transcript[:120],
+                buffered[:120],
             )
             self._schedule_turn_debounce(self.policy.transcript_debounce_seconds)
         except asyncio.CancelledError:
@@ -364,6 +445,9 @@ class InterviewProcessor(FrameProcessor):
         return True
 
     def _should_ignore_echo(self, user_text: str) -> bool:
+        # During barge-in mic-allow window, preserve candidate speech.
+        if self._in_barge_in_mic_allow_window():
+            return False
         if time.time() >= self.ignore_user_audio_until:
             return False
         logger.info("Ignoring transcript during bot echo cooldown: %r", user_text)
@@ -412,9 +496,32 @@ class InterviewProcessor(FrameProcessor):
             logger.info("Cleaned transcript for evaluation: %r", cleaned)
             user_text = cleaned
 
+        # Drop junk barge-in / mic-check fragments before dialogue (no guard storm).
+        if self._in_barge_in_mic_allow_window() and (
+            len(user_text.split()) < 5 or self._is_check_in_or_junk(user_text)
+        ):
+            logger.info(
+                "Discarding short/check-in post-barge-in transcript quietly: %r",
+                user_text,
+            )
+            self._clear_transcript_buffer()
+            return None
+
         user_text = await self._apply_short_answer_grace(user_text)
 
+        # Re-check after grace in case only a check-in arrived.
+        if self._in_barge_in_mic_allow_window() and (
+            len(user_text.split()) < 5 or self._is_check_in_or_junk(user_text)
+        ):
+            logger.info(
+                "Discarding short/check-in transcript after grace quietly: %r",
+                user_text,
+            )
+            self._clear_transcript_buffer()
+            return None
+
         self._clear_transcript_buffer()
+        self._saw_final_stt_for_utterance = False
 
         if self.policy.is_filler(user_text):
             logger.info("Ignoring filler transcript after grace: %r", user_text)
@@ -514,12 +621,16 @@ class InterviewProcessor(FrameProcessor):
                 direction,
             )
 
-        if isinstance(frame, (BotStartedSpeakingFrame, BotSpeakingFrame)):
+        if isinstance(frame, BotStartedSpeakingFrame) or isinstance(frame, BotSpeakingFrame):
             logger.debug("Bot started speaking — mic echo cooldown active")
             if not self.bot_is_speaking:
                 self._bot_speech_started_at = time.time()
             self.bot_is_speaking = True
-            self.ignore_user_audio_until = time.time() + self.policy.bot_echo_cooldown_seconds
+            # Preserve post-barge-in mic allow — don't re-arm long echo discard.
+            if not self._in_barge_in_mic_allow_window():
+                self.ignore_user_audio_until = (
+                    time.time() + self.policy.bot_echo_cooldown_seconds
+                )
             # Cancel settle debounce only — leave an active silence cycle alone
             # (silence nudge/rephrase also emit BotStartedSpeakingFrame).
             if self._silence_stage is None:
@@ -542,9 +653,14 @@ class InterviewProcessor(FrameProcessor):
             logger.debug("Bot stopped speaking — short mic echo cooldown")
             self.bot_is_speaking = False
             self._bot_speech_started_at = 0.0
-            self.ignore_user_audio_until = (
-                time.time() + self.policy.bot_stop_echo_cooldown_seconds
-            )
+            if self._in_barge_in_mic_allow_window():
+                self.ignore_user_audio_until = (
+                    time.time() + self._barge_in_echo_cooldown_seconds
+                )
+            else:
+                self.ignore_user_audio_until = (
+                    time.time() + self.policy.bot_stop_echo_cooldown_seconds
+                )
             if not self.latest_user_transcript.strip():
                 self._schedule_silence_watch()
             await self.push_frame(frame, direction)
@@ -553,6 +669,8 @@ class InterviewProcessor(FrameProcessor):
         if isinstance(frame, VADUserStartedSpeakingFrame):
             logger.debug("VAD: user started speaking")
             self.vad_enabled = True
+            self._user_vad_speaking = True
+            self._saw_final_stt_for_utterance = False
             self._note_candidate_activity()
             if self.bot_is_speaking:
                 await self._maybe_interrupt_bot()
@@ -569,6 +687,7 @@ class InterviewProcessor(FrameProcessor):
         if isinstance(frame, VADUserStoppedSpeakingFrame):
             logger.debug("VAD: user stopped speaking")
             self.vad_enabled = True
+            self._user_vad_speaking = False
 
             if self._debounce_task and not self._debounce_task.done():
                 self._debounce_task.cancel()
@@ -622,6 +741,7 @@ class InterviewProcessor(FrameProcessor):
 
             self._note_candidate_activity()
             self._merge_transcript_part(user_text)
+            self._saw_final_stt_for_utterance = True
             logger.info("Final STT transcript received: %r", user_text[:160])
             self._schedule_turn_debounce(self.policy.final_transcript_debounce_seconds)
             await self.push_frame(frame, direction)

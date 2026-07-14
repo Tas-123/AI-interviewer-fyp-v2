@@ -39,6 +39,11 @@ async function loadReport(ui) {
     }
 }
 
+function scheduleReportLoad(ui) {
+    // Server writes report on WebSocket disconnect; give it a moment.
+    setTimeout(() => loadReport(ui), 1500);
+}
+
 function wireControls(session, ui) {
     const { btnConnect, btnDisconnect } = ui.refs;
 
@@ -60,7 +65,7 @@ function wireControls(session, ui) {
         session.disconnect();
         btnConnect.disabled = false;
         btnDisconnect.disabled = true;
-        setTimeout(() => loadReport(ui), 1500);
+        // Report fetch is handled by onSessionEnded (natural end + Disconnect).
     });
 }
 
@@ -74,6 +79,17 @@ function bootstrap() {
     );
     ui.debug.log("Ready. Click Connect to begin the voice interview.", "info");
 
+    let reportLoadScheduled = false;
+    const scheduleOnce = () => {
+        if (reportLoadScheduled) return;
+        reportLoadScheduled = true;
+        scheduleReportLoad(ui);
+        // Allow a new load after the next reconnect.
+        setTimeout(() => {
+            reportLoadScheduled = false;
+        }, 5000);
+    };
+
     const session = createVoiceSession(
         {
             wsUrl: cfg.wsUrl || "ws://localhost:8765",
@@ -83,7 +99,16 @@ function bootstrap() {
             botAudioJitterBufferSec: cfg.botAudioJitterBufferSec ?? 0.15,
             bargeIn: cfg.bargeIn || {},
         },
-        ui
+        ui,
+        {
+            onSessionEnded: () => {
+                ui.debug.log("Session ended — loading interview report…", "info");
+                scheduleOnce();
+                const { btnConnect, btnDisconnect } = ui.refs;
+                if (btnConnect) btnConnect.disabled = false;
+                if (btnDisconnect) btnDisconnect.disabled = true;
+            },
+        }
     );
 
     wireControls(session, ui);

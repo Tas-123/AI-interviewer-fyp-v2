@@ -281,7 +281,7 @@ async def run_bot():
             confidence=0.30,
             min_volume=0.015,
             start_secs=0.12,
-            stop_secs=0.55,
+            stop_secs=0.80,
         )
     )
     pipeline = Pipeline([

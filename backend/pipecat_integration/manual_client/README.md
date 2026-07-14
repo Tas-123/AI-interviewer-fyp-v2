@@ -79,7 +79,7 @@ manual_client/
 1. Click **Connect Mic & Bot** and allow microphone access.
 2. Confirm chat bubbles appear for bot speech (and user transcripts when sent by server).
 3. Speak during bot TTS to verify barge-in interruption.
-4. Click **Disconnect** — report loads in the Interview Report panel.
+4. Click **Disconnect**, or let the interview finish naturally — both paths load the report (~1.5s delay) in the Interview Report panel.
 5. Expand **Technical debug log** for PCM/WebSocket diagnostics.
 
 ## Query-string overrides
