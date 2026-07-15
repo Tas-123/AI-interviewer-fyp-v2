@@ -14,6 +14,7 @@ from core.interviewer_policy import (
     INTERVIEW_BLUEPRINT,
     MAX_CONTEXT_FOLLOWUPS_TOTAL,
     MAX_PROBES_PER_DOMAIN,
+    MAX_SKIPS_PER_INTERVIEW,
     MAX_TOTAL_INTERVIEW_TURNS,
     MAX_TURNS_PER_DOMAIN,
 )
@@ -33,6 +34,7 @@ class RoleConfig:
     max_probes_per_domain: int = MAX_PROBES_PER_DOMAIN
     max_total_interview_turns: int = MAX_TOTAL_INTERVIEW_TURNS
     max_context_followups_total: int = MAX_CONTEXT_FOLLOWUPS_TOTAL
+    max_skips_per_interview: int = MAX_SKIPS_PER_INTERVIEW
 
 
 ROLE_REGISTRY: dict[str, RoleConfig] = {

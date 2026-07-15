@@ -89,15 +89,32 @@ class IncompleteGuard:
         if not looks_like_incomplete_transcript(ctx.transcript, ctx.last_question):
             return GuardResult(triggered=False)
 
+        words = (ctx.transcript or "").strip().split()
+        interview_ctx = getattr(ctx, "interview_context", None)
+        last_substantial = ""
+        if interview_ctx is not None and hasattr(interview_ctx, "last_substantial_transcript"):
+            last_substantial = interview_ctx.last_substantial_transcript(min_words=8)
+
+        # Micro-fragments after a solid answer: do not quote junk like "Started."
+        quote_source = (ctx.transcript or "").strip()
+        if len(words) <= 3:
+            quote_source = ""
+
+        response = incomplete_transcript_response(quote_source, ctx.last_question)
+        if last_substantial and len(words) <= 3:
+            response = (
+                "I still need your full answer on this question. "
+                "Please continue clearly from where you left off."
+            )
+
         return GuardResult(
             triggered=True,
             decision_type="INCOMPLETE_TRANSCRIPT_REDIRECT",
-            response_text=incomplete_transcript_response(
-                ctx.transcript, ctx.last_question
-            ),
+            response_text=response,
             should_evaluate=False,
             metadata={
                 "guard": self.name,
                 "question": ctx.last_question,
+                "had_prior_substantial": bool(last_substantial),
             },
         )

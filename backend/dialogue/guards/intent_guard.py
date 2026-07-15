@@ -71,13 +71,34 @@ def classify_candidate_intent(
         "i want a clear set of steps", "go.",
     ]
     skip_phrases = [
-        "move to the next question", "move to next question",
-        "go to the next question", "next question please",
-        "can we move to the next", "skip this question",
-        "don't have answer", "dont have answer",
-        "don't have an answer", "dont have an answer",
-        "let's move on", "lets move on", "move on please",
-        "same question again", "asked me the same",
+        "skip this question",
+        "skip this one",
+        "skip the question",
+        "don't have answer",
+        "dont have answer",
+        "don't have an answer",
+        "dont have an answer",
+        "i want to skip",
+        "can we skip",
+        "let's skip",
+        "lets skip",
+    ]
+    # Soft "next question" alone is NOT a skip — stay on current topic.
+    soft_advance_phrases = [
+        "move to the next question",
+        "move to next question",
+        "go to the next question",
+        "next question please",
+        "can we move to the next",
+        "next question",
+    ]
+    previous_question_phrases = [
+        "previous question",
+        "ask the previous",
+        "go back to the previous",
+        "ask previous question",
+        "last question again",
+        "the question before",
     ]
     off_topic_phrases = [
         "let's talk about something else", "lets talk about something else",
@@ -89,12 +110,16 @@ def classify_candidate_intent(
 
     if any(p in clean for p in audio_issue_phrases):
         return "AUDIO_ISSUE"
+    if any(p in clean for p in previous_question_phrases):
+        return "REPEAT_REQUEST"
     if any(p in clean for p in repeat_phrases):
         return "REPEAT_REQUEST"
     if any(p in clean for p in clarification_phrases):
         return "CLARIFICATION_REQUEST"
     if any(p in clean for p in external_prompt_phrases):
         return "EXTERNAL_PROMPT_ECHO"
+    if any(p in clean for p in soft_advance_phrases):
+        return "STAY_ON_QUESTION"
     if any(p in clean for p in skip_phrases):
         return "SKIP_REQUEST"
     if any(p in clean for p in off_topic_phrases):
@@ -230,6 +255,7 @@ def semantic_intent_classify(
     allowed = {
         "ANSWER_ATTEMPT", "REPEAT_REQUEST", "CLARIFICATION_REQUEST",
         "AUDIO_ISSUE", "OFF_TOPIC", "EXTERNAL_PROMPT_ECHO", "SKIP_REQUEST",
+        "STAY_ON_QUESTION",
     }
 
     if llm_client is None:
@@ -241,13 +267,16 @@ You are an intent classifier for a live AI job interview.
 Classify the candidate utterance into exactly one label:
 
 SKIP_REQUEST:
-The candidate wants to skip or move to the next question.
+The candidate explicitly wants to skip this question (e.g. "skip this", "I don't have an answer").
+
+STAY_ON_QUESTION:
+The candidate asks for the next question without a clear skip — keep them on the current question.
 
 ANSWER_ATTEMPT:
 The candidate is trying to answer the interview question.
 
 REPEAT_REQUEST:
-The candidate asks to repeat the question.
+The candidate asks to repeat the previous or current question.
 
 CLARIFICATION_REQUEST:
 The candidate asks what the question means.
@@ -322,6 +351,12 @@ def intent_redirect_response(
     if intent == "SKIP_REQUEST":
         return "Sure — let's move on to a different area of the interview."
 
+    if intent == "STAY_ON_QUESTION":
+        return (
+            "Let's finish the current question first, then we can move on. "
+            f"{repeat_q}"
+        )
+
     if intent == "OFF_TOPIC":
         return f"We'll stay on the interview for now. {repeat_q}"
 
@@ -382,6 +417,8 @@ class IntentGuard:
         metadata = {"guard": self.name, "intent": intent}
         if intent == "SKIP_REQUEST":
             metadata["flow_action"] = "skip_domain"
+        elif intent == "STAY_ON_QUESTION":
+            metadata["flow_action"] = "stay_on_question"
 
         return GuardResult(
             triggered=True,

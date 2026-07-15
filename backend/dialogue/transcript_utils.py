@@ -191,6 +191,11 @@ def merge_stt_hypothesis(current: str, incoming: str) -> str:
         if overlap >= 0.75:
             return incoming if len(inc_words) >= len(cur_words) else current
 
+    # Drop tiny trailing STT fragments after a substantial utterance
+    # (e.g. long answer + orphan "Started.").
+    if len(cur_words) >= 6 and len(inc_words) <= 2:
+        return current
+
     return f"{current} {incoming}".strip()
 
 

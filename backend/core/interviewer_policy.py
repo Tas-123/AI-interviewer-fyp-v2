@@ -22,10 +22,14 @@ INTERVIEW_BLUEPRINT: tuple[str, ...] = (
 )
 
 # Turn limits
+# Safety ceiling only — wrap-up still prefers full blueprint coverage first.
+# Sized for intro + 10 domains + 1 probe each + skip/guard buffer.
 MAX_TURNS_PER_DOMAIN: int = 1
 MAX_PROBES_PER_DOMAIN: int = 1
-MAX_TOTAL_INTERVIEW_TURNS: int = 12
+MAX_TOTAL_INTERVIEW_TURNS: int = 28
 MAX_CONTEXT_FOLLOWUPS_TOTAL: int = 3
+# Explicit skip / change-topic budget per interview (soft "next question" does not count)
+MAX_SKIPS_PER_INTERVIEW: int = 2
 
 # Persona constraints enforced in prompts and post-processing
 INTERVIEWER_PERSONA_RULES: tuple[str, ...] = (

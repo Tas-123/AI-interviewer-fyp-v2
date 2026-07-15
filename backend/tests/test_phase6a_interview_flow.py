@@ -63,6 +63,7 @@ def test_advance_skips_duplicate_primary_domain():
 def test_meta_already_answered_intent():
     assert classify_meta_intent("I just answered you that already") == "ALREADY_ANSWERED"
     assert classify_meta_intent("can you change the question") == "CHANGE_TOPIC"
+    assert classify_meta_intent("Can we move to the next question?") == "STAY_ON_QUESTION"
     assert classify_meta_intent("I use Python for preprocessing") is None
 
 
@@ -79,6 +80,21 @@ def test_meta_guard_skips_evaluation():
     assert hit.triggered
     assert hit.should_evaluate is False
     assert hit.metadata.get("flow_action") == "skip_domain"
+
+
+def test_meta_soft_next_question_stays():
+    guard = MetaConversationGuard()
+    ctx = _minimal_context()
+    hit = guard.check(
+        GuardContext(
+            transcript="Can we move to the next question, please?",
+            last_question="How would you detect overfitting?",
+            interview_context=ctx,
+        )
+    )
+    assert hit.triggered
+    assert hit.metadata.get("flow_action") == "stay_on_question"
+    assert hit.metadata.get("intent") == "STAY_ON_QUESTION"
 
 
 def test_idk_detection():
@@ -135,6 +151,7 @@ if __name__ == "__main__":
         test_advance_skips_duplicate_primary_domain,
         test_meta_already_answered_intent,
         test_meta_guard_skips_evaluation,
+        test_meta_soft_next_question_stays,
         test_idk_detection,
         test_idk_guard_first_attempt_rephrase,
         test_idk_third_attempt_skips_domain,

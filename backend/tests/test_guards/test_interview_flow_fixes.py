@@ -23,9 +23,11 @@ def test_canonical_question_strips_stacked_redirects():
     assert core.endswith("preprocessing?")
 
 
-def test_skip_next_question_not_off_topic():
-    assert classify_meta_intent("Can we move to the next question, please?") == "CHANGE_TOPIC"
-    assert classify_candidate_intent("Can we move to the next question, please?") == "SKIP_REQUEST"
+def test_skip_next_question_stays_on_topic():
+    assert classify_meta_intent("Can we move to the next question, please?") == "STAY_ON_QUESTION"
+    assert classify_candidate_intent("Can we move to the next question, please?") == "STAY_ON_QUESTION"
+    assert classify_candidate_intent("skip this question please") == "SKIP_REQUEST"
+    assert classify_candidate_intent("ask the previous question") == "REPEAT_REQUEST"
 
 
 def test_domain_redirect_uses_canonical_question():
@@ -52,7 +54,7 @@ def test_collapse_progressive_interim_phrases():
 
 if __name__ == "__main__":
     test_canonical_question_strips_stacked_redirects()
-    test_skip_next_question_not_off_topic()
+    test_skip_next_question_stays_on_topic()
     test_domain_redirect_uses_canonical_question()
     test_collapse_progressive_interim_phrases()
     print("[PASS] test_interview_flow_fixes")

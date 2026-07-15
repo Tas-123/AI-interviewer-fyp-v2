@@ -24,6 +24,7 @@ class CoverageEngine:
         self.max_probes_per_domain = cfg.max_probes_per_domain
         self.max_total_interview_turns = cfg.max_total_interview_turns
         self.max_context_followups_total = cfg.max_context_followups_total
+        self.max_skips_per_interview = getattr(cfg, "max_skips_per_interview", 2)
 
         self.domain_coverage = {domain: 0 for domain in self.interview_blueprint}
         self.domain_probe_counts = {domain: 0 for domain in self.interview_blueprint}
@@ -102,5 +103,6 @@ class CoverageEngine:
             "max_turns_per_domain": self.max_turns_per_domain,
             "max_probes_per_domain": self.max_probes_per_domain,
             "max_total_interview_turns": self.max_total_interview_turns,
+            "max_skips_per_interview": self.max_skips_per_interview,
             "context_followups_used": self.context_followups_used,
         }

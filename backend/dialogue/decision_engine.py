@@ -146,24 +146,35 @@ class DecisionEngine:
 
         return None
 
+    def _safety_ceiling_reached(self, context) -> bool:
+        """True only when the hard safety turn limit is hit."""
+        return getattr(context, "turn_count", 0) >= getattr(
+            context, "max_total_interview_turns", 28
+        )
+
+    def _closing_action(self, *, reason: str = "all_domains_complete") -> dict:
+        return {
+            "action": "closing",
+            "type": "closing",
+            "next_question": "Thank you for your time. This concludes the interview.",
+            "decision_type": "CLOSING",
+            "reason": reason,
+        }
+
     def _handle_technical(self, context, latest_answer):
         """Handle TECHNICAL state using Junior AI Engineer blueprint."""
-        if getattr(context, "turn_count", 0) >= getattr(context, "max_total_interview_turns", 12):
+        # Coverage-first: only safety ceiling may close with domains still open.
+        if self._safety_ceiling_reached(context):
             context.state = InterviewState.WRAPUP
-            return {"type": "closing"}
+            return {"type": "closing", "reason": "safety_turn_ceiling"}
 
         domain = context.get_next_domain() if hasattr(context, "get_next_domain") else None
 
         if domain is None:
-            context.state = InterviewState.BEHAVIORAL
-            category = context.get_next_behavioral_category()
-            return {
-                "type": "ask",
-                "topic": "behavioral",
-                "domain": "behavioral_ownership",
-                "category": category,
-                "difficulty": "medium",
-            }
+            # Blueprint exhausted — behavioral_ownership is part of the blueprint,
+            # so prefer wrap-up rather than a separate multi-turn behavioral loop.
+            context.state = InterviewState.WRAPUP
+            return {"type": "closing", "reason": "all_domains_complete"}
 
         if hasattr(context, "set_current_domain"):
             context.set_current_domain(domain)
@@ -217,14 +228,10 @@ class DecisionEngine:
         decision = adaptive_result.get("decision", {})
         decision_type = decision.get("type", "ADVANCE")
 
-        if getattr(context, "turn_count", 0) >= getattr(context, "max_total_interview_turns", 12):
+        # Safety ceiling only — never wrap early solely due to turn count.
+        if self._safety_ceiling_reached(context):
             context.state = InterviewState.WRAPUP
-            return {
-                "action": "closing",
-                "type": "closing",
-                "next_question": "Thank you for your time. This concludes the interview.",
-                "decision_type": "CLOSING",
-            }
+            return self._closing_action(reason="safety_turn_ceiling")
 
         active_domain = self._get_active_domain(context)
 
@@ -300,13 +307,7 @@ class DecisionEngine:
             next_domain = self._advance_to_next_domain(context)
             if next_domain is None:
                 context.state = InterviewState.WRAPUP
-                return {
-                    "action": "closing",
-                    "type": "closing",
-                    "next_question": "Thank you for your time. This concludes the interview.",
-                    "decision_type": "CLOSING",
-                    "reason": "all_domains_complete",
-                }
+                return self._closing_action(reason="all_domains_complete")
 
             return {
                 "action": "advance",
@@ -368,12 +369,7 @@ class DecisionEngine:
         next_domain = self._advance_to_next_domain(context)
         if next_domain is None:
             context.state = InterviewState.WRAPUP
-            return {
-                "action": "closing",
-                "type": "closing",
-                "next_question": "Thank you for your time. This concludes the interview.",
-                "decision_type": "CLOSING",
-            }
+            return self._closing_action(reason="all_domains_complete")
 
         return {
             "action": "advance",

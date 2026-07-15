@@ -484,18 +484,34 @@ def build_domain_assessment_map(context, skill_coverage_map: dict) -> dict:
 def build_interview_completion_summary(context, domain_assessment_map: dict) -> dict:
     """Phase 6C: concise completion stats for reports."""
     blueprint = list(getattr(context, "interview_blueprint", []) or [])
-    assessed = [d for d, info in domain_assessment_map.items() if info.get("status", "").startswith("covered")]
+    assessed = [
+        d for d, info in domain_assessment_map.items()
+        if info.get("status", "").startswith("covered")
+    ]
     not_assessed = [
-        d for d, info in domain_assessment_map.items() if info.get("status") == "not_assessed"
+        d for d, info in domain_assessment_map.items()
+        if info.get("status") == "not_assessed"
+    ]
+    # Visited = scored, explicitly skipped, or marked covered in the coverage engine.
+    visited = [
+        d for d, info in domain_assessment_map.items()
+        if info.get("status", "").startswith("covered")
+        or info.get("coverage_turns", 0) > 0
+        or d in (getattr(context, "skipped_domains", set()) or set())
     ]
     total = len(blueprint) or 1
+    visited_percent = round(100.0 * len(set(visited)) / total, 1)
+    assessed_percent = round(100.0 * len(assessed) / total, 1)
     return {
         "completed": context.state.value == "wrapup",
         "total_turns": context.turn_count,
         "blueprint_domains_total": len(blueprint),
         "domains_assessed": len(assessed),
         "domains_not_assessed": len(not_assessed),
-        "coverage_percent": round(100.0 * len(assessed) / total, 1),
+        # Coverage for report_type uses visited blueprint domains (assessed or skipped).
+        "coverage_percent": visited_percent,
+        "assessed_coverage_percent": assessed_percent,
+        "domains_visited": len(set(visited)),
         "not_assessed_domains": not_assessed,
         "completion_note": (
             "Interview reached wrap-up."

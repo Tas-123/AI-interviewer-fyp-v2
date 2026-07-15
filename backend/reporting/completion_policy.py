@@ -11,7 +11,8 @@ from reporting.schema import REPORT_TYPES
 @dataclass(frozen=True)
 class CompletionThresholds:
     complete_min_turns: int = 5
-    complete_min_coverage_percent: float = 50.0
+    # Full Junior AI Engineer interviews must visit the whole blueprint.
+    complete_min_coverage_percent: float = 100.0
     partial_min_turns: int = 3
     partial_min_coverage_percent: float = 30.0
 
@@ -75,7 +76,7 @@ def infer_termination_reason(context, explicit: str | None = None) -> str:
 
 def completion_note_for_type(report_type: str) -> str:
     notes = {
-        "complete": "Interview reached wrap-up with sufficient assessed coverage.",
+        "complete": "Interview reached wrap-up with full blueprint domain coverage.",
         "partial": (
             "Interview ended with preliminary assessed data. Ratings are not final."
         ),

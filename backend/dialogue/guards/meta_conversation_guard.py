@@ -21,23 +21,39 @@ ALREADY_ANSWERED_PHRASES = (
     "i said that already",
 )
 
-CHANGE_TOPIC_PHRASES = (
+# Explicit skip / change topic (consumes skip budget).
+HARD_SKIP_PHRASES = (
     "change the question",
     "ask something else",
     "different question",
+    "skip this question",
+    "skip this one",
+    "don't have an answer",
+    "dont have an answer",
+    "still don't get it",
+    "still dont get it",
+    "let's move on",
+    "lets move on",
+    "move on please",
+)
+
+# Soft advance — stay on current question (does not skip).
+SOFT_ADVANCE_PHRASES = (
     "move to the next question",
     "move to next question",
     "go to the next question",
     "next question please",
     "can we move to the next",
-    "skip this question",
-    "let's move on",
-    "lets move on",
-    "move on please",
-    "don't have an answer",
-    "dont have an answer",
-    "still don't get it",
-    "still dont get it",
+    "next question",
+)
+
+PREVIOUS_QUESTION_PHRASES = (
+    "previous question",
+    "ask the previous",
+    "go back to the previous",
+    "ask previous question",
+    "last question again",
+    "the question before",
 )
 
 
@@ -47,10 +63,14 @@ def classify_meta_intent(transcript: str) -> str | None:
     if not text:
         return None
 
+    if any(p in text for p in PREVIOUS_QUESTION_PHRASES):
+        return "PREVIOUS_QUESTION"
     if any(p in text for p in ALREADY_ANSWERED_PHRASES):
         return "ALREADY_ANSWERED"
-    if any(p in text for p in CHANGE_TOPIC_PHRASES):
+    if any(p in text for p in HARD_SKIP_PHRASES):
         return "CHANGE_TOPIC"
+    if any(p in text for p in SOFT_ADVANCE_PHRASES):
+        return "STAY_ON_QUESTION"
     return None
 
 
@@ -59,13 +79,14 @@ def looks_like_meta_utterance(transcript: str) -> bool:
     markers = (
         "next question", "move on", "skip", "same question", "again",
         "don't understand", "dont understand", "already answered",
-        "change topic", "something else",
+        "change topic", "something else", "previous question",
     )
     return any(m in text for m in markers)
 
 
 def meta_response(intent: str, last_question: str) -> str:
     last_question = (last_question or "").strip()
+    repeat_q = short_repeat_question(last_question)
 
     if intent == "ALREADY_ANSWERED":
         return "Understood — I'll move us forward. Let's try the next topic."
@@ -73,7 +94,13 @@ def meta_response(intent: str, last_question: str) -> str:
     if intent == "CHANGE_TOPIC":
         return "Sure — let's switch to a different area of the interview."
 
-    return f"Let's continue. {short_repeat_question(last_question)}"
+    if intent in ("STAY_ON_QUESTION", "PREVIOUS_QUESTION"):
+        return (
+            "Let's stay with the current question for now. "
+            f"{repeat_q}"
+        )
+
+    return f"Let's continue. {repeat_q}"
 
 
 class MetaConversationGuard:
@@ -95,7 +122,11 @@ class MetaConversationGuard:
         if not intent:
             return GuardResult(triggered=False)
 
-        flow_action = "skip_domain"
+        if intent in ("STAY_ON_QUESTION", "PREVIOUS_QUESTION"):
+            flow_action = "stay_on_question"
+        else:
+            flow_action = "skip_domain"
+
         return GuardResult(
             triggered=True,
             decision_type=intent,

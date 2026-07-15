@@ -173,6 +173,35 @@ class DialogueManager:
         from dialogue.states import InterviewState
 
         domain = getattr(self.context, "current_domain", "")
+        if hasattr(self.context, "can_skip_domain") and not self.context.can_skip_domain():
+            # Skip budget exhausted — stay on the current question.
+            from dialogue.guards.echo_guard import short_repeat_question
+
+            repeat_q = short_repeat_question(last_question)
+            question = (
+                "We've already skipped a couple of areas. "
+                f"Let's finish this one first. {repeat_q}"
+            )
+            self.context.add_turn(question, transcript)
+            self._add_guard_trace(
+                guard_hit, transcript, last_question, question, transcript_quality
+            )
+            self._record_non_evaluated_event(
+                "SKIP_BUDGET_EXCEEDED",
+                transcript,
+                response=question,
+                metadata={**(guard_hit.metadata or {}), "flow_action": "stay_on_question"},
+            )
+            return {
+                "question": question,
+                "evaluation": None,
+                "decision_type": "SKIP_BUDGET_EXCEEDED",
+                "latency_ms": 0,
+            }
+
+        if hasattr(self.context, "record_skip"):
+            self.context.record_skip()
+
         if domain:
             if hasattr(self.context, "mark_domain_skipped"):
                 self.context.mark_domain_skipped(domain)

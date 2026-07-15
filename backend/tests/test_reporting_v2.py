@@ -56,7 +56,12 @@ def _trace(turn: int, domain: str = "python") -> dict:
     }
 
 
-def _rich_context(*, wrapup: bool = True, evaluations: int = 5) -> InterviewContext:
+def _rich_context(
+    *,
+    wrapup: bool = True,
+    evaluations: int = 5,
+    cover_all_domains: bool = False,
+) -> InterviewContext:
     ctx = InterviewContext({
         "name": "Alex Rivera",
         "skills": ["python", "machine learning"],
@@ -64,12 +69,19 @@ def _rich_context(*, wrapup: bool = True, evaluations: int = 5) -> InterviewCont
         "role": "Junior AI Engineer",
     })
     ctx.state = InterviewState.WRAPUP if wrapup else InterviewState.TECHNICAL
+    domains = list(ctx.interview_blueprint)
     for i in range(1, evaluations + 1):
-        domain = ["python", "machine_learning", "data_preprocessing", "model_evaluation", "nlp_speech_ai"][i - 1]
+        domain = domains[(i - 1) % len(domains)]
         ctx.mark_domain_assessed(domain)
+        ctx.mark_domain_covered(domain)
         ctx.add_turn(f"Q{i}", f"A{i}")
         ctx.add_evaluation(_evaluation(i))
         ctx.add_adaptive_trace(_trace(i, domain))
+    if cover_all_domains:
+        for domain in domains:
+            ctx.mark_domain_assessed(domain)
+            if ctx.domain_coverage.get(domain, 0) < 1:
+                ctx.mark_domain_covered(domain)
     return ctx
 
 
@@ -89,10 +101,17 @@ def test_build_report_filename_includes_slug_and_timestamp():
 
 
 def test_classify_report_type_tiers():
-    ctx = _rich_context(wrapup=True, evaluations=5)
+    ctx = _rich_context(wrapup=True, evaluations=10, cover_all_domains=True)
     legacy = generate_final_report(ctx)
     coverage = legacy["interview_completion"]["coverage_percent"]
+    assert coverage >= 100.0
     assert classify_report_type(ctx, coverage) == "complete"
+
+    # 50% wrap-up is partial under full-coverage policy
+    partial_wrap = _rich_context(wrapup=True, evaluations=5)
+    partial_wrap_legacy = generate_final_report(partial_wrap)
+    partial_wrap_cov = partial_wrap_legacy["interview_completion"]["coverage_percent"]
+    assert classify_report_type(partial_wrap, partial_wrap_cov) == "partial"
 
     partial_ctx = _rich_context(wrapup=False, evaluations=3)
     partial_legacy = generate_final_report(partial_ctx)
@@ -104,7 +123,7 @@ def test_classify_report_type_tiers():
 
 
 def test_build_report_v2_structure_and_backward_compat():
-    ctx = _rich_context(wrapup=True, evaluations=5)
+    ctx = _rich_context(wrapup=True, evaluations=10, cover_all_domains=True)
     legacy = generate_final_report(ctx)
     mock_llm = MagicMock()
     mock_llm.chat.completions.create.return_value = MagicMock(

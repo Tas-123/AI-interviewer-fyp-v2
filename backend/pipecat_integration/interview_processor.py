@@ -152,6 +152,10 @@ class InterviewProcessor(FrameProcessor):
         self._barge_in_mic_allow_until = 0.0
         self._barge_in_mic_allow_seconds = 2.5
         self._barge_in_echo_cooldown_seconds = 0.25
+        # Suppress re-speaking the interrupted question immediately after barge-in.
+        self._barge_in_tts_suppress_until = 0.0
+        self._last_spoken_assistant_text = ""
+        self._barge_in_settle_seconds = 0.45
 
         self.startup_audio_ignore_until = time.time() + self.policy.startup_audio_gate_seconds
         self.first_real_user_turn_seen = False
@@ -172,6 +176,7 @@ class InterviewProcessor(FrameProcessor):
         self.last_barge_in_at = time.time()
         self.barge_in_active = True
         self._barge_in_mic_allow_until = time.time() + self._barge_in_mic_allow_seconds
+        self._barge_in_tts_suppress_until = time.time() + self._barge_in_settle_seconds + 2.0
         self._note_candidate_activity()
         await self.broadcast_interruption()
 
@@ -187,6 +192,8 @@ class InterviewProcessor(FrameProcessor):
         self.barge_in_active = False
         self._bot_speech_started_at = 0.0
         self._barge_in_mic_allow_until = 0.0
+        self._barge_in_tts_suppress_until = 0.0
+        self._last_spoken_assistant_text = ""
         self._user_vad_speaking = False
         self._saw_final_stt_for_utterance = False
         self.startup_audio_ignore_until = time.time() + self.policy.startup_audio_gate_seconds
@@ -296,11 +303,18 @@ class InterviewProcessor(FrameProcessor):
         emit_chat: bool = True,
     ) -> None:
         """Emit one finalized chat bubble (optional) then speak via TTS."""
-        if emit_chat and text:
+        if not text:
+            return
+        if role in ("assistant", "system") and self._should_suppress_duplicate_tts(text):
+            logger.info("Suppressing duplicate post-barge-in TTS: %r", text[:120])
+            return
+        if emit_chat:
             await self._emit_conversation(
                 self.conversation.message(role=role, text=text, turn_id=turn_id),
                 direction,
             )
+        if role in ("assistant", "system"):
+            self._last_spoken_assistant_text = text
         await self.push_frame(TTSSpeakFrame(text), direction)
 
     def _schedule_turn_debounce(self, delay_seconds: float | None = None) -> None:
@@ -338,12 +352,66 @@ class InterviewProcessor(FrameProcessor):
         self.last_barge_in_at = time.time()
         self.barge_in_active = True
         self._barge_in_mic_allow_until = time.time() + self._barge_in_mic_allow_seconds
+        self._barge_in_tts_suppress_until = time.time() + self._barge_in_settle_seconds + 2.0
         await self.broadcast_interruption()
         self.bot_is_speaking = False
         return True
 
     def _in_barge_in_mic_allow_window(self) -> bool:
         return self.barge_in_active or time.time() < self._barge_in_mic_allow_until
+
+    def _should_suppress_duplicate_tts(self, text: str) -> bool:
+        """Avoid re-speaking the interrupted question right after barge-in."""
+        if time.time() >= getattr(self, "_barge_in_tts_suppress_until", 0):
+            return False
+        incoming = (text or "").strip().lower()
+        previous = (getattr(self, "_last_spoken_assistant_text", "") or "").strip().lower()
+        if not incoming or not previous:
+            return False
+        if incoming == previous:
+            return True
+        # Near-duplicate closing / repeat of same question
+        if len(incoming) > 40 and (
+            incoming in previous or previous in incoming
+        ):
+            return True
+        return False
+
+    @staticmethod
+    def _is_tiny_trailing_fragment(text: str) -> bool:
+        """Orphan 1–2 word STT afterthoughts that should not start a turn."""
+        clean = (text or "").strip().lower().strip(" .,!?'\"")
+        if not clean:
+            return True
+        words = clean.split()
+        if len(words) > 2:
+            return False
+        keep = {
+            "skip",
+            "repeat",
+            "pardon",
+            "what",
+            "yes",
+            "no",
+            "okay",
+            "ok",
+            "yeah",
+        }
+        if clean in keep:
+            return False
+        if any(
+            p in clean
+            for p in (
+                "skip",
+                "repeat",
+                "previous",
+                "next question",
+                "don't know",
+                "dont know",
+            )
+        ):
+            return False
+        return True
 
     @staticmethod
     def _is_check_in_or_junk(text: str) -> bool:
@@ -526,6 +594,12 @@ class InterviewProcessor(FrameProcessor):
             logger.info("Cleaned transcript for evaluation: %r", cleaned)
             user_text = cleaned
 
+        # Drop orphan 1–2 word trailing STT fragments before dialogue.
+        if self._is_tiny_trailing_fragment(user_text):
+            logger.info("Discarding tiny trailing STT fragment quietly: %r", user_text)
+            self._clear_transcript_buffer()
+            return None
+
         # Drop junk barge-in / mic-check fragments before dialogue (no guard storm).
         if self._in_barge_in_mic_allow_window() and (
             len(user_text.split()) < 5 or self._is_check_in_or_junk(user_text)
@@ -537,6 +611,15 @@ class InterviewProcessor(FrameProcessor):
             self._clear_transcript_buffer()
             return None
 
+        # Brief settle after barge-in so interrupted TTS echo does not fire a turn.
+        if time.time() - self.last_barge_in_at < getattr(self, "_barge_in_settle_seconds", 0):
+            if len(user_text.split()) < 5:
+                logger.info(
+                    "Discarding short transcript during barge-in settle: %r",
+                    user_text,
+                )
+                self._clear_transcript_buffer()
+                return None
         user_text = await self._apply_short_answer_grace(user_text)
 
         # Re-check after grace in case only a check-in arrived.
@@ -615,12 +698,14 @@ class InterviewProcessor(FrameProcessor):
                     "Interview %s complete — spoken closing then EndTaskFrame.",
                     self.session_id,
                 )
-                await self._speak_to_client(
-                    INTERVIEW_CLOSING_SPOKEN,
-                    direction,
-                    role="system",
-                    turn_id=turn_id,
-                )
+                closing_already = "concludes the interview" in (ai_text or "").lower()
+                if not closing_already:
+                    await self._speak_to_client(
+                        INTERVIEW_CLOSING_SPOKEN,
+                        direction,
+                        role="system",
+                        turn_id=turn_id,
+                    )
                 await asyncio.sleep(self.policy.closing_delay_seconds)
                 await self.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
 

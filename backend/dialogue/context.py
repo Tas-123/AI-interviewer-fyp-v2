@@ -47,7 +47,9 @@ class InterviewContext:
         self.max_probes_per_domain = self.coverage.max_probes_per_domain
         self.max_total_interview_turns = self.coverage.max_total_interview_turns
         self.max_context_followups_total = self.coverage.max_context_followups_total
+        self.max_skips_per_interview = self.coverage.max_skips_per_interview
         self.context_followups_used = self.coverage.context_followups_used
+        self.skips_used = 0
         self.context_followup_domains = self.coverage.context_followup_domains
 
         # Resume-conditioned question pipeline (optional)
@@ -255,6 +257,22 @@ class InterviewContext:
     def mark_domain_skipped(self, domain: str) -> None:
         if domain:
             self.skipped_domains.add(domain)
+
+    def can_skip_domain(self) -> bool:
+        return self.skips_used < getattr(self, "max_skips_per_interview", 2)
+
+    def record_skip(self) -> int:
+        """Increment skip budget usage; return new count."""
+        self.skips_used = int(getattr(self, "skips_used", 0) or 0) + 1
+        return self.skips_used
+
+    def last_substantial_transcript(self, min_words: int = 8) -> str:
+        """Most recent candidate utterance with enough content for evaluation."""
+        for text in reversed(getattr(self, "transcript_history", []) or []):
+            words = str(text or "").strip().split()
+            if len(words) >= min_words:
+                return str(text).strip()
+        return ""
 
     def _canonical_active_question(self) -> str:
         from dialogue.guards.echo_guard import canonical_interview_question
