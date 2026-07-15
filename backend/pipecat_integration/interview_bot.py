@@ -115,7 +115,7 @@ async def run_bot():
         from pipecat.pipeline.pipeline import Pipeline
         from pipecat.pipeline.runner import PipelineRunner
         from pipecat.pipeline.task import PipelineTask
-        from pipecat.frames.frames import TextFrame, EndFrame, TTSSpeakFrame, ClientConnectedFrame, Frame, OutputAudioRawFrame, InputAudioRawFrame
+        from pipecat.frames.frames import TextFrame, EndFrame, TTSSpeakFrame, ClientConnectedFrame, Frame, OutputAudioRawFrame, InputAudioRawFrame, OutputTransportMessageFrame, OutputTransportMessageUrgentFrame
         from pipecat.serializers.base_serializer import FrameSerializer
         from pipecat.processors.audio.vad_processor import VADProcessor
         from pipecat.audio.vad.silero import SileroVADAnalyzer
@@ -180,12 +180,17 @@ async def run_bot():
         async def serialize(self, frame: Frame) -> str | bytes | None:
             if isinstance(frame, OutputAudioRawFrame):
                 return frame.audio
-            elif isinstance(frame, TTSSpeakFrame):
+            # Live conversation projection (versioned UI events).
+            if isinstance(
+                frame, (OutputTransportMessageFrame, OutputTransportMessageUrgentFrame)
+            ):
                 import json
-                return json.dumps({"type": "text", "text": frame.text})
-            elif isinstance(frame, TextFrame):
-                import json
-                return json.dumps({"type": "text", "text": frame.text})
+
+                if self.should_ignore_frame(frame):
+                    return None
+                return json.dumps(frame.message)
+            # Bot chat text is emitted via conversation_event frames, not TTS text frames
+            # (avoids fragmented bubbles from word/sentence TextFrames).
             elif isinstance(frame, EndFrame):
                 import json
                 return json.dumps({"type": "end"})
@@ -336,11 +341,21 @@ async def run_bot():
             interview_processor.reset_for_new_session()
             
             logger.info(f"Interview session {session_id} successfully started for new connection.")
-            
-            # Speak the greeting through TTS
+
+            # Speak the greeting through TTS + emit one finalized chat bubble.
             if greeting:
                 greeting = sanitize_tts_text(greeting)
-                await task.queue_frames([TTSSpeakFrame(greeting)])
+                await task.queue_frames([
+                    interview_processor.conversation.frame_for(
+                        interview_processor.conversation.message(
+                            role="assistant", text=greeting
+                        )
+                    ),
+                    interview_processor.conversation.frame_for(
+                        interview_processor.conversation.session("started")
+                    ),
+                    TTSSpeakFrame(greeting),
+                ])
                 
         except Exception as ex:
             logger.exception("Error in client connection handler")

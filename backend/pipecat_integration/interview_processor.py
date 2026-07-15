@@ -14,6 +14,7 @@ import time
 from core.config import settings
 from core.interviewer_policy import INTERVIEW_CLOSING_SPOKEN, LLM_ERROR_TTS_FALLBACK
 from dialogue.output_sanitizer import strip_followup_prefix
+from pipecat_integration.conversation.publisher import ConversationEventPublisher
 from voice.voice_turn_policy import (
     SILENCE_NUDGE_TEXT,
     SILENCE_REPHRASE_TEXT,
@@ -133,6 +134,7 @@ class InterviewProcessor(FrameProcessor):
         self.session_id = session_id
         self.policy = policy or VoiceTurnPolicy.from_settings(settings)
         self.log_frames = settings.processor_log_frames
+        self.conversation = ConversationEventPublisher(lambda: self.session_id)
 
         self.last_processed_transcript = ""
         self.latest_user_transcript = ""
@@ -245,9 +247,10 @@ class InterviewProcessor(FrameProcessor):
             logger.info("Candidate silence nudge after %.1fs", nudge_at)
             self._silence_nudge_sent = True
             self._silence_stage = "nudged"
-            await self.push_frame(
-                TTSSpeakFrame(SILENCE_NUDGE_TEXT),
+            await self._speak_to_client(
+                SILENCE_NUDGE_TEXT,
                 FrameDirection.DOWNSTREAM,
+                role="system",
             )
 
             remaining = rephrase_at - nudge_at
@@ -259,9 +262,10 @@ class InterviewProcessor(FrameProcessor):
                 return
             logger.info("Candidate silence rephrase after %.1fs", rephrase_at)
             self._silence_stage = "done"
-            await self.push_frame(
-                TTSSpeakFrame(SILENCE_REPHRASE_TEXT),
+            await self._speak_to_client(
+                SILENCE_REPHRASE_TEXT,
                 FrameDirection.DOWNSTREAM,
+                role="system",
             )
             self._awaiting_candidate_answer = False
         except asyncio.CancelledError:
@@ -272,6 +276,32 @@ class InterviewProcessor(FrameProcessor):
         self._awaiting_candidate_answer = False
         self._silence_stage = None
         self._cancel_silence_watch()
+
+    async def _emit_conversation(
+        self, event: dict, direction: FrameDirection = FrameDirection.DOWNSTREAM
+    ) -> None:
+        """Push a conversation UI event downstream (does not affect dialogue)."""
+        await self.push_frame(self.conversation.frame_for(event), direction)
+
+    async def _emit_phase(self, phase: str, direction: FrameDirection) -> None:
+        await self._emit_conversation(self.conversation.phase(phase), direction)
+
+    async def _speak_to_client(
+        self,
+        text: str,
+        direction: FrameDirection,
+        *,
+        role: str = "assistant",
+        turn_id: str | None = None,
+        emit_chat: bool = True,
+    ) -> None:
+        """Emit one finalized chat bubble (optional) then speak via TTS."""
+        if emit_chat and text:
+            await self._emit_conversation(
+                self.conversation.message(role=role, text=text, turn_id=turn_id),
+                direction,
+            )
+        await self.push_frame(TTSSpeakFrame(text), direction)
 
     def _schedule_turn_debounce(self, delay_seconds: float | None = None) -> None:
         """Queue transcript evaluation after the configured debounce window."""
@@ -540,10 +570,17 @@ class InterviewProcessor(FrameProcessor):
         self.last_processed_transcript = user_text
         self.first_real_user_turn_seen = True
         was_barge_in = self.barge_in_active
+        turn_id = self.conversation.new_turn_id()
 
         logger.info("Processing user transcript: %r", user_text)
         if was_barge_in:
             logger.info("Transcript from barge-in turn — dialogue policy will classify.")
+
+        await self._emit_conversation(
+            self.conversation.message(role="user", text=user_text, turn_id=turn_id),
+            direction,
+        )
+        await self._emit_phase("thinking", direction)
 
         try:
             response = await asyncio.to_thread(
@@ -558,11 +595,10 @@ class InterviewProcessor(FrameProcessor):
 
             if response.get("error"):
                 logger.error("Adapter error: %s", response["error"])
-                await self.push_frame(
-                    TTSSpeakFrame(
-                        "I'm sorry, I had trouble processing that response. Could you please repeat?"
-                    ),
+                await self._speak_to_client(
+                    "I'm sorry, I had trouble processing that response. Could you please repeat?",
                     direction,
+                    turn_id=turn_id,
                 )
                 return
 
@@ -570,22 +606,30 @@ class InterviewProcessor(FrameProcessor):
             is_complete = response.get("is_complete", False)
 
             if ai_text:
-                await self.push_frame(TTSSpeakFrame(ai_text), direction)
+                await self._speak_to_client(
+                    ai_text, direction, role="assistant", turn_id=turn_id
+                )
 
             if is_complete:
                 logger.info(
                     "Interview %s complete — spoken closing then EndTaskFrame.",
                     self.session_id,
                 )
-                await self.push_frame(TTSSpeakFrame(INTERVIEW_CLOSING_SPOKEN), direction)
+                await self._speak_to_client(
+                    INTERVIEW_CLOSING_SPOKEN,
+                    direction,
+                    role="system",
+                    turn_id=turn_id,
+                )
                 await asyncio.sleep(self.policy.closing_delay_seconds)
                 await self.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
 
         except Exception:
             logger.exception("Failed to process turn in InterviewProcessor")
-            await self.push_frame(
-                TTSSpeakFrame("I'm sorry, I encountered an internal error. Let's try again."),
+            await self._speak_to_client(
+                "I'm sorry, I encountered an internal error. Let's try again.",
                 direction,
+                turn_id=turn_id,
             )
 
     async def _process_buffered_transcript_after_delay(
@@ -623,6 +667,7 @@ class InterviewProcessor(FrameProcessor):
 
         if isinstance(frame, BotStartedSpeakingFrame) or isinstance(frame, BotSpeakingFrame):
             logger.debug("Bot started speaking — mic echo cooldown active")
+            was_speaking = self.bot_is_speaking
             if not self.bot_is_speaking:
                 self._bot_speech_started_at = time.time()
             self.bot_is_speaking = True
@@ -646,6 +691,9 @@ class InterviewProcessor(FrameProcessor):
                     self.startup_audio_ignore_until,
                 )
 
+            if not was_speaking and isinstance(frame, BotStartedSpeakingFrame):
+                await self._emit_phase("speaking", direction)
+
             await self.push_frame(frame, direction)
             return
 
@@ -663,6 +711,7 @@ class InterviewProcessor(FrameProcessor):
                 )
             if not self.latest_user_transcript.strip():
                 self._schedule_silence_watch()
+            await self._emit_phase("listening", direction)
             await self.push_frame(frame, direction)
             return
 
@@ -731,11 +780,10 @@ class InterviewProcessor(FrameProcessor):
 
             if not user_text:
                 logger.warning("Empty final transcript — requesting clarification.")
-                await self.push_frame(
-                    TTSSpeakFrame(
-                        "I didn't catch that. Could you please repeat or elaborate?"
-                    ),
+                await self._speak_to_client(
+                    "I didn't catch that. Could you please repeat or elaborate?",
                     direction,
+                    role="system",
                 )
                 return
 

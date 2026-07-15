@@ -154,7 +154,23 @@ export function createVoiceSession(config, ui, hooks = {}) {
     function handleTextMessage(raw) {
         try {
             const msg = JSON.parse(raw);
-            if (msg.type === "text") {
+            if (msg.type === "conversation_event") {
+                if (ui.conversationStore) {
+                    ui.conversationStore.applyEvent(msg);
+                }
+                if (msg.kind === "message" && msg.text) {
+                    const who =
+                        msg.role === "user"
+                            ? "You"
+                            : msg.role === "assistant"
+                              ? "Interviewer"
+                              : "System";
+                    ui.debug.log(`${who}: "${msg.text}"`, "server");
+                } else if (msg.kind === "phase") {
+                    ui.debug.log(`Phase: ${msg.phase}`, "info");
+                }
+            } else if (msg.type === "text") {
+                // Legacy fallback when conversation events are unavailable.
                 ui.conversation.addBotMessage(msg.text);
                 ui.debug.log(`Bot says: "${msg.text}"`, "server");
             } else if (msg.type === "transcript" || msg.type === "user_text") {

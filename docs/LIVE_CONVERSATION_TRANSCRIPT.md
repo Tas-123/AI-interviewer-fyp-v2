@@ -1,6 +1,7 @@
 # Live Conversation Transcript — Implementation Notes
 
-**Date:** 2026-07-14  
+**Date:** 2026-07-14 (wiring restored 2026-07-15)  
+**Status:** End-to-end wired (processor + serializer + client store)  
 **Scope:** Outbound UI projection only — dialogue, evaluation, and voice turn policy unchanged.
 
 ## Goal

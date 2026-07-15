@@ -19,7 +19,8 @@ manual_client/
 └── js/
     ├── app.js              # Entry point — wires modules together
     ├── core/
-    │   └── appState.js     # Session phase constants
+    │   ├── appState.js           # Session phase constants
+    │   └── conversationStore.js  # Apply conversation_event → bubbles
     ├── ui/
     │   ├── dom.js          # Central DOM id map (change layout here)
     │   ├── statusView.js   # Connection / mic / phase indicators
@@ -43,6 +44,7 @@ manual_client/
 |--------|------|
 | Colors / spacing | `styles/tokens.css` |
 | Conversation bubble layout | `styles/components/conversation.css` + `js/ui/conversationView.js` |
+| Live transcript event handling | `js/core/conversationStore.js` + `js/network/voiceSession.js` |
 | Report sections | `js/ui/report/sections.js` (add a function per section) |
 | Barge-in sensitivity | `config.js` or query params (`?barge_rms=0.06`) |
 | WebSocket protocol | `js/network/voiceSession.js` |
@@ -57,7 +59,9 @@ manual_client/
 
 ### Downstream (Bot → Browser)
 - **Audio**: WAV binary chunks
-- **Text**: `{"type":"text","text":"..."}`
+- **Conversation** (preferred): `{"type":"conversation_event","kind":"message","role":"assistant|user|system","text":"...","message_id":"...","status":"final",...}`
+- **Phase** (optional): `{"type":"conversation_event","kind":"phase","phase":"listening|thinking|speaking"}`
+- **Legacy text** (fallback): `{"type":"text","text":"..."}`
 
 ## Run
 
@@ -77,10 +81,11 @@ manual_client/
 ## Manual verification
 
 1. Click **Connect Mic & Bot** and allow microphone access.
-2. Confirm chat bubbles appear for bot speech (and user transcripts when sent by server).
-3. Speak during bot TTS to verify barge-in interruption.
-4. Click **Disconnect**, or let the interview finish naturally — both paths load the report (~1.5s delay) in the Interview Report panel.
-5. Expand **Technical debug log** for PCM/WebSocket diagnostics.
+2. Confirm the greeting appears in **Live Conversation** as an Interviewer bubble (and plays as audio).
+3. Speak an answer; after you pause, your finalized transcript should appear as a **You** bubble, then the next Interviewer question.
+4. Speak during bot TTS to verify barge-in interruption.
+5. Click **Disconnect**, or let the interview finish naturally — both paths load the report (~1.5s delay) in the Interview Report panel.
+6. Expand **Technical debug log** for PCM/WebSocket diagnostics.
 
 ## Query-string overrides
 

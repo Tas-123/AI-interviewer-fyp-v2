@@ -1,4 +1,5 @@
 import { SESSION_PHASES } from "./core/appState.js";
+import { createConversationStore } from "./core/conversationStore.js";
 import { getDomRefs } from "./ui/dom.js";
 import { createStatusView } from "./ui/statusView.js";
 import { createVisualizerView } from "./ui/visualizerView.js";
@@ -15,11 +16,22 @@ import { createVoiceSession } from "./network/voiceSession.js";
 const cfg = window.MANUAL_CLIENT_CONFIG || {};
 
 function buildUiBundle(refs) {
+    const conversation = createConversationView(refs);
+    const status = createStatusView(refs);
+    const conversationStore = createConversationStore(conversation, {
+        onPhase: (phase) => {
+            if (phase === "speaking") status.setBotSpeaking(true);
+            else if (phase === "listening" || phase === "thinking") {
+                status.setBotSpeaking(false);
+            }
+        },
+    });
     return {
         refs,
-        status: createStatusView(refs),
+        status,
         visualizer: createVisualizerView(refs),
-        conversation: createConversationView(refs),
+        conversation,
+        conversationStore,
         debug: createDebugLogView(refs),
     };
 }
@@ -51,6 +63,8 @@ function wireControls(session, ui) {
         btnConnect.disabled = true;
         btnDisconnect.disabled = true;
         try {
+            ui.conversationStore?.reset();
+            ui.conversation.clear();
             await session.connect();
             btnConnect.disabled = true;
             btnDisconnect.disabled = false;
