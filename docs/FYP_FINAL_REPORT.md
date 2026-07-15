@@ -760,7 +760,7 @@ AI-interviewer-fyp-v2/
 │   │   ├── voice_turn_policy.py
 │   │   └── websocket_router.py
 │   └── tests/                       # Phase 3–6 automated tests
-└── test_*.py                        # Legacy manual debug scripts (repo root)
+└── scripts/run_regression.sh        # Official regression harness
 ```
 
 ### 8.2 Module Relationships

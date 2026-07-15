@@ -180,7 +180,7 @@ DecisionEngine + LLMAdapter (unchanged contract)
 ```bash
 ./venv/bin/python backend/test_session_service.py
 ./venv/bin/python backend/test_dialogue_adapter.py
-./venv/bin/python test_strict_echo_guard.py
+./venv/bin/python backend/tests/test_guards/test_echo_guard.py
 ./venv/bin/python backend/tests/test_phase3_session_flow.py
 ```
 

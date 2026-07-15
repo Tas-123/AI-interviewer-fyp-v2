@@ -148,10 +148,11 @@ async def test_processor_interview_completion():
     await processor.process_frame(frame, FrameDirection.DOWNSTREAM)
     await _flush_processor(processor)
 
-    # Verify AI response, spoken closing, and EndTaskFrame
+    # Verify AI closing is spoken once (duplicate system closing suppressed when
+    # ai_response already contains "concludes the interview") and EndTaskFrame upstream.
     tts_frames = [f for f, _ in processor.pushed_frames if isinstance(f, TTSSpeakFrame)]
     end_frames = [f for f, d in processor.pushed_frames if isinstance(f, EndTaskFrame)]
-    assert len(tts_frames) == 2
+    assert len(tts_frames) == 1
     assert tts_frames[0].text == "Thank you, this concludes the interview. Goodbye!"
     assert len(end_frames) == 1
     assert processor.pushed_frames[-1][1] == FrameDirection.UPSTREAM
