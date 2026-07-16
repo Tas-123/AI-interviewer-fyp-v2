@@ -12,6 +12,9 @@ PY=python3
 echo "=== Phase 6A interview flow ==="
 $PY backend/tests/test_phase6a_interview_flow.py
 
+echo "=== Recent Q&A memory continuity ==="
+$PY backend/tests/test_recent_qa_memory.py
+
 echo "=== Phase 6 silence / duplicate / merge / barge / natural ==="
 $PY backend/tests/test_phase6_silence_handling.py
 $PY backend/tests/test_phase6_duplicate_questions.py

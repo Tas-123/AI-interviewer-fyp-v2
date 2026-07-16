@@ -96,6 +96,59 @@ class InterviewContext:
         self.transcript_history.append(transcript)
         self.turn_count += 1
 
+    def get_recent_qa_pairs(self, n: int = 3) -> list[tuple[str, str]]:
+        """Return up to n recent (question, answer) pairs for prompt continuity.
+
+        Histories are recorded as (next_question, current_answer) per turn, so
+        answer[i] generally responds to question[i-1]. The in-flight answer
+        (before add_turn) is read from latest_answer_for_decision when present.
+        """
+        if n <= 0:
+            return []
+
+        questions = list(getattr(self, "question_history", None) or [])
+        answers = list(getattr(self, "transcript_history", None) or [])
+        pairs: list[tuple[str, str]] = []
+
+        for i in range(1, len(answers)):
+            answer = str(answers[i] or "").strip()
+            if not answer:
+                continue
+            question = (
+                str(questions[i - 1] or "").strip() if i - 1 < len(questions) else ""
+            )
+            if question:
+                pairs.append((question, answer))
+
+        pending = str(getattr(self, "latest_answer_for_decision", "") or "").strip()
+        if pending and questions:
+            last_q = str(questions[-1] or "").strip()
+            if last_q and (not answers or str(answers[-1] or "").strip() != pending):
+                pairs.append((last_q, pending))
+
+        return pairs[-n:]
+
+    def format_recent_qa_for_prompt(
+        self,
+        n: int = 3,
+        *,
+        max_chars: int = 1200,
+    ) -> str:
+        """Format recent Q&A pairs as a compact prompt block (soft char cap)."""
+        pairs = self.get_recent_qa_pairs(n=n)
+        if not pairs:
+            return ""
+
+        lines: list[str] = ["Relevant interview memory (recent Q&A):"]
+        for question, answer in pairs:
+            lines.append(f"Q: {question}")
+            lines.append(f"A: {answer}")
+            lines.append("")
+        text = "\n".join(lines).strip()
+        if max_chars > 0 and len(text) > max_chars:
+            text = text[: max_chars - 3].rstrip() + "..."
+        return text
+
     def add_evaluation(self, evaluation: dict):
         """Store an evaluation result and update tracking metrics."""
         self.evaluations.append(evaluation)

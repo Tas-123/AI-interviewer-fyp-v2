@@ -360,6 +360,7 @@ class DialogueManager:
                 interview_stage=self.context.interview_stage,
                 domain=answered_domain,
                 transcript_quality=transcript_quality.to_dict(),
+                recent_qa_memory=self.context.format_recent_qa_for_prompt(n=3),
             )
 
             evaluation = adaptive_result.get("evaluation", {})

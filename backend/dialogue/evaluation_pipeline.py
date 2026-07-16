@@ -45,6 +45,7 @@ class EvaluationPipeline:
         interview_stage: str,
         domain: str = "",
         transcript_quality: dict | None = None,
+        recent_qa_memory: str = "",
     ) -> dict[str, Any]:
         """
         Run full evaluation for one candidate turn.
@@ -61,6 +62,7 @@ class EvaluationPipeline:
             previous_evaluations=previous_evaluations,
             interview_stage=interview_stage,
             transcript_quality=transcript_quality,
+            recent_qa_memory=recent_qa_memory,
         )
         total_latency += primary.get("latency_ms", 0)
 

@@ -167,14 +167,21 @@ Interview policy:
 
         # Build conversation context so LLM avoids repeating
         messages = self._build_history_text(context)
+        recent_qa = self._recent_qa_block(context)
+        full_prompt = system_prompt
+        if recent_qa:
+            full_prompt += (
+                f"\n\n{recent_qa}\n"
+                "When useful, briefly reference something specific the candidate said "
+                "(e.g. a tool or approach) — do not repeat their answer."
+            )
         if messages:
-            full_prompt = (
-                f"{system_prompt}\n\n"
-                f"Previous questions asked in this interview:\n{messages}\n\n"
+            full_prompt += (
+                f"\n\nPrevious questions asked in this interview:\n{messages}\n\n"
                 f"Now ask a NEW question."
             )
         else:
-            full_prompt = system_prompt
+            full_prompt += "\n\nNow ask a NEW question."
 
         return self._call_llm(full_prompt)
 
@@ -184,6 +191,7 @@ Interview policy:
 
         # Build conversation context so LLM avoids repeating
         messages = self._build_history_text(context)
+        recent_qa = self._recent_qa_block(context)
 
         if category:
             full_prompt = (
@@ -192,6 +200,12 @@ Interview policy:
             )
         else:
             full_prompt = f"{BEHAVIORAL_SYSTEM_PROMPT}\n\n"
+
+        if recent_qa:
+            full_prompt += (
+                f"{recent_qa}\n"
+                "When useful, briefly reference something specific the candidate said.\n\n"
+            )
 
         if messages:
             full_prompt += (
@@ -214,12 +228,17 @@ Interview policy:
             difficulty=difficulty,
         )
 
+        recent_qa = self._recent_qa_block(context)
+        if recent_qa:
+            prompt += f"\n\n{recent_qa}\n"
+
         prompt += f"""
         
 Follow-up policy:
 - You are allowed only ONE follow-up for this domain.
 - Current domain: {domain}.
-- Ask one short, direct follow-up based on the candidate's weak answer.
+- Ask one short, direct follow-up based on the candidate's weak answer above.
+- Reference a concrete detail from their answer when possible.
 - Do not start a long chain of follow-ups.
 - Do not ask multiple questions at once.
 """
@@ -229,14 +248,35 @@ Follow-up policy:
     #  Helpers
     # ════════════════════════════════════════════════════════════
 
+    # Sliding window: keep anti-repeat history bounded for long interviews.
+    HISTORY_QUESTION_WINDOW = 6
+    HISTORY_MAX_CHARS = 1800
+    RECENT_QA_PAIRS = 3
+    RECENT_QA_MAX_CHARS = 1200
+
+    def _recent_qa_block(self, context) -> str:
+        """Compact recent Q&A memory for answer-aware question generation."""
+        if hasattr(context, "format_recent_qa_for_prompt"):
+            return context.format_recent_qa_for_prompt(
+                n=self.RECENT_QA_PAIRS,
+                max_chars=self.RECENT_QA_MAX_CHARS,
+            )
+        return ""
+
     def _build_history_text(self, context):
-        """Build a text summary of previously asked questions."""
-        if not context.question_history:
+        """Build a bounded text summary of previously asked questions."""
+        history = list(getattr(context, "question_history", None) or [])
+        if not history:
             return ""
-        lines = []
-        for i, q in enumerate(context.question_history, 1):
-            lines.append(f"{i}. {q}")
-        return "\n".join(lines)
+
+        window = history[-self.HISTORY_QUESTION_WINDOW :]
+        # Keep original interview numbering for readability.
+        start_idx = len(history) - len(window) + 1
+        lines = [f"{i}. {q}" for i, q in enumerate(window, start_idx)]
+        text = "\n".join(lines)
+        if self.HISTORY_MAX_CHARS > 0 and len(text) > self.HISTORY_MAX_CHARS:
+            text = text[: self.HISTORY_MAX_CHARS - 3].rstrip() + "..."
+        return text
 
     def _call_llm(self, prompt):
         """Make a single call to Groq with one retry on failure."""

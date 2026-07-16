@@ -89,6 +89,7 @@ class Evaluator:
         interview_stage: str,
         domain: str = "",
         transcript_quality: dict | None = None,
+        recent_qa_memory: str = "",
     ) -> dict:
         """
         Evaluate answer and decide next question via EvaluationPipeline.
@@ -118,6 +119,7 @@ class Evaluator:
             interview_stage=interview_stage,
             domain=domain,
             transcript_quality=transcript_quality,
+            recent_qa_memory=recent_qa_memory,
         )
 
     def score_answer(self, question: str, answer: str, domain: str = "") -> dict:
@@ -160,6 +162,7 @@ class Evaluator:
         previous_evaluations: list,
         interview_stage: str,
         transcript_quality: dict | None = None,
+        recent_qa_memory: str = "",
     ) -> dict:
         """Primary adaptive LLM call — scores answer and suggests follow-up."""
         quality_note = ""
@@ -170,12 +173,20 @@ class Evaluator:
                 "Do not heavily penalize clarity or structure if repetition artifacts are present."
             )
 
+        memory_note = ""
+        if (recent_qa_memory or "").strip():
+            memory_note = (
+                f"\n\n{recent_qa_memory.strip()}\n"
+                "If you choose PROBE, you may briefly reference a concrete detail from "
+                "prior answers when it helps continuity."
+            )
+
         prompt = ADAPTIVE_EVALUATION_PROMPT.format(
             current_question=question,
             candidate_answer=answer,
             previous_evaluations=json.dumps(previous_evaluations),
             interview_stage=interview_stage,
-        ) + quality_note
+        ) + quality_note + memory_note
 
         t_start = time.perf_counter()
         try:
