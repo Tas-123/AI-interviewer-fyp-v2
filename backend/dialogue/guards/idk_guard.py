@@ -25,7 +25,12 @@ class IdkGuard:
             attempt = interview_ctx.record_idk_attempt(domain)
 
         response, flow_action = idk_attempt_response(
-            domain, attempt, ctx.last_question
+            domain,
+            attempt,
+            ctx.last_question,
+            interview_context=interview_ctx,
+            llm_client=ctx.llm_client,
+            llm_model=ctx.llm_model,
         )
 
         return GuardResult(

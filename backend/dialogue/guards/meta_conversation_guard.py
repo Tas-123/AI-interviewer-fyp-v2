@@ -4,7 +4,6 @@ Meta-conversation guard — skip / already-answered / change-topic without scori
 
 from __future__ import annotations
 
-from dialogue.guards.echo_guard import short_repeat_question
 from dialogue.guards.intent_guard import semantic_meta_intent_classify
 from dialogue.guards.types import GuardContext, GuardResult
 
@@ -84,9 +83,15 @@ def looks_like_meta_utterance(transcript: str) -> bool:
     return any(m in text for m in markers)
 
 
-def meta_response(intent: str, last_question: str) -> str:
-    last_question = (last_question or "").strip()
-    repeat_q = short_repeat_question(last_question)
+def meta_response(
+    intent: str,
+    last_question: str,
+    *,
+    interview_context=None,
+    llm_client=None,
+    llm_model: str = "",
+) -> str:
+    from dialogue.rephrase_policy import rephrase_recovery, resolve_core_question
 
     if intent == "ALREADY_ANSWERED":
         return "Understood — I'll move us forward. Let's try the next topic."
@@ -94,13 +99,17 @@ def meta_response(intent: str, last_question: str) -> str:
     if intent == "CHANGE_TOPIC":
         return "Sure — let's switch to a different area of the interview."
 
-    if intent in ("STAY_ON_QUESTION", "PREVIOUS_QUESTION"):
-        return (
-            "Let's stay with the current question for now. "
-            f"{repeat_q}"
-        )
-
-    return f"Let's continue. {repeat_q}"
+    core = resolve_core_question(interview_context, last_question)
+    domain = ""
+    if interview_context is not None:
+        domain = str(getattr(interview_context, "current_domain", "") or "")
+    return rephrase_recovery(
+        core_question=core,
+        domain=domain,
+        mode="redirect",
+        llm_client=llm_client,
+        llm_model=llm_model,
+    )
 
 
 class MetaConversationGuard:
@@ -130,7 +139,13 @@ class MetaConversationGuard:
         return GuardResult(
             triggered=True,
             decision_type=intent,
-            response_text=meta_response(intent, ctx.last_question),
+            response_text=meta_response(
+                intent,
+                ctx.last_question,
+                interview_context=ctx.interview_context,
+                llm_client=ctx.llm_client,
+                llm_model=ctx.llm_model,
+            ),
             should_evaluate=False,
             metadata={
                 "guard": self.name,

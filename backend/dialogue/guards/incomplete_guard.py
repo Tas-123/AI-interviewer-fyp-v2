@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dialogue.guards.echo_guard import short_repeat_question
 from dialogue.guards.types import GuardContext, GuardResult
 
 
@@ -72,6 +71,13 @@ def looks_like_incomplete_transcript(transcript: str, last_question: str = "") -
 def incomplete_transcript_response(transcript: str, last_question: str = "") -> str:
     """Ask candidate to continue without scoring partial fragments."""
     partial = (transcript or "").strip()
+    words = partial.split()
+    # Avoid reading long/messy STT fragments back over TTS.
+    if not partial or len(words) > 12:
+        return (
+            "I still need your full answer on this question. "
+            "Please continue clearly from where you left off."
+        )
     if partial:
         return (
             f'I only caught part of your answer: "{partial}". '

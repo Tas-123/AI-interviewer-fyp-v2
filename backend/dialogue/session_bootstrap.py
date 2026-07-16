@@ -10,7 +10,11 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from core.role_registry import DEFAULT_TARGET_ROLE, RoleConfig, get_role_config
-from dialogue.resume_context_parser import generate_resume_questions, parse_resume
+from dialogue.resume_context_parser import (
+    generate_resume_questions,
+    map_resume_to_domains,
+    parse_resume,
+)
 
 
 @dataclass
@@ -25,7 +29,8 @@ class CandidateProfile:
     tools: list[str] = field(default_factory=list)
     target_role: str = DEFAULT_TARGET_ROLE
     profile_source: str = "default"  # "resume" | "default"
-    resume_questions: list[str] = field(default_factory=list)
+    resume_questions: list = field(default_factory=list)
+    resume_by_domain: dict = field(default_factory=dict)
 
     def to_resume_data(self) -> dict[str, Any]:
         """Dict passed to DialogueManager and persisted to DB."""
@@ -39,6 +44,7 @@ class CandidateProfile:
             "target_role": self.target_role,
             "profile_source": self.profile_source,
             "_resume_questions": list(self.resume_questions),
+            "resume_by_domain": dict(self.resume_by_domain),
         }
 
     def to_metadata(self) -> dict[str, Any]:
@@ -91,11 +97,13 @@ def _parsed_to_fields(parsed: dict) -> dict[str, Any]:
     )
     experience = parsed.get("candidate_experience", "not specified")
     detected_role = parsed.get("candidate_role", "not specified")
+    projects = list(parsed.get("candidate_projects", []) or [])
     return {
         "skills": skills,
         "tools": list(parsed.get("candidate_tools", [])),
         "experience": experience,
         "detected_role": detected_role,
+        "projects": projects,
     }
 
 
@@ -155,6 +163,10 @@ def build_candidate_profile(
     if parsed_fields:
         merged["skills"] = _merge_skills(merged["skills"], parsed_fields.get("skills", []))
         merged["tools"] = _merge_skills(merged["tools"], parsed_fields.get("tools", []))
+        if parsed_fields.get("projects"):
+            merged["projects"] = _merge_skills(
+                merged.get("projects", []), list(parsed_fields["projects"])
+            )
         if parsed_fields.get("experience", "not specified") != "not specified":
             merged["experience"] = parsed_fields["experience"]
         if parsed_fields.get("detected_role", "not specified") != "not specified":
@@ -163,15 +175,23 @@ def build_candidate_profile(
     if display_name and display_name.strip():
         merged["name"] = display_name.strip()
 
-    resume_questions: list[str] = []
+    resume_questions: list = []
+    resume_by_domain: dict = {}
     if profile_source == "resume":
         parsed_for_questions = {
             "candidate_skills": [s.lower() for s in merged["skills"]],
             "candidate_tools": [t.lower() for t in merged.get("tools", [])],
+            "candidate_projects": list(merged.get("projects", [])),
             "candidate_experience": merged.get("experience", "not specified"),
             "candidate_role": merged.get("detected_role", merged["role"]),
         }
         resume_questions = generate_resume_questions(parsed_for_questions)
+        resume_by_domain = map_resume_to_domains(
+            skills=merged["skills"],
+            tools=merged.get("tools", []),
+            projects=merged.get("projects", []),
+            resume_text=text_to_parse,
+        )
 
     return CandidateProfile(
         name=merged["name"],
@@ -183,6 +203,7 @@ def build_candidate_profile(
         target_role=role_cfg.key,
         profile_source=profile_source,
         resume_questions=resume_questions,
+        resume_by_domain=resume_by_domain,
     )
 
 

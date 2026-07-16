@@ -38,6 +38,50 @@ from dialogue.prompts import (
 
 logger = logging.getLogger(__name__)
 
+# Intent seeds / fallbacks for Junior AI Engineer blueprint domains.
+DOMAIN_QUESTION_SEEDS: dict[str, str] = {
+    "project_overview": (
+        "Briefly explain one AI or machine learning project you worked on. "
+        "What problem did it solve, what did you build, and what was the result?"
+    ),
+    "python": (
+        "In Python, how would you structure a small machine learning project so the "
+        "code stays clean, reusable, and easy to debug?"
+    ),
+    "machine_learning": (
+        "How would you detect overfitting in a machine learning model, and what "
+        "steps would you take to reduce it?"
+    ),
+    "data_preprocessing": (
+        "How would you handle missing values, categorical features, and scaling "
+        "before training a machine learning model?"
+    ),
+    "model_evaluation": (
+        "For a classification model, how would you choose evaluation metrics such as "
+        "accuracy, precision, recall, F1-score, and confusion matrix?"
+    ),
+    "nlp_speech_ai": (
+        "If you are building a speech or NLP-based AI system, what preprocessing "
+        "steps would you apply before sending text to the model?"
+    ),
+    "apis_backend": (
+        "How would you expose a trained AI model through an API, and what request, "
+        "response, and error-handling details would you include?"
+    ),
+    "deployment": (
+        "What steps would you take to deploy a small AI model and monitor its "
+        "latency, errors, and performance after deployment?"
+    ),
+    "debugging_problem_solving": (
+        "If your AI pipeline gives poor results, how would you debug whether the "
+        "issue is in the data, preprocessing, model, or evaluation?"
+    ),
+    "behavioral_ownership": (
+        "Tell me about a time you took ownership of a technical problem. "
+        "What did you do, and what was the outcome?"
+    ),
+}
+
 
 class LLMAdapter:
 
@@ -49,6 +93,7 @@ class LLMAdapter:
         self.client = Groq(api_key=api_key)
         self.model = settings.groq_model
         self.question_selector = None
+
     def generate(self, action, context):
         """
         Generate a question based on the action dict from DecisionEngine.
@@ -56,25 +101,40 @@ class LLMAdapter:
         """
         action_type = action.get("type", "ask")
 
-        # ── Closing ─────────────────────────────────────────────
         if action_type == "closing":
             return "Thank you for your time. This concludes the interview."
 
-        # ── Intro / Greeting ────────────────────────────────────
         if action_type == "intro":
-            return self._generate_intro(context)
+            question = self._generate_intro(context)
+            self._commit_active_question(context, question, "project_overview")
+            return question
 
-        # ── Follow-up (weak answer) ─────────────────────────────
         if action_type == "followup":
-            return self._generate_followup(action, context)
+            question = self._generate_followup(action, context)
+            domain = action.get("domain", getattr(context, "current_domain", ""))
+            self._commit_active_question(context, question, domain)
+            return question
 
-        # ── Behavioral Question ─────────────────────────────────
         topic = action.get("topic", "")
         if topic == "behavioral":
-            return self._generate_behavioral(action, context)
+            question = self._generate_behavioral(action, context)
+            self._commit_active_question(context, question, "behavioral_ownership")
+            return question
 
-        # ── Technical Question ──────────────────────────────────
-        return self._generate_technical(action, context)
+        question = self._generate_technical(action, context)
+        domain = action.get("domain", topic)
+        self._commit_active_question(context, question, domain)
+        return question
+
+    def _commit_active_question(self, context, question: str, domain: str = "") -> None:
+        if not question or str(question).startswith("[Error"):
+            return
+        if hasattr(context, "set_active_question"):
+            intent = DOMAIN_QUESTION_SEEDS.get(
+                (domain or "").strip().lower(),
+                str(domain or "").replace("_", " "),
+            )
+            context.set_active_question(question, domain_intent=intent)
 
     # ════════════════════════════════════════════════════════════
     #  Private generation methods
@@ -87,6 +147,8 @@ class LLMAdapter:
         role_title = context.resume_data.get("role", "Junior AI Engineer")
         name = context.resume_data.get("name", "Candidate")
         profile_source = context.resume_data.get("profile_source", "default")
+        projects = context.resume_data.get("projects") or []
+        project_hint = ", ".join(str(p) for p in projects[:2]) if projects else ""
 
         prompt = INTRO_SYSTEM_PROMPT.format(
             skills=skills_str,
@@ -98,8 +160,10 @@ Session context:
 - Candidate name: {name}
 - Target role: {role_title}
 - Profile source: {profile_source}
-- If profile_source is resume, briefly reference their skills or experience.
+- Projects from resume: {project_hint or "none listed"}
+- If profile_source is resume, you MUST briefly name one concrete skill or project from their resume in the greeting before asking them to introduce themselves.
 - If profile_source is default, explain this is a structured {role_title} practice interview.
+- Ask exactly ONE opening question (introduce yourself + one project).
 """
         return self._call_llm(prompt)
 
@@ -108,44 +172,43 @@ Session context:
         topic = action.get("topic", "general")
         domain = action.get("domain", topic)
         difficulty = action.get("difficulty", "medium")
+        seed = DOMAIN_QUESTION_SEEDS.get(domain, "")
 
-        # Resume / question-bank path for domains that support personalization.
+        # On-domain resume question first (project_overview / behavioral / matched skills).
         if action.get("type") == "ask":
             selector = getattr(context, "question_selector", None) or self.question_selector
-            if selector and domain in ("project_overview", "behavioral_ownership"):
+            if selector and domain in DOMAIN_QUESTION_SEEDS:
                 bank_question = selector.select_for_domain(
                     domain,
                     asked_questions=context.question_history,
                 )
                 if bank_question:
-                    seed = len(getattr(context, "question_history", []) or [])
-                    return _naturalize_static_question(
-                        domain, bank_question, variety_seed=seed
+                    variety = len(getattr(context, "question_history", []) or [])
+                    candidate = _naturalize_static_question(
+                        domain, bank_question, variety_seed=variety
                     )
+                    if not is_semantic_duplicate(candidate, context.question_history):
+                        return candidate
 
-        # Deterministic Junior AI Engineer question bank.
-        # Main domain questions are fixed so coverage stays balanced and defensible.
-        if action.get("type") == "ask":
-            domain_questions = {
-                "project_overview": "Briefly explain one AI or machine learning project you worked on. What problem did it solve, what did you build, and what was the result?",
-                "python": "In Python, how would you structure a small machine learning project so the code stays clean, reusable, and easy to debug?",
-                "machine_learning": "How would you detect overfitting in a machine learning model, and what steps would you take to reduce it?",
-                "data_preprocessing": "How would you handle missing values, categorical features, and scaling before training a machine learning model?",
-                "model_evaluation": "For a classification model, how would you choose evaluation metrics such as accuracy, precision, recall, F1-score, and confusion matrix?",
-                "nlp_speech_ai": "If you are building a speech or NLP-based AI system, what preprocessing steps would you apply before sending text to the model?",
-                "apis_backend": "How would you expose a trained AI model through an API, and what request, response, and error-handling details would you include?",
-                "deployment": "What steps would you take to deploy a small AI model and monitor its latency, errors, and performance after deployment?",
-                "debugging_problem_solving": "If your AI pipeline gives poor results, how would you debug whether the issue is in the data, preprocessing, model, or evaluation?",
-                "behavioral_ownership": "Tell me about a time you took ownership of a technical problem. What did you do, and what was the outcome?",
-            }
-            if domain in domain_questions:
-                seed = len(getattr(context, "question_history", []) or [])
-                candidate = _naturalize_static_question(
-                    domain, domain_questions[domain], variety_seed=seed
-                )
-                if not is_semantic_duplicate(candidate, context.question_history):
-                    return candidate
-                # Primary already asked — fall through to LLM for a fresh angle.
+        # Bounded LLM primary from seed + optional resume evidence.
+        if action.get("type") == "ask" and seed:
+            generated = self._generate_bounded_domain_question(
+                context,
+                domain=domain,
+                seed=seed,
+                difficulty=difficulty,
+            )
+            if generated and not is_semantic_duplicate(
+                generated, context.question_history
+            ):
+                return generated
+            # Fallback to naturalized seed.
+            variety = len(getattr(context, "question_history", []) or [])
+            candidate = _naturalize_static_question(
+                domain, seed, variety_seed=variety
+            )
+            if not is_semantic_duplicate(candidate, context.question_history):
+                return candidate
 
         system_prompt = TECHNICAL_SYSTEM_PROMPT.format(
             topic=topic,
@@ -157,6 +220,7 @@ Session context:
 Interview policy:
 - You are interviewing for a {context.resume_data.get("role", "Junior AI Engineer")} role.
 - Current required domain: {domain}.
+- Domain intent seed: {seed or topic}
 - Ask exactly ONE focused question for this domain.
 - Keep it practical and junior-level.
 - Do not ask multiple questions at once.
@@ -165,7 +229,10 @@ Interview policy:
 - Prefer questions that reveal practical understanding, not textbook memorization.
 """
 
-        # Build conversation context so LLM avoids repeating
+        resume_block = self._resume_domain_block(context, domain)
+        if resume_block:
+            system_prompt += f"\n\n{resume_block}\n"
+
         messages = self._build_history_text(context)
         recent_qa = self._recent_qa_block(context)
         full_prompt = system_prompt
@@ -184,6 +251,84 @@ Interview policy:
             full_prompt += "\n\nNow ask a NEW question."
 
         return self._call_llm(full_prompt)
+
+    def _resume_domain_block(self, context, domain: str) -> str:
+        profile_source = getattr(context, "profile_source", None) or context.resume_data.get(
+            "profile_source", "default"
+        )
+        if profile_source != "resume":
+            return ""
+
+        by_domain = getattr(context, "resume_by_domain", None) or context.resume_data.get(
+            "resume_by_domain"
+        ) or {}
+        evidence = list(by_domain.get(domain, []) or [])
+        projects = context.resume_data.get("projects") or []
+        skills = list(getattr(context, "skills", []) or [])
+
+        lines = ["Resume personalization (prefer this evidence when asking):"]
+        if evidence:
+            lines.append("- Domain evidence: " + "; ".join(str(e) for e in evidence[:4]))
+        if projects and domain in ("project_overview", "nlp_speech_ai", "machine_learning"):
+            lines.append("- Projects: " + "; ".join(str(p) for p in projects[:3]))
+        if skills:
+            lines.append("- Skills: " + ", ".join(str(s) for s in skills[:8]))
+        if len(lines) == 1:
+            return ""
+        lines.append(
+            "If resume evidence exists for this domain, ask about THAT evidence. "
+            "Otherwise stay on the domain seed intent."
+        )
+        return "\n".join(lines)
+
+    def _generate_bounded_domain_question(
+        self,
+        context,
+        *,
+        domain: str,
+        seed: str,
+        difficulty: str = "medium",
+    ) -> str | None:
+        """LLM-generate one domain question constrained by seed + resume."""
+        resume_block = self._resume_domain_block(context, domain)
+        recent_qa = self._recent_qa_block(context)
+        history = self._build_history_text(context)
+
+        prompt = f"""
+You are a professional live voice interviewer for a Junior AI Engineer role.
+
+Generate exactly ONE spoken interview question.
+
+Hard constraints:
+- Domain id: {domain}
+- Keep the SAME learning intent as this seed (do not change topic):
+  {seed}
+- Difficulty: {difficulty}
+- Ask only one question.
+- Junior-level, practical, voice-friendly.
+- No coaching, no hints, no answer examples.
+- Do not use markdown or bullet lists.
+- Do not stack multiple questions.
+
+{resume_block}
+
+{recent_qa}
+
+Previous questions:
+{history or "(none yet)"}
+
+Return ONLY the spoken question.
+""".strip()
+
+        text = self._call_llm(prompt)
+        if not text or text.startswith("[Error"):
+            return None
+        cleaned = sanitize_interviewer_output(text).strip()
+        if cleaned.count("?") > 2:
+            return None
+        if len(cleaned.split()) < 5:
+            return None
+        return cleaned
 
     def _generate_behavioral(self, action, context):
         """Generate a behavioral question, optionally targeting a category."""

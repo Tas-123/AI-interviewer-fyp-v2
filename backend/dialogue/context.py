@@ -90,11 +90,43 @@ class InterviewContext:
         # Guard redirect counter per canonical question (stops infinite loops)
         self.guard_redirect_counts: dict[str, int] = {}
 
+        # Clean one-sentence intent for recoveries (never stack spoken TTS wrappers).
+        self.current_canonical_question: str = ""
+        self.current_domain_intent: str = ""
+
+        # Resume facts keyed by blueprint domain (optional personalization).
+        self.resume_by_domain: dict[str, list[str]] = dict(
+            resume_data.get("resume_by_domain") or {}
+        )
+
+    def set_active_question(self, question: str, domain_intent: str | None = None) -> str:
+        """Store the clean question intent used for all guard recoveries."""
+        from dialogue.guards.echo_guard import canonicalize_for_store
+
+        clean = canonicalize_for_store(question)
+        if clean:
+            self.current_canonical_question = clean
+        if domain_intent is not None:
+            self.current_domain_intent = str(domain_intent).strip()
+        elif self.current_domain and not self.current_domain_intent:
+            self.current_domain_intent = str(self.current_domain).replace("_", " ")
+        return self.current_canonical_question
+
+    def get_active_canonical_question(self, fallback: str = "") -> str:
+        """Prefer stored canonical; otherwise strip wrappers from fallback text."""
+        from dialogue.guards.echo_guard import canonicalize_for_store
+
+        if self.current_canonical_question:
+            return self.current_canonical_question
+        return canonicalize_for_store(fallback)
+
     def add_turn(self, question, transcript):
         """Record one Q&A exchange."""
         self.question_history.append(question)
         self.transcript_history.append(transcript)
         self.turn_count += 1
+        # Guard recoveries often wrap the same intent; do not overwrite canonical
+        # with stacked spoken text. Primary/probe callers set_active_question explicitly.
 
     def get_recent_qa_pairs(self, n: int = 3) -> list[tuple[str, str]]:
         """Return up to n recent (question, answer) pairs for prompt continuity.
@@ -328,11 +360,8 @@ class InterviewContext:
         return ""
 
     def _canonical_active_question(self) -> str:
-        from dialogue.guards.echo_guard import canonical_interview_question
-
-        if not self.question_history:
-            return ""
-        return canonical_interview_question(self.question_history[-1])
+        fallback = self.question_history[-1] if self.question_history else ""
+        return self.get_active_canonical_question(fallback)
 
     def get_domain_redirect_count(self) -> int:
         key = self._canonical_active_question()

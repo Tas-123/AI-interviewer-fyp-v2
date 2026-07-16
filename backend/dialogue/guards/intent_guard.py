@@ -8,7 +8,6 @@ import re
 
 logger = logging.getLogger(__name__)
 
-from dialogue.guards.echo_guard import short_repeat_question
 from dialogue.guards.incomplete_guard import looks_like_incomplete_transcript
 from dialogue.guards.types import GuardContext, GuardResult
 
@@ -326,47 +325,40 @@ Return JSON only:
 
 
 def intent_redirect_response(
-    intent: str, transcript: str, last_question: str = ""
+    intent: str,
+    transcript: str,
+    last_question: str = "",
+    *,
+    interview_context=None,
+    llm_client=None,
+    llm_model: str = "",
 ) -> str:
     """Generate a no-score redirect based on classified candidate intent."""
-    last_question = (last_question or "").strip()
-    repeat_q = short_repeat_question(last_question)
+    from dialogue.rephrase_policy import rephrase_recovery, resolve_core_question
 
-    if intent == "REPEAT_REQUEST":
-        return f"Happy to repeat that. {repeat_q}"
-
-    if intent == "AUDIO_ISSUE":
-        return f"I'll say it again briefly. {repeat_q}"
-
-    if intent == "CLARIFICATION_REQUEST":
-        t_clean = (transcript or "").lower()
-        if any(phrase in t_clean for phrase in ["understand", "not clear", "unclear"]):
-            return f"Happy to repeat that. {repeat_q}"
-        return (
-            "I'll rephrase the question. "
-            f"{repeat_q} "
-            "Please answer with your own experience."
-        )
+    core = resolve_core_question(interview_context, last_question)
+    domain = ""
+    if interview_context is not None:
+        domain = str(getattr(interview_context, "current_domain", "") or "")
 
     if intent == "SKIP_REQUEST":
         return "Sure — let's move on to a different area of the interview."
 
-    if intent == "STAY_ON_QUESTION":
-        return (
-            "Let's finish the current question first, then we can move on. "
-            f"{repeat_q}"
-        )
+    mode = "repeat"
+    if intent == "CLARIFICATION_REQUEST":
+        mode = "clarify"
+    elif intent in ("OFF_TOPIC", "EXTERNAL_PROMPT_ECHO", "STAY_ON_QUESTION"):
+        mode = "redirect"
+    elif intent in ("REPEAT_REQUEST", "AUDIO_ISSUE"):
+        mode = "repeat"
 
-    if intent == "OFF_TOPIC":
-        return f"We'll stay on the interview for now. {repeat_q}"
-
-    if intent == "EXTERNAL_PROMPT_ECHO":
-        return (
-            "I may have captured an instruction or external prompt instead of your answer. "
-            f"One more pass on that question. {repeat_q}"
-        )
-
-    return f"One more pass on that question. {repeat_q}"
+    return rephrase_recovery(
+        core_question=core,
+        domain=domain,
+        mode=mode,
+        llm_client=llm_client,
+        llm_model=llm_model,
+    )
 
 
 class IntentGuard:
@@ -424,7 +416,12 @@ class IntentGuard:
             triggered=True,
             decision_type=intent,
             response_text=intent_redirect_response(
-                intent, ctx.transcript, ctx.last_question
+                intent,
+                ctx.transcript,
+                ctx.last_question,
+                interview_context=ctx.interview_context,
+                llm_client=ctx.llm_client or self._llm_client,
+                llm_model=ctx.llm_model or self._llm_model,
             ),
             should_evaluate=False,
             metadata=metadata,

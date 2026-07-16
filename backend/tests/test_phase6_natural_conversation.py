@@ -45,12 +45,17 @@ def test_soft_domain_redirect():
 
 
 def test_soft_intent_redirects():
-    assert intent_redirect_response("REPEAT_REQUEST", "", "Q?").startswith(
-        "Happy to repeat"
-    )
-    assert "We'll stay on the interview" in intent_redirect_response(
+    repeat = intent_redirect_response("REPEAT_REQUEST", "", "How do you preprocess data?")
+    assert "Happy to repeat" in repeat
+    assert "preprocess" in repeat.lower()
+    assert repeat.lower().count("preprocess") == 1
+
+    off = intent_redirect_response(
         "OFF_TOPIC", "weather", "How do you preprocess data?"
     )
+    assert "preprocess" in off.lower()
+    # Bounded recovery: one ask, no stacked wrappers from prior TTS history.
+    assert off.lower().count("how do you preprocess data") <= 1
 
 
 if __name__ == "__main__":

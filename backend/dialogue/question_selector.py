@@ -58,10 +58,20 @@ class QuestionSelector:
         """
         Load resume-conditioned questions for this session.
 
-        Args:
-            questions: list of question strings generated from resume
+        Accepts plain strings or {"domain","question"} dicts.
         """
-        self._resume_questions = questions or []
+        normalized: list[dict] = []
+        for item in questions or []:
+            if isinstance(item, dict):
+                q = str(item.get("question") or "").strip()
+                domain = str(item.get("domain") or "").strip().lower()
+                if q:
+                    normalized.append({"domain": domain, "question": q})
+            else:
+                q = str(item or "").strip()
+                if q:
+                    normalized.append({"domain": "", "question": q})
+        self._resume_questions = normalized
         self._resume_question_index = 0
 
     def select_for_domain(
@@ -69,9 +79,29 @@ class QuestionSelector:
         domain: str,
         asked_questions: list | None = None,
     ) -> str | None:
-        """Select a question for a blueprint domain (resume-first, then bank)."""
+        """Select a question for a blueprint domain (on-domain resume first, then bank)."""
+        if asked_questions:
+            for q in asked_questions:
+                self._asked_questions.add(str(q).strip().lower())
+
+        domain_key = (domain or "").strip().lower()
+        # Prefer resume questions tagged for this domain.
+        while self._resume_question_index < len(self._resume_questions):
+            item = self._resume_questions[self._resume_question_index]
+            self._resume_question_index += 1
+            q = item.get("question", "")
+            item_domain = item.get("domain", "")
+            if not q:
+                continue
+            if item_domain and domain_key and item_domain != domain_key:
+                continue
+            if q.strip().lower() in self._asked_questions:
+                continue
+            self._asked_questions.add(q.strip().lower())
+            return q
+
         question_type = DOMAIN_TO_QUESTION_TYPE.get(domain, "role_specific")
-        return self.select_question(question_type, asked_questions)
+        return self._try_bank_question(question_type)
 
     def select_question(
         self,
@@ -89,22 +119,18 @@ class QuestionSelector:
             A question string, or None if no bank/resume questions available
             (caller should fall back to LLM generation).
         """
-        # Merge external asked questions into our tracking set
         if asked_questions:
             for q in asked_questions:
-                self._asked_questions.add(q.strip().lower())
+                self._asked_questions.add(str(q).strip().lower())
 
-        # ── Priority 1: Resume-conditioned questions ─────────────
         question = self._try_resume_question()
         if question:
             return question
 
-        # ── Priority 2: Question bank ────────────────────────────
         question = self._try_bank_question(question_type)
         if question:
             return question
 
-        # ── Priority 3: No match → return None (LLM fallback) ───
         return None
 
     def mark_asked(self, question: str):
@@ -116,15 +142,12 @@ class QuestionSelector:
         """Return the number of unique questions tracked."""
         return len(self._asked_questions)
 
-    # ──────────────────────────────────────────────────────────────
-    #  Private helpers
-    # ──────────────────────────────────────────────────────────────
-
     def _try_resume_question(self) -> str | None:
-        """Try to get the next unused resume-conditioned question."""
+        """Try to get the next unused resume-conditioned question (any domain)."""
         while self._resume_question_index < len(self._resume_questions):
-            q = self._resume_questions[self._resume_question_index]
+            item = self._resume_questions[self._resume_question_index]
             self._resume_question_index += 1
+            q = item.get("question", "") if isinstance(item, dict) else str(item)
             if q.strip().lower() not in self._asked_questions:
                 self._asked_questions.add(q.strip().lower())
                 return q
@@ -134,12 +157,10 @@ class QuestionSelector:
         """Try to get an unused question from the bank for the given type."""
         categories = STAGE_TO_CATEGORIES.get(question_type, [question_type])
 
-        # Collect all candidate questions from matching categories
         candidates = []
         for cat in categories:
             candidates.extend(_QUESTION_BANK.get(cat, []))
 
-        # Shuffle to avoid predictable ordering
         random.shuffle(candidates)
 
         for q in candidates:

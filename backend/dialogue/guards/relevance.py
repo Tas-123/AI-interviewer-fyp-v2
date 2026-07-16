@@ -7,7 +7,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-from dialogue.guards.echo_guard import canonical_interview_question, short_repeat_question
+from dialogue.guards.echo_guard import canonical_interview_question
 
 logger = logging.getLogger(__name__)
 
@@ -128,40 +128,22 @@ def generate_speakable_redirect(
     llm_client=None,
     llm_model: str = "",
     attempt: int = 1,
+    interview_context=None,
 ) -> str:
     """Short, natural redirect — LLM when available, safe fallback otherwise."""
-    core = short_repeat_question(last_question)
+    from dialogue.rephrase_policy import rephrase_recovery, resolve_core_question
+
     if attempt >= 2:
         return "Thanks — let's move on to the next topic."
 
-    if llm_client is None:
-        return f"Could you connect that to this question? {core}"
-
-    prompt = f"""
-Rewrite as ONE short spoken sentence that politely refocuses the candidate.
-Do not coach. Do not mention scores. Then append the core question unchanged.
-
-Core question: {core}
-
-Return only the spoken line (max 2 short sentences).
-""".strip()
-
-    try:
-        response = llm_client.chat.completions.create(
-            model=llm_model or "llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": "You are a calm technical interviewer."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.3,
-            max_tokens=120,
-        )
-        text = (response.choices[0].message.content or "").strip()
-        if text and core.lower() in text.lower():
-            return text
-        if text:
-            return f"{text} {core}".strip()
-    except Exception as exc:
-        logger.warning("Speakable redirect generation failed: %s", exc)
-
-    return f"Could you connect that to this question? {core}"
+    core = resolve_core_question(interview_context, last_question)
+    domain = ""
+    if interview_context is not None:
+        domain = str(getattr(interview_context, "current_domain", "") or "")
+    return rephrase_recovery(
+        core_question=core,
+        domain=domain,
+        mode="redirect",
+        llm_client=llm_client,
+        llm_model=llm_model,
+    )

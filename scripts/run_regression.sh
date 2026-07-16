@@ -15,6 +15,12 @@ $PY backend/tests/test_phase6a_interview_flow.py
 echo "=== Recent Q&A memory continuity ==="
 $PY backend/tests/test_recent_qa_memory.py
 
+echo "=== Canonical question / IDK hints / resume preference ==="
+$PY backend/tests/test_canonical_question_and_resume.py
+
+echo "=== Full coverage policy ==="
+$PY backend/tests/test_full_coverage_policy.py
+
 echo "=== Phase 6 silence / duplicate / merge / barge / natural ==="
 $PY backend/tests/test_phase6_silence_handling.py
 $PY backend/tests/test_phase6_duplicate_questions.py

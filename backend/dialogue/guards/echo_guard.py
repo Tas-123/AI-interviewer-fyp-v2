@@ -15,19 +15,100 @@ _REDIRECT_PREFIXES = (
     "please answer this question directly:",
     "please answer the current interview question directly:",
     "i'll rephrase the question.",
+    "i'll ask it another way.",
     "sure, i'll repeat the question.",
     "no problem, i'll repeat it clearly.",
     "i may have captured an instruction or external prompt instead of your answer.",
     "i detected that the interviewer prompt may have been repeated instead of a candidate answer.",
     "please answer in your own words.",
     "please answer with your own experience.",
-    # Phase 6 softer redirects
     "let's come back to this.",
     "we'll stay on the interview for now.",
     "one more pass on that question.",
     "happy to repeat that.",
+    "happy to repeat.",
     "i'll say it again briefly.",
+    "that's okay — let me ask it a simpler way.",
+    "that's okay — let me ask it more simply.",
+    "no problem. here's a small hint:",
+    "let's stay with the current question for now.",
+    "let's finish the current question first, then we can move on.",
+    "we've already skipped a couple of areas.",
+    "let's finish this one first.",
+    "could you connect that to this question?",
+    "let's focus on this.",
+    "let's focus on the task at hand.",
+    "let's focus on your hands-on experience with text preprocessing.",
+    "sure — let's move on to a different area of the interview.",
+    "alright —",
+    "next up:",
+    "shifting topics briefly —",
+    "building on that —",
 )
+
+
+def _dedupe_repeated_question_clauses(q: str) -> str:
+    """Collapse stacked copies of the same question sentence."""
+    text = (q or "").strip()
+    if not text or "?" not in text:
+        return text
+
+    # Split on sentence boundaries while keeping question marks attached.
+    parts = [p.strip() for p in re.split(r"(?<=[?.!])\s+", text) if p.strip()]
+    if len(parts) <= 1:
+        return text
+
+    seen_norm: set[str] = set()
+    kept: list[str] = []
+    for part in parts:
+        # Normalize for comparison: lowercase, collapse spaces, drop trailing fillers.
+        norm = re.sub(r"\s+", " ", part.lower()).strip(" .")
+        norm = re.sub(
+            r"\s*please answer with your own experience\.?\s*$",
+            "",
+            norm,
+        ).strip()
+        if not norm:
+            continue
+        if norm in seen_norm:
+            continue
+        # Near-duplicate: one clause contains another long question clause.
+        if any(
+            norm in prev or prev in norm
+            for prev in seen_norm
+            if "?" in prev and len(prev) > 20
+        ):
+            # Prefer the shorter cleaner form when one contains the other.
+            continue
+        seen_norm.add(norm)
+        kept.append(part)
+
+    if not kept:
+        return text
+
+    # Prefer the last remaining question clause if we still have extras.
+    question_parts = [p for p in kept if "?" in p]
+    if question_parts:
+        # Keep at most one trailing "please answer..." style instruction.
+        core = question_parts[-1]
+        return core.strip()
+    return " ".join(kept).strip()
+
+
+def canonicalize_for_store(question: str = "") -> str:
+    """Strip wrappers and collapse stacked duplicates into one clean question."""
+    q = canonical_interview_question(question)
+    q = _dedupe_repeated_question_clauses(q)
+    for label in ("[Follow-up]", "[follow-up]", "Follow-up:", "follow-up:"):
+        q = q.replace(label, "").strip()
+    # Drop duplicated trailing experience instructions.
+    q = re.sub(
+        r"(?:\s*Please answer with your own experience\.?)+$",
+        "",
+        q,
+        flags=re.IGNORECASE,
+    ).strip()
+    return q
 
 
 def canonical_interview_question(last_question: str = "") -> str:
@@ -37,7 +118,9 @@ def canonical_interview_question(last_question: str = "") -> str:
         return ""
 
     changed = True
-    while changed:
+    safety = 0
+    while changed and safety < 20:
+        safety += 1
         changed = False
         lower = q.lower().strip()
         for prefix in _REDIRECT_PREFIXES:
@@ -45,12 +128,32 @@ def canonical_interview_question(last_question: str = "") -> str:
                 q = q[len(prefix) :].strip()
                 changed = True
                 break
-    return q.strip()
+        # Also strip leading soft openers repeatedly.
+        m = re.match(
+            r"^(alright —|next up:|shifting topics briefly —|building on that —)\s*",
+            q,
+            flags=re.IGNORECASE,
+        )
+        if m:
+            q = q[m.end() :].strip()
+            changed = True
+
+    return _dedupe_repeated_question_clauses(q.strip())
 
 
-def short_repeat_question(last_question: str = "") -> str:
+def short_repeat_question(last_question: str = "", interview_context=None) -> str:
     """Repeat only the core interview question without long greeting text."""
-    q = canonical_interview_question(last_question)
+    if interview_context is not None and hasattr(
+        interview_context, "get_active_canonical_question"
+    ):
+        stored = interview_context.get_active_canonical_question(last_question)
+        if stored:
+            q = stored
+        else:
+            q = canonicalize_for_store(last_question)
+    else:
+        q = canonicalize_for_store(last_question)
+
     lq = q.lower()
 
     if not q:
@@ -177,10 +280,17 @@ class EchoGuard:
         if not looks_like_bot_question_echo(ctx.transcript, ctx.last_question):
             return GuardResult(triggered=False)
 
-        response = (
-            "I detected that the interviewer prompt may have been repeated instead "
-            "of a candidate answer. Please answer in your own words. "
-            + short_repeat_question(ctx.last_question)
+        from dialogue.rephrase_policy import rephrase_recovery, resolve_core_question
+
+        core = resolve_core_question(ctx.interview_context, ctx.last_question)
+        response = rephrase_recovery(
+            core_question=core,
+            domain=getattr(ctx.interview_context, "current_domain", "")
+            if ctx.interview_context
+            else "",
+            mode="repeat",
+            llm_client=ctx.llm_client,
+            llm_model=ctx.llm_model,
         )
         return GuardResult(
             triggered=True,

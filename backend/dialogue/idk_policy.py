@@ -2,6 +2,7 @@
 IDK policy — handle "I don't know" without scoring as a technical answer.
 
 Phase 6A: rephrase → hint → skip domain.
+UX refinements: broader IDK detection; recoveries use canonical + bounded rephrase.
 """
 
 from __future__ import annotations
@@ -22,6 +23,15 @@ IDK_PHRASES = (
     "cant answer",
     "don't remember",
     "dont remember",
+    "i literally don't know",
+    "i literally dont know",
+    "i didn't done it",
+    "i didnt done it",
+    "i didn't do it",
+    "i didnt do it",
+    "i never did",
+    "i haven't done",
+    "i havent done",
 )
 
 DOMAIN_HINTS: dict[str, str] = {
@@ -74,15 +84,49 @@ def is_idk_response(transcript: str) -> bool:
         "cant answer this",
         "nothing coming to my mind",
         "nothing comes to my mind",
+        "pass this question",
+        "i will pass",
+        "i'll pass",
+        "ill pass",
+        "skip this",
+        "i cannot answer",
+        "i can't answer",
+        "i cant answer",
     )
     if any(phrase in text for phrase in cannot_answer_phrases):
         return True
 
     if any(phrase in text for phrase in IDK_PHRASES):
         words = text.split()
-        if len(words) <= 18:
+        # Short IDK utterances always count.
+        if len(words) <= 24:
             return True
-        if text.strip() in IDK_PHRASES or text.startswith(("i don't know", "i dont know", "i don't remember", "i dont remember")):
+        # Longer utterances still count when they clearly open with / contain IDK
+        # plus refusal to continue (pass / didn't do / no idea).
+        if text.startswith(
+            (
+                "i don't know",
+                "i dont know",
+                "i don't remember",
+                "i dont remember",
+                "i have no idea",
+                "i'm not sure",
+                "im not sure",
+            )
+        ):
+            return True
+        refusal_tail = (
+            "pass",
+            "didn't do",
+            "didnt do",
+            "never did",
+            "no idea",
+            "can't answer",
+            "cant answer",
+        )
+        if any(phrase in text for phrase in IDK_PHRASES) and any(
+            t in text for t in refusal_tail
+        ):
             return True
     return False
 
@@ -98,26 +142,44 @@ def idk_attempt_response(
     domain: str,
     attempt: int,
     last_question: str,
+    *,
+    interview_context=None,
+    llm_client=None,
+    llm_model: str = "",
 ) -> tuple[str, str]:
     """
     Return (spoken_response, flow_action) for attempt 1-based count on this domain.
     flow_action: rephrase_idk | hint_idk | skip_domain
     """
+    from dialogue.rephrase_policy import rephrase_recovery, resolve_core_question
+
     domain = (domain or "").strip().lower()
-    last_q = (last_question or "").strip()
+    core = resolve_core_question(interview_context, last_question)
 
     if attempt <= 1:
-        return (
-            "That's okay — let me ask it a simpler way. "
-            f"{_simplify_question(last_q)}",
-            "rephrase_idk",
+        spoken = rephrase_recovery(
+            core_question=core,
+            domain=domain,
+            mode="simplify",
+            llm_client=llm_client,
+            llm_model=llm_model,
         )
+        return spoken, "rephrase_idk"
 
     if attempt == 2:
-        hint = DOMAIN_HINTS.get(domain, "Share whatever you remember — even a partial answer helps.")
+        hint = DOMAIN_HINTS.get(
+            domain, "Share whatever you remember — even a partial answer helps."
+        )
+        ask = rephrase_recovery(
+            core_question=core,
+            domain=domain,
+            mode="simplify",
+            llm_client=llm_client,
+            llm_model=llm_model,
+        )
+        # Keep hint + one freshly worded ask (no stacked prior TTS).
         return (
-            f"No problem. Here's a small hint: {hint} "
-            "Please try answering in your own words.",
+            f"No problem. Here's a small hint: {hint} {ask}",
             "hint_idk",
         )
 
@@ -129,14 +191,11 @@ def idk_attempt_response(
 
 def _simplify_question(question: str) -> str:
     """Shorten/rephrase the last question for a second attempt."""
-    from dialogue.guards.echo_guard import canonical_interview_question
+    from dialogue.guards.echo_guard import canonicalize_for_store
 
-    q = canonical_interview_question(question)
+    q = canonicalize_for_store(question)
     if not q:
         return "Could you walk me through your approach step by step?"
-    for label in ("[Follow-up]", "[follow-up]", "Follow-up:", "follow-up:"):
-        q = q.replace(label, "")
-    q = q.strip()
     if len(q) > 180:
         q = q[:180].rsplit(" ", 1)[0] + "?"
     if not q.endswith("?"):

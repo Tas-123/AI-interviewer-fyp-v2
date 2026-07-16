@@ -31,6 +31,10 @@ def test_decide_from_adaptive_does_not_close_at_turn_12_with_open_domains():
     ctx.state = InterviewState.TECHNICAL
     ctx.turn_count = 12
     ctx.set_current_domain("python")
+    # Non-empty answer so fragment safety net does not block ADVANCE.
+    ctx.latest_answer_for_decision = (
+        "I use Python for data cleaning, model training, and packaging APIs."
+    )
     engine = DecisionEngine()
 
     result = engine.decide_from_adaptive(
@@ -52,6 +56,10 @@ def test_decide_closes_only_when_blueprint_exhausted():
         ctx.mark_domain_covered(domain)
     ctx.turn_count = 10
     ctx.set_current_domain("behavioral_ownership")
+    ctx.latest_answer_for_decision = (
+        "I owned the feature end to end, coordinated with teammates, "
+        "and shipped the fix after validating results on staging."
+    )
     engine = DecisionEngine()
 
     result = engine.decide_from_adaptive(
@@ -69,6 +77,9 @@ def test_safety_ceiling_can_still_close():
     ctx = _ctx()
     ctx.state = InterviewState.TECHNICAL
     ctx.turn_count = 28
+    ctx.latest_answer_for_decision = (
+        "I used Python and scikit-learn to train a classifier and measured F1."
+    )
     engine = DecisionEngine()
     result = engine.decide_from_adaptive(
         {

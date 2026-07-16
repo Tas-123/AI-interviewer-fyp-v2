@@ -175,12 +175,12 @@ class DialogueManager:
         domain = getattr(self.context, "current_domain", "")
         if hasattr(self.context, "can_skip_domain") and not self.context.can_skip_domain():
             # Skip budget exhausted — stay on the current question.
-            from dialogue.guards.echo_guard import short_repeat_question
+            from dialogue.rephrase_policy import resolve_core_question
 
-            repeat_q = short_repeat_question(last_question)
+            core = resolve_core_question(self.context, last_question)
             question = (
                 "We've already skipped a couple of areas. "
-                f"Let's finish this one first. {repeat_q}"
+                f"Let's finish this one first. {core}"
             )
             self.context.add_turn(question, transcript)
             self._add_guard_trace(
@@ -407,10 +407,22 @@ class DialogueManager:
                     decision.get("next_question", "")
                 )
                 decision_type = decision.get("type", "ADVANCE")
+                if question and hasattr(self.context, "set_active_question"):
+                    self.context.set_active_question(
+                        question,
+                        domain_intent=getattr(self.context, "current_domain", ""),
+                    )
 
             # Record this turn
             if decision_type == "PROBE":
                 question = f"[Follow-up] {question}"
+                if hasattr(self.context, "set_active_question"):
+                    clean_probe = (
+                        question.replace("[Follow-up]", "")
+                        .replace("[follow-up]", "")
+                        .strip()
+                    )
+                    self.context.set_active_question(clean_probe)
 
             decision_log = {
                 "decision_type": decision_type,

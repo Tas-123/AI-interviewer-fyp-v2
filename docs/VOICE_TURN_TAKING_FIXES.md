@@ -91,6 +91,10 @@ Manual interview logs showed the LLM was usually fine. Failures came from turn-b
 
 ---
 
+## Related (later)
+
+Prompt stacking on guard recoveries, bounded rephrase, IDK hints, and resume-conditioned domain asks are covered in `docs/CANONICAL_QUESTION_AND_RESUME.md`.
+
 ## Out of Scope (this push)
 
 - Session-scoped report HTTP API redesign

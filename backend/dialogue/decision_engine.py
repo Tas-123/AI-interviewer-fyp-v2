@@ -234,12 +234,12 @@ class DecisionEngine:
 
     def _stay_on_question_for_fragment(self, context, active_domain: str) -> dict:
         """Force a continue-answer prompt instead of advancing on fragment evidence."""
-        from dialogue.guards.echo_guard import short_repeat_question
+        from dialogue.rephrase_policy import resolve_core_question
 
         last_question = ""
         if getattr(context, "question_history", None):
             last_question = context.question_history[-1]
-        repeat_q = short_repeat_question(last_question)
+        core = resolve_core_question(context, last_question)
         return {
             "action": "stay",
             "type": "ask",
@@ -247,7 +247,7 @@ class DecisionEngine:
             "domain": active_domain,
             "next_question": (
                 "I only caught a small fragment of that answer. "
-                f"Please continue clearly. {repeat_q}"
+                f"Please continue clearly. {core}"
             ).strip(),
             "decision_type": "STAY_ON_QUESTION",
             "reason": "tail_fragment_scoring_blocked",

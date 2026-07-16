@@ -41,6 +41,7 @@ def domain_relevance_redirect_response(
     llm_client=None,
     llm_model: str = "",
     attempt: int = 1,
+    interview_context=None,
 ) -> str:
     """Natural spoken redirect back to the core question."""
     return generate_speakable_redirect(
@@ -48,6 +49,7 @@ def domain_relevance_redirect_response(
         llm_client=llm_client,
         llm_model=llm_model,
         attempt=attempt,
+        interview_context=interview_context,
     )
 
 
@@ -59,16 +61,21 @@ class DomainGuard:
     def check(self, ctx: GuardContext) -> GuardResult:
         quality = getattr(ctx, "transcript_quality", None) or {}
         if quality.get("is_likely_tail_fragment"):
-            from dialogue.guards.echo_guard import short_repeat_question
+            from dialogue.rephrase_policy import rephrase_recovery, resolve_core_question
 
-            repeat_q = short_repeat_question(ctx.last_question)
+            core = resolve_core_question(ctx.interview_context, ctx.last_question)
             return GuardResult(
                 triggered=True,
                 decision_type="STAY_ON_QUESTION",
-                response_text=(
-                    "Please continue your answer on the current question. "
-                    f"{repeat_q}"
-                ).strip(),
+                response_text=rephrase_recovery(
+                    core_question=core,
+                    domain=getattr(ctx.interview_context, "current_domain", "")
+                    if ctx.interview_context
+                    else "",
+                    mode="redirect",
+                    llm_client=ctx.llm_client,
+                    llm_model=ctx.llm_model,
+                ),
                 should_evaluate=False,
                 metadata={
                     "guard": self.name,
@@ -112,6 +119,7 @@ class DomainGuard:
                 llm_client=ctx.llm_client,
                 llm_model=ctx.llm_model,
                 attempt=attempt,
+                interview_context=ctx_interview,
             ),
             should_evaluate=False,
             metadata={
