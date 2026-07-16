@@ -43,6 +43,9 @@ class VoiceTurnPolicy:
     barge_in_min_bot_speak_seconds: float
     final_transcript_debounce_seconds: float
     filler_words: frozenset[str]
+    turn_resume_window_seconds: float = 0.75
+    turn_tail_max_words: int = 6
+    turn_tail_min_words_for_suspicion: int = 10
 
     @classmethod
     def from_settings(cls, cfg: "Settings") -> "VoiceTurnPolicy":
@@ -60,6 +63,9 @@ class VoiceTurnPolicy:
             barge_in_min_bot_speak_seconds=cfg.barge_in_min_bot_speak_seconds,
             final_transcript_debounce_seconds=cfg.final_transcript_debounce_seconds,
             filler_words=DEFAULT_FILLER_WORDS,
+            turn_resume_window_seconds=cfg.turn_resume_window_seconds,
+            turn_tail_max_words=cfg.turn_tail_max_words,
+            turn_tail_min_words_for_suspicion=cfg.turn_tail_min_words_for_suspicion,
         )
 
     def is_filler(self, text: str) -> bool:

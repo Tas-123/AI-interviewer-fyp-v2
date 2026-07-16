@@ -336,6 +336,7 @@ class DialogueManager:
             interview_context=self.context,
             llm_client=self.llm.client,
             llm_model=self.llm.model,
+            transcript_quality=transcript_quality.to_dict(),
         )
         guard_hit = self.guard_pipeline.run(guard_ctx)
         if guard_hit:
@@ -377,6 +378,7 @@ class DialogueManager:
             # Store the current transcript temporarily so DecisionEngine can make
             # probe decisions using the actual current answer, not the previous turn.
             self.context.latest_answer_for_decision = transcript
+            self.context.latest_transcript_quality = transcript_quality.to_dict()
 
             engine_result = self.engine.decide_from_adaptive(
                 adaptive_result, self.context

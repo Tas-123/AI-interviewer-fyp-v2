@@ -15,6 +15,7 @@ class GuardContext:
     interview_context: Any = None
     llm_client: Any = None
     llm_model: str = ""
+    transcript_quality: dict | None = None
 
 
 @dataclass

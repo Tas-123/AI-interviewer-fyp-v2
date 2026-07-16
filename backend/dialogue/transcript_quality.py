@@ -21,6 +21,7 @@ class TranscriptQuality:
     stutter_prefix: bool
     noise_score: float
     is_noisy: bool
+    is_likely_tail_fragment: bool
     flags: tuple[str, ...]
 
     def to_dict(self) -> dict:
@@ -32,6 +33,7 @@ class TranscriptQuality:
             "stutter_prefix": self.stutter_prefix,
             "noise_score": round(self.noise_score, 3),
             "is_noisy": self.is_noisy,
+            "is_likely_tail_fragment": self.is_likely_tail_fragment,
             "flags": list(self.flags),
         }
 
@@ -68,6 +70,25 @@ def _has_stutter_prefix(text: str) -> bool:
         if a == b:
             return True
     return False
+
+
+def _compute_is_likely_tail_fragment(
+    *,
+    clean_n: int,
+    raw_n: int,
+    is_noisy: bool,
+    rep_ratio: float,
+    reduction: float,
+) -> bool:
+    """Heuristic: short cleaned utterance likely to be an STT tail fragment."""
+    if clean_n <= 0 or clean_n > 6:
+        return False
+    if is_noisy or rep_ratio >= 0.20:
+        return True
+    if reduction >= 0.15 and raw_n >= clean_n + 1:
+        return True
+    # Up to six-word micro utterances match live STT pause-boundary tails.
+    return clean_n <= 6
 
 
 def assess_transcript_quality(raw: str, cleaned: str) -> TranscriptQuality:
@@ -108,6 +129,15 @@ def assess_transcript_quality(raw: str, cleaned: str) -> TranscriptQuality:
         or len(flags) >= 2
         or rep_ratio >= 0.50
     )
+    is_tail = _compute_is_likely_tail_fragment(
+        clean_n=clean_n,
+        raw_n=raw_n,
+        is_noisy=is_noisy,
+        rep_ratio=rep_ratio,
+        reduction=reduction,
+    )
+    if is_tail:
+        flags.append("likely_tail_fragment")
 
     return TranscriptQuality(
         raw_word_count=raw_n,
@@ -117,5 +147,6 @@ def assess_transcript_quality(raw: str, cleaned: str) -> TranscriptQuality:
         stutter_prefix=stutter,
         noise_score=noise_score,
         is_noisy=is_noisy,
+        is_likely_tail_fragment=is_tail,
         flags=tuple(flags),
     )

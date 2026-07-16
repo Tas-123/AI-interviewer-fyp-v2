@@ -103,6 +103,16 @@ class Settings:
     final_transcript_debounce_seconds: float = float(
         os.getenv("FINAL_TRANSCRIPT_DEBOUNCE_SECONDS", "0.35")
     )
+    # After a substantial turn is submitted, absorb short STT tail fragments in this window.
+    turn_resume_window_seconds: float = float(
+        os.getenv("TURN_RESUME_WINDOW_SECONDS", "0.75")
+    )
+    # Tail fragments at or below this word count may merge/suppress after a long answer.
+    turn_tail_max_words: int = int(os.getenv("TURN_TAIL_MAX_WORDS", "6"))
+    # Prior submitted answer must reach this word count before tail suppression applies.
+    turn_tail_min_words_for_suspicion: int = int(
+        os.getenv("TURN_TAIL_MIN_WORDS_FOR_SUSPICION", "10")
+    )
 
     # Runtime flags
     enable_dev_text_voice_ws: bool = _env_bool("ENABLE_DEV_TEXT_VOICE_WS", False)

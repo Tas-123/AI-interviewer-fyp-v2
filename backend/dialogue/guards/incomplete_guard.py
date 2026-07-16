@@ -86,14 +86,32 @@ class IncompleteGuard:
     name = "incomplete"
 
     def check(self, ctx: GuardContext) -> GuardResult:
-        if not looks_like_incomplete_transcript(ctx.transcript, ctx.last_question):
-            return GuardResult(triggered=False)
-
-        words = (ctx.transcript or "").strip().split()
+        quality = getattr(ctx, "transcript_quality", None) or {}
         interview_ctx = getattr(ctx, "interview_context", None)
         last_substantial = ""
         if interview_ctx is not None and hasattr(interview_ctx, "last_substantial_transcript"):
             last_substantial = interview_ctx.last_substantial_transcript(min_words=8)
+
+        if quality.get("is_likely_tail_fragment") and last_substantial:
+            return GuardResult(
+                triggered=True,
+                decision_type="TAIL_FRAGMENT_CONTINUE",
+                response_text=(
+                    "I still need your full answer on this question. "
+                    "Please continue clearly from where you left off."
+                ),
+                should_evaluate=False,
+                metadata={
+                    "guard": self.name,
+                    "flow_action": "continue_answer",
+                    "had_prior_substantial": True,
+                },
+            )
+
+        if not looks_like_incomplete_transcript(ctx.transcript, ctx.last_question):
+            return GuardResult(triggered=False)
+
+        words = (ctx.transcript or "").strip().split()
 
         # Micro-fragments after a solid answer: do not quote junk like "Started."
         quote_source = (ctx.transcript or "").strip()

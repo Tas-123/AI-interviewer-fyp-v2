@@ -10,7 +10,7 @@ import {
     showReportError,
     showReportLoading,
 } from "./ui/report/renderReport.js";
-import { fetchLatestReport } from "./network/reportClient.js";
+import { fetchLatestReportMatched } from "./network/reportClient.js";
 import { createVoiceSession } from "./network/voiceSession.js";
 
 const cfg = window.MANUAL_CLIENT_CONFIG || {};
@@ -36,12 +36,16 @@ function buildUiBundle(refs) {
     };
 }
 
-async function loadReport(ui) {
+async function loadReport(ui, expectedSessionId = null) {
     showReportLoading(ui.refs.reportPanel);
     try {
-        const data = await fetchLatestReport(cfg.reportUrl);
+        const data = await fetchLatestReportMatched(cfg.reportUrl, expectedSessionId);
         renderInterviewReport(ui.refs.reportPanel, data);
-        ui.debug.log("Final interview report loaded.", "success");
+        const reportSessionId = data?.report_meta?.session_id || "unknown";
+        ui.debug.log(
+            `Final interview report loaded (session ${reportSessionId}).`,
+            "success"
+        );
     } catch (err) {
         showReportError(
             ui.refs.reportPanel,
@@ -51,9 +55,9 @@ async function loadReport(ui) {
     }
 }
 
-function scheduleReportLoad(ui) {
+function scheduleReportLoad(ui, expectedSessionId = null) {
     // Server writes report on WebSocket disconnect; give it a moment.
-    setTimeout(() => loadReport(ui), 1500);
+    setTimeout(() => loadReport(ui, expectedSessionId), 1500);
 }
 
 function wireControls(session, ui) {
@@ -65,6 +69,7 @@ function wireControls(session, ui) {
         try {
             ui.conversationStore?.reset();
             ui.conversation.clear();
+            showReportLoading(ui.refs.reportPanel);
             await session.connect();
             btnConnect.disabled = true;
             btnDisconnect.disabled = false;
@@ -94,10 +99,12 @@ function bootstrap() {
     ui.debug.log("Ready. Click Connect to begin the voice interview.", "info");
 
     let reportLoadScheduled = false;
-    const scheduleOnce = () => {
+    let expectedSessionId = null;
+
+    const scheduleOnce = (sessionId) => {
         if (reportLoadScheduled) return;
         reportLoadScheduled = true;
-        scheduleReportLoad(ui);
+        scheduleReportLoad(ui, sessionId || expectedSessionId);
         // Allow a new load after the next reconnect.
         setTimeout(() => {
             reportLoadScheduled = false;
@@ -115,9 +122,13 @@ function bootstrap() {
         },
         ui,
         {
-            onSessionEnded: () => {
+            onSessionStarted: (sessionId) => {
+                expectedSessionId = sessionId;
+                ui.debug.log(`Voice session started (${sessionId}).`, "info");
+            },
+            onSessionEnded: (sessionId) => {
                 ui.debug.log("Session ended — loading interview report…", "info");
-                scheduleOnce();
+                scheduleOnce(sessionId);
                 const { btnConnect, btnDisconnect } = ui.refs;
                 if (btnConnect) btnConnect.disabled = false;
                 if (btnDisconnect) btnDisconnect.disabled = true;

@@ -19,6 +19,8 @@ $PY backend/tests/test_phase6_transcript_aggregation.py
 $PY backend/tests/test_semantic_domain_guard.py
 $PY backend/tests/test_phase6_barge_in.py
 $PY backend/tests/test_voice_turn_taking_fixes.py
+$PY backend/tests/test_voice_tail_fragment_resume_window.py
+$PY backend/tests/test_tail_fragment_guarding.py
 $PY backend/tests/test_live_conversation_events.py
 $PY backend/tests/test_phase6_natural_conversation.py
 $PY backend/tests/test_guards/test_interview_flow_fixes.py

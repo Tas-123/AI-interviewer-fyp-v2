@@ -170,6 +170,11 @@ class InterviewProcessor(FrameProcessor):
         # None | "watching" | "nudged" | "done" — prevents nudge TTS from restarting the watch
         self._silence_stage: str | None = None
 
+        # Resume window: absorb short STT tails shortly after a substantial submit.
+        self._resume_window_until = 0.0
+        self._last_submitted_transcript = ""
+        self._last_submitted_word_count = 0
+
     async def request_client_interrupt(self, reason: str = "client_interrupt") -> None:
         """Stop bot TTS promptly when the browser client detects user barge-in."""
         logger.info("Client interrupt received — broadcasting interruption (%s)", reason)
@@ -201,6 +206,9 @@ class InterviewProcessor(FrameProcessor):
         self._silence_nudge_sent = False
         self._awaiting_candidate_answer = False
         self._silence_stage = None
+        self._resume_window_until = 0.0
+        self._last_submitted_transcript = ""
+        self._last_submitted_word_count = 0
         if self._debounce_task and not self._debounce_task.done():
             self._debounce_task.cancel()
         self._debounce_task = None
@@ -321,14 +329,61 @@ class InterviewProcessor(FrameProcessor):
         """Queue transcript evaluation after the configured debounce window."""
         if self._debounce_task and not self._debounce_task.done():
             self._debounce_task.cancel()
-        delay = (
-            self.policy.final_transcript_debounce_seconds
-            if delay_seconds is None
-            else delay_seconds
-        )
+        delay = self._compute_turn_debounce_delay(delay_seconds)
         self._debounce_task = asyncio.create_task(
             self._process_buffered_transcript_after_delay(delay)
         )
+
+    def _in_resume_window(self) -> bool:
+        return time.time() < self._resume_window_until
+
+    def _open_resume_window(self, submitted_text: str) -> None:
+        """Track a substantial submit so short tails can merge or be suppressed."""
+        text = (submitted_text or "").strip()
+        self._last_submitted_transcript = text
+        self._last_submitted_word_count = len(text.split())
+        self._resume_window_until = time.time() + self.policy.turn_resume_window_seconds
+
+    def _compute_turn_debounce_delay(self, override: float | None = None) -> float:
+        """Pick debounce delay; extend for substantial answers and resume tails."""
+        buffered = getattr(self, "latest_user_transcript", "").strip()
+        word_count = len(buffered.split())
+
+        delay = (
+            self.policy.final_transcript_debounce_seconds
+            if override is None
+            else override
+        )
+
+        if word_count >= self.policy.turn_tail_min_words_for_suspicion:
+            delay = max(delay, self.policy.turn_resume_window_seconds)
+
+        if self._in_resume_window():
+            remaining = max(0.0, self._resume_window_until - time.time())
+            delay = max(delay, remaining + 0.2)
+        return delay
+
+    def _looks_like_post_submit_tail(self, text: str) -> bool:
+        """Short orphan STT tail arriving shortly after a substantial answer."""
+        if not self._in_resume_window():
+            return False
+        if self._last_submitted_word_count < self.policy.turn_tail_min_words_for_suspicion:
+            return False
+
+        clean = (text or "").strip()
+        if not clean:
+            return True
+
+        words = clean.split()
+        if len(words) > self.policy.turn_tail_max_words:
+            return False
+
+        tail = clean.lower().strip(" .,!?'\"")
+        last = (self._last_submitted_transcript or "").lower()
+        if tail and tail in last:
+            return True
+
+        return len(words) <= self.policy.turn_tail_max_words
 
     async def _maybe_interrupt_bot(self, stt_hint: str = "") -> bool:
         """Barge-in when user speaks (VAD) or STT shows real words during bot TTS."""
@@ -468,6 +523,12 @@ class InterviewProcessor(FrameProcessor):
             await asyncio.sleep(self._interim_silence_seconds)
             if self.bot_is_speaking:
                 return
+            if self._in_resume_window():
+                logger.debug(
+                    "Interim silence fallback deferred — resume window active (%.2fs left)",
+                    max(0.0, self._resume_window_until - time.time()),
+                )
+                return
             if self._user_vad_speaking:
                 logger.debug(
                     "Interim silence fallback skipped — VAD still marks user as speaking"
@@ -594,9 +655,17 @@ class InterviewProcessor(FrameProcessor):
             logger.info("Cleaned transcript for evaluation: %r", cleaned)
             user_text = cleaned
 
-        # Drop orphan 1–2 word trailing STT fragments before dialogue.
+        # Drop orphan trailing STT fragments before dialogue.
         if self._is_tiny_trailing_fragment(user_text):
             logger.info("Discarding tiny trailing STT fragment quietly: %r", user_text)
+            self._clear_transcript_buffer()
+            return None
+
+        if self._looks_like_post_submit_tail(user_text):
+            logger.info(
+                "Discarding post-submit tail fragment during resume window: %r",
+                user_text,
+            )
             self._clear_transcript_buffer()
             return None
 
@@ -652,6 +721,7 @@ class InterviewProcessor(FrameProcessor):
         self._silence_stage = None
         self.last_processed_transcript = user_text
         self.first_real_user_turn_seen = True
+        self._open_resume_window(user_text)
         was_barge_in = self.barge_in_active
         turn_id = self.conversation.new_turn_id()
 
@@ -876,7 +946,19 @@ class InterviewProcessor(FrameProcessor):
             self._merge_transcript_part(user_text)
             self._saw_final_stt_for_utterance = True
             logger.info("Final STT transcript received: %r", user_text[:160])
-            self._schedule_turn_debounce(self.policy.final_transcript_debounce_seconds)
+
+            if self._in_resume_window() and self._looks_like_post_submit_tail(
+                getattr(self, "latest_user_transcript", "")
+            ):
+                logger.info(
+                    "Resume window: deferring likely tail fragment instead of immediate turn"
+                )
+                delay = self._compute_turn_debounce_delay(
+                    self.policy.final_transcript_debounce_seconds + 0.2
+                )
+            else:
+                delay = self._compute_turn_debounce_delay()
+            self._schedule_turn_debounce(delay)
             await self.push_frame(frame, direction)
             return
 

@@ -217,6 +217,42 @@ class DecisionEngine:
         result = self._decide_from_adaptive_impl(adaptive_result, context)
         return self._attach_followup_metadata(result, adaptive_result, context)
 
+    def _fragment_blocks_scoring(self, context) -> bool:
+        """Safety net: block ADVANCE/PROBE when answer looks like an STT tail fragment."""
+        answer_text = getattr(context, "latest_answer_for_decision", "") or ""
+        word_count = len(str(answer_text).split())
+        quality = getattr(context, "latest_transcript_quality", None) or {}
+        is_tail = bool(quality.get("is_likely_tail_fragment"))
+
+        if word_count <= 3:
+            return True
+        if is_tail and word_count <= 8:
+            return True
+        if is_tail and quality.get("is_noisy"):
+            return True
+        return False
+
+    def _stay_on_question_for_fragment(self, context, active_domain: str) -> dict:
+        """Force a continue-answer prompt instead of advancing on fragment evidence."""
+        from dialogue.guards.echo_guard import short_repeat_question
+
+        last_question = ""
+        if getattr(context, "question_history", None):
+            last_question = context.question_history[-1]
+        repeat_q = short_repeat_question(last_question)
+        return {
+            "action": "stay",
+            "type": "ask",
+            "topic": self._domain_to_topic(active_domain),
+            "domain": active_domain,
+            "next_question": (
+                "I only caught a small fragment of that answer. "
+                f"Please continue clearly. {repeat_q}"
+            ).strip(),
+            "decision_type": "STAY_ON_QUESTION",
+            "reason": "tail_fragment_scoring_blocked",
+        }
+
     def _decide_from_adaptive_impl(self, adaptive_result: dict, context) -> dict:
         """
         Consume Evaluator.adaptive_evaluate() result and enforce interview policy.
@@ -234,6 +270,9 @@ class DecisionEngine:
             return self._closing_action(reason="safety_turn_ceiling")
 
         active_domain = self._get_active_domain(context)
+
+        if self._fragment_blocks_scoring(context):
+            return self._stay_on_question_for_fragment(context, active_domain)
 
         if decision_type == "PROBE":
             evaluation = adaptive_result.get("evaluation", {})

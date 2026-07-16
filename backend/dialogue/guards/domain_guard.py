@@ -57,6 +57,26 @@ class DomainGuard:
     name = "domain"
 
     def check(self, ctx: GuardContext) -> GuardResult:
+        quality = getattr(ctx, "transcript_quality", None) or {}
+        if quality.get("is_likely_tail_fragment"):
+            from dialogue.guards.echo_guard import short_repeat_question
+
+            repeat_q = short_repeat_question(ctx.last_question)
+            return GuardResult(
+                triggered=True,
+                decision_type="STAY_ON_QUESTION",
+                response_text=(
+                    "Please continue your answer on the current question. "
+                    f"{repeat_q}"
+                ).strip(),
+                should_evaluate=False,
+                metadata={
+                    "guard": self.name,
+                    "flow_action": "stay_on_question",
+                    "tail_fragment": True,
+                },
+            )
+
         ctx_interview = ctx.interview_context
         canonical_q = canonical_interview_question(ctx.last_question)
 

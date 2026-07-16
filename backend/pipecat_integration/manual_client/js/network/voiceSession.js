@@ -34,6 +34,9 @@ export function createVoiceSession(config, ui, hooks = {}) {
     const onSessionEnded = typeof hooks.onSessionEnded === "function"
         ? hooks.onSessionEnded
         : null;
+    const onSessionStarted = typeof hooks.onSessionStarted === "function"
+        ? hooks.onSessionStarted
+        : null;
 
     let audioContext = null;
     let micStream = null;
@@ -43,6 +46,7 @@ export function createVoiceSession(config, ui, hooks = {}) {
     let isConnected = false;
     let botChunksReceived = 0;
     let sessionEndNotified = false;
+    let activeSessionId = "";
 
     const bargeInCtrl = createBargeInController(bargeIn, {
         onUserSpeaking: (speaking) => ui.status.setUserSpeaking(speaking),
@@ -155,8 +159,17 @@ export function createVoiceSession(config, ui, hooks = {}) {
         try {
             const msg = JSON.parse(raw);
             if (msg.type === "conversation_event") {
+                if (msg.session_id && !activeSessionId) {
+                    activeSessionId = msg.session_id;
+                }
                 if (ui.conversationStore) {
                     ui.conversationStore.applyEvent(msg);
+                }
+                if (msg.kind === "session" && msg.action === "started" && msg.session_id) {
+                    activeSessionId = msg.session_id;
+                    if (onSessionStarted) {
+                        onSessionStarted(msg.session_id);
+                    }
                 }
                 if (msg.kind === "message" && msg.text) {
                     const who =
@@ -192,6 +205,7 @@ export function createVoiceSession(config, ui, hooks = {}) {
         bargeInCtrl.reset();
         botChunksReceived = 0;
         sessionEndNotified = false;
+        activeSessionId = "";
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)({
             sampleRate: 16000,
@@ -318,12 +332,17 @@ export function createVoiceSession(config, ui, hooks = {}) {
         if (onSessionEnded && !sessionEndNotified) {
             sessionEndNotified = true;
             try {
-                onSessionEnded();
+                onSessionEnded(activeSessionId);
             } catch (err) {
                 ui.debug.log(`onSessionEnded failed: ${err.message || err}`, "error");
             }
         }
     }
 
-    return { connect, disconnect, isConnected: () => isConnected };
+    return {
+        connect,
+        disconnect,
+        isConnected: () => isConnected,
+        getSessionId: () => activeSessionId,
+    };
 }
