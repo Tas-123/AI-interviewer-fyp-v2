@@ -22,6 +22,12 @@ All settings load from environment variables (`.env` at repo root). See `.env.ex
 | `BOT_ECHO_COOLDOWN_SECONDS` | `1.2` | Ignore mic while/after bot TTS (echo suppression) |
 | `BOT_STOP_ECHO_COOLDOWN_SECONDS` | `0.8` | Cooldown after bot stops speaking |
 | `CLOSING_DELAY_SECONDS` | `2.5` | Pause before `EndTaskFrame` after closing line |
+| `FINAL_TRANSCRIPT_DEBOUNCE_SECONDS` | `0.35` | Debounce after final STT before turn submit |
+| `TURN_RESUME_WINDOW_SECONDS` | `0.75` | After submit, window to absorb/suppress STT tail fragments |
+| `TURN_TAIL_MAX_WORDS` | `6` | Max words treated as a suspicious post-answer tail |
+| `TURN_TAIL_MIN_WORDS_FOR_SUSPICION` | `10` | Prior answer length before tail suppression applies |
+
+See also: `docs/VOICE_TAIL_FRAGMENT_FIX.md` for July 15/16 tail-fragment QA details.
 
 Policy object: `backend/voice/voice_turn_policy.py` — loaded via `VoiceTurnPolicy.from_settings(settings)`.
 
