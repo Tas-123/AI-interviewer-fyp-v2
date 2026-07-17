@@ -34,7 +34,9 @@ STAGE_TO_CATEGORIES = {
     "role_specific": ["role_specific"],
 }
 
-# Mapping from blueprint domain to question bank category
+# Mapping from blueprint domain to question bank category.
+# Technical domains are intentionally absent — they must use DOMAIN_QUESTION_SEEDS
+# (or on-domain resume questions), never the generic role_specific bank.
 DOMAIN_TO_QUESTION_TYPE = {
     "project_overview": "role_specific",
     "behavioral_ownership": "behavioral",
@@ -85,10 +87,8 @@ class QuestionSelector:
                 self._asked_questions.add(str(q).strip().lower())
 
         domain_key = (domain or "").strip().lower()
-        # Prefer resume questions tagged for this domain.
-        while self._resume_question_index < len(self._resume_questions):
-            item = self._resume_questions[self._resume_question_index]
-            self._resume_question_index += 1
+        # Prefer on-domain resume questions without consuming other domains.
+        for item in self._resume_questions:
             q = item.get("question", "")
             item_domain = item.get("domain", "")
             if not q:
@@ -100,7 +100,11 @@ class QuestionSelector:
             self._asked_questions.add(q.strip().lower())
             return q
 
-        question_type = DOMAIN_TO_QUESTION_TYPE.get(domain, "role_specific")
+        # Only domains with an explicit bank mapping may use the static bank.
+        # Technical domains (python, ml, …) return None → caller uses seed / LLM.
+        question_type = DOMAIN_TO_QUESTION_TYPE.get(domain_key)
+        if not question_type:
+            return None
         return self._try_bank_question(question_type)
 
     def select_question(

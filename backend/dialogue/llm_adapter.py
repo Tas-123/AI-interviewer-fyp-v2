@@ -134,7 +134,8 @@ class LLMAdapter:
                 (domain or "").strip().lower(),
                 str(domain or "").replace("_", " "),
             )
-            context.set_active_question(question, domain_intent=intent)
+            clipped = self._clip_spoken_question(str(question))
+            context.set_active_question(clipped or question, domain_intent=intent)
 
     # ════════════════════════════════════════════════════════════
     #  Private generation methods
@@ -173,25 +174,38 @@ Session context:
         domain = action.get("domain", topic)
         difficulty = action.get("difficulty", "medium")
         seed = DOMAIN_QUESTION_SEEDS.get(domain, "")
+        variety = len(getattr(context, "question_history", []) or [])
 
-        # On-domain resume question first (project_overview / behavioral / matched skills).
+        # 1) On-domain resume question (never role_specific bank for technical domains).
         if action.get("type") == "ask":
             selector = getattr(context, "question_selector", None) or self.question_selector
-            if selector and domain in DOMAIN_QUESTION_SEEDS:
+            if selector:
                 bank_question = selector.select_for_domain(
                     domain,
                     asked_questions=context.question_history,
                 )
                 if bank_question:
-                    variety = len(getattr(context, "question_history", []) or [])
-                    candidate = _naturalize_static_question(
-                        domain, bank_question, variety_seed=variety
+                    candidate = self._clip_spoken_question(
+                        _naturalize_static_question(
+                            domain, bank_question, variety_seed=variety
+                        )
                     )
-                    if not is_semantic_duplicate(candidate, context.question_history):
+                    if candidate and not is_semantic_duplicate(
+                        candidate, context.question_history
+                    ):
                         return candidate
 
-        # Bounded LLM primary from seed + optional resume evidence.
+        # 2) Prefer naturalized domain seed (short, deterministic, voice-friendly).
         if action.get("type") == "ask" and seed:
+            candidate = self._clip_spoken_question(
+                _naturalize_static_question(domain, seed, variety_seed=variety)
+            )
+            if candidate and not is_semantic_duplicate(
+                candidate, context.question_history
+            ):
+                return candidate
+
+            # 3) Bounded LLM only when seed was already used / duplicate.
             generated = self._generate_bounded_domain_question(
                 context,
                 domain=domain,
@@ -202,12 +216,9 @@ Session context:
                 generated, context.question_history
             ):
                 return generated
-            # Fallback to naturalized seed.
-            variety = len(getattr(context, "question_history", []) or [])
-            candidate = _naturalize_static_question(
-                domain, seed, variety_seed=variety
-            )
-            if not is_semantic_duplicate(candidate, context.question_history):
+
+            # 4) Seed fallback (even if duplicate — better than empty).
+            if candidate:
                 return candidate
 
         system_prompt = TECHNICAL_SYSTEM_PROMPT.format(
@@ -222,6 +233,7 @@ Interview policy:
 - Current required domain: {domain}.
 - Domain intent seed: {seed or topic}
 - Ask exactly ONE focused question for this domain.
+- Maximum ~25 words, one sentence, one question mark.
 - Keep it practical and junior-level.
 - Do not ask multiple questions at once.
 - Do not keep drilling previous domains unless this is explicitly a follow-up.
@@ -250,7 +262,15 @@ Interview policy:
         else:
             full_prompt += "\n\nNow ask a NEW question."
 
-        return self._call_llm(full_prompt)
+        text = self._call_llm(full_prompt)
+        limited = self._enforce_voice_question_limits(text or "")
+        if limited:
+            return limited
+        if seed:
+            return self._clip_spoken_question(
+                _naturalize_static_question(domain, seed, variety_seed=variety)
+            )
+        return self._clip_spoken_question(text or "")
 
     def _resume_domain_block(self, context, domain: str) -> str:
         profile_source = getattr(context, "profile_source", None) or context.resume_data.get(
@@ -304,8 +324,9 @@ Hard constraints:
 - Keep the SAME learning intent as this seed (do not change topic):
   {seed}
 - Difficulty: {difficulty}
-- Ask only one question.
-- Junior-level, practical, voice-friendly.
+- Ask only one question (exactly one question mark).
+- Maximum 25 words. One short sentence. Voice-friendly.
+- Junior-level, practical.
 - No coaching, no hints, no answer examples.
 - Do not use markdown or bullet lists.
 - Do not stack multiple questions.
@@ -324,10 +345,34 @@ Return ONLY the spoken question.
         if not text or text.startswith("[Error"):
             return None
         cleaned = sanitize_interviewer_output(text).strip()
-        if cleaned.count("?") > 2:
+        return self._enforce_voice_question_limits(cleaned)
+
+    @staticmethod
+    def _enforce_voice_question_limits(text: str, max_words: int = 28) -> str | None:
+        """Reject overlong / multi-question LLM asks so callers can fall back to seed."""
+        cleaned = (text or "").strip()
+        if not cleaned:
             return None
-        if len(cleaned.split()) < 5:
+        if cleaned.count("?") > 1:
             return None
+        words = cleaned.split()
+        if len(words) < 5 or len(words) > max_words:
+            return None
+        return cleaned
+
+    @staticmethod
+    def _clip_spoken_question(text: str, max_words: int = 28) -> str:
+        """Soft-cap spoken primaries: one ?, ~max_words (keeps text for seed paths)."""
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return cleaned
+        if cleaned.count("?") > 1:
+            cleaned = cleaned.split("?", 1)[0].strip() + "?"
+        words = cleaned.split()
+        if len(words) > max_words:
+            cleaned = " ".join(words[:max_words]).rstrip(",;: ")
+            if "?" not in cleaned:
+                cleaned = cleaned.rstrip(".!") + "?"
         return cleaned
 
     def _generate_behavioral(self, action, context):
@@ -425,6 +470,9 @@ Follow-up policy:
 
     def _call_llm(self, prompt):
         """Make a single call to Groq with one retry on failure."""
+        from dialogue.groq_debug_log import log_groq_exchange
+
+        log_groq_exchange("GROQ_QUESTION_PROMPT", prompt)
         for attempt in range(2):
             try:
                 response = self.client.chat.completions.create(
@@ -441,11 +489,12 @@ Follow-up policy:
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.4,
-                    max_tokens=180,
+                    max_tokens=120,
                 )
 
                 text = response.choices[0].message.content.strip()
                 text = sanitize_interviewer_output(text)
+                log_groq_exchange("GROQ_QUESTION_REPLY", text)
 
                 if text and len(text) > 5:
                     return text

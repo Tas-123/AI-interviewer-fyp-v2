@@ -18,6 +18,9 @@ $PY backend/tests/test_recent_qa_memory.py
 echo "=== Canonical question / IDK hints / resume preference ==="
 $PY backend/tests/test_canonical_question_and_resume.py
 
+echo "=== Voice UX demo fixes ==="
+$PY backend/tests/test_voice_ux_demo_fixes.py
+
 echo "=== Full coverage policy ==="
 $PY backend/tests/test_full_coverage_policy.py
 

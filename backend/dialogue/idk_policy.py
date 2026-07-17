@@ -68,6 +68,39 @@ DOMAIN_HINTS: dict[str, str] = {
 }
 
 
+def is_hint_request(transcript: str) -> bool:
+    """True when the candidate is asking for a hint or help on the question."""
+    text = normalize_idk_text(transcript)
+    if not text:
+        return False
+
+    hint_phrases = (
+        "give me a hint",
+        "give me hint",
+        "any hint",
+        "a hint",
+        "need a hint",
+        "need hint",
+        "can you hint",
+        "help me",
+        "give me help",
+        "i don't get it",
+        "i dont get it",
+        "don't get it",
+        "dont get it",
+        "i'm stuck",
+        "im stuck",
+        "not getting it",
+        "can you help",
+        "please help",
+        "hint or anything",
+        "hint please",
+    )
+    if any(p in text for p in hint_phrases):
+        return True
+    return False
+
+
 def is_idk_response(transcript: str) -> bool:
     """True when the candidate signals they cannot answer."""
     text = normalize_idk_text(transcript)

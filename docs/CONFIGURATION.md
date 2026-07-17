@@ -37,7 +37,7 @@ Policy object: `backend/voice/voice_turn_policy.py` — loaded via `VoiceTurnPol
 |----------|---------|---------|
 | `LOG_LEVEL` | `INFO` | Root log level (`DEBUG`, `INFO`, `WARNING`, …) |
 | `PROCESSOR_LOG_FRAMES` | `false` | Log every Pipecat frame type (verbose; demo debugging only) |
-| `DEBUG_LIVE_LOGGING` | `false` | Append human-readable turn traces to `logs/live_interview_debug.log` |
+| `DEBUG_LIVE_LOGGING` | `false` | Append human-readable turn traces to `logs/live_interview_debug.log`. When `true`, also logs Groq question/eval prompts and replies (`GROQ_QUESTION_PROMPT` / `GROQ_QUESTION_REPLY`, `GROQ_EVAL_PROMPT` / `GROQ_EVAL_REPLY`), truncated for readability. Default stays off (privacy / log size). |
 
 Bootstrap: `backend/core/logging_config.py` — called from `main.py` and `interview_bot.py`.
 

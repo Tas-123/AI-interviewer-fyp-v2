@@ -52,6 +52,9 @@ class Evaluator:
 
     def _call_groq(self, prompt: str, json_mode: bool = False) -> str:
         """Call Groq and return raw text."""
+        from dialogue.groq_debug_log import log_groq_exchange
+
+        log_groq_exchange("GROQ_EVAL_PROMPT", prompt)
         messages = [
             {
                 "role": "system",
@@ -75,7 +78,9 @@ class Evaluator:
             kwargs["response_format"] = {"type": "json_object"}
 
         response = self.client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content.strip()
+        text = response.choices[0].message.content.strip()
+        log_groq_exchange("GROQ_EVAL_REPLY", text)
+        return text
 
     # ════════════════════════════════════════════════════════════
     #  Phase 4 — Public evaluation API

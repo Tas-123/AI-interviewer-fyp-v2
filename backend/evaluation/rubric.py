@@ -36,16 +36,40 @@ COMMUNICATION_DIMENSIONS: tuple[str, ...] = ("clarity", "structure", "confidence
 TECHNICAL_DIMENSIONS: tuple[str, ...] = ("ownership", "leadership", "result_orientation")
 
 # Reduced communication weight when STT noise is high (Phase 6B fairness).
+# Slightly favor technical dims so stuttery transcripts are less punished.
 NOISY_TRANSCRIPT_WEIGHTS: dict[str, float] = {
-    "structure": 0.12,
-    "result_orientation": 0.24,
-    "ownership": 0.24,
-    "leadership": 0.16,
+    "structure": 0.10,
+    "result_orientation": 0.28,
+    "ownership": 0.28,
+    "leadership": 0.18,
     "clarity": 0.04,
-    "confidence": 0.10,
+    "confidence": 0.12,
 }
 
 NOISY_TRANSCRIPT_THRESHOLD = 0.42
+
+
+def should_apply_transcript_quality_adjustment(
+    transcript_quality: dict[str, Any] | None,
+) -> bool:
+    """True when STT artifacts likely distorted communication scoring."""
+    if not transcript_quality:
+        return False
+    if transcript_quality.get("is_noisy"):
+        return True
+    flags = set(transcript_quality.get("flags") or [])
+    if flags & {"stutter_prefix", "likely_tail_fragment", "high_cleanup_reduction"}:
+        return True
+    if float(transcript_quality.get("reduction_ratio") or 0) >= 0.20:
+        return True
+    if float(transcript_quality.get("repeated_token_ratio") or 0) >= 0.22:
+        return True
+    if bool(transcript_quality.get("stutter_prefix")):
+        return True
+    if bool(transcript_quality.get("is_likely_tail_fragment")):
+        return True
+    return False
+
 
 # Per-answer hire signal thresholds (weighted score)
 HIRE_SIGNAL_THRESHOLDS: dict[str, float] = {
@@ -120,7 +144,7 @@ def apply_transcript_quality_adjustment(
     if not evaluation or not transcript_quality:
         return evaluation
 
-    if not transcript_quality.get("is_noisy"):
+    if not should_apply_transcript_quality_adjustment(transcript_quality):
         return evaluation
 
     adjusted = dict(evaluation)
