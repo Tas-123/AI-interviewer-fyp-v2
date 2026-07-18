@@ -37,6 +37,12 @@ export function createVoiceSession(config, ui, hooks = {}) {
     const onSessionStarted = typeof hooks.onSessionStarted === "function"
         ? hooks.onSessionStarted
         : null;
+    const onPreambleLine = typeof hooks.onPreambleLine === "function"
+        ? hooks.onPreambleLine
+        : null;
+    const onInstructionsComplete = typeof hooks.onInstructionsComplete === "function"
+        ? hooks.onInstructionsComplete
+        : null;
 
     let audioContext = null;
     let micStream = null;
@@ -47,6 +53,8 @@ export function createVoiceSession(config, ui, hooks = {}) {
     let botChunksReceived = 0;
     let sessionEndNotified = false;
     let activeSessionId = "";
+    let preambleMode = false;
+    let micUploadEnabled = true;
 
     const bargeInCtrl = createBargeInController(bargeIn, {
         onUserSpeaking: (speaking) => ui.status.setUserSpeaking(speaking),
@@ -63,6 +71,13 @@ export function createVoiceSession(config, ui, hooks = {}) {
         return payload;
     }
 
+    function sendJson(payload) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            throw new Error("WebSocket is not connected.");
+        }
+        ws.send(JSON.stringify(payload));
+    }
+
     function attachMicPipeline() {
         micSource = audioContext.createMediaStreamSource(micStream);
         scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
@@ -77,20 +92,25 @@ export function createVoiceSession(config, ui, hooks = {}) {
 
             const channel = event.inputBuffer.getChannelData(0);
             const { rms, isSilent } = computeRms(channel);
-            let allowMic = true;
+            let allowMic = micUploadEnabled;
 
             if (suppressMicWhileBotSpeaking && playback?.isPlaying()) {
                 ui.visualizer.updateFromRms(rms);
-                const result = bargeInCtrl.processFrameWhileBotSpeaking(rms);
-                if (result.bargeInEvent) {
-                    ui.debug.log(
-                        `CLIENT_BARGE_IN_DETECTED: RMS=${rms.toFixed(4)}`,
-                        "info"
-                    );
-                    playback.stopAll("user_barge_in");
-                    ws.send(JSON.stringify({ type: "interrupt", reason: "user_barge_in" }));
+                if (preambleMode) {
+                    // No barge-in during pre-interview instructions.
+                    allowMic = false;
+                } else {
+                    const result = bargeInCtrl.processFrameWhileBotSpeaking(rms);
+                    if (result.bargeInEvent) {
+                        ui.debug.log(
+                            `CLIENT_BARGE_IN_DETECTED: RMS=${rms.toFixed(4)}`,
+                            "info"
+                        );
+                        playback.stopAll("user_barge_in");
+                        ws.send(JSON.stringify({ type: "interrupt", reason: "user_barge_in" }));
+                    }
+                    allowMic = result.allowMic && micUploadEnabled;
                 }
-                allowMic = result.allowMic;
             } else {
                 ui.visualizer.updateFromRms(rms);
                 ui.status.setUserSpeaking(false);
@@ -162,6 +182,22 @@ export function createVoiceSession(config, ui, hooks = {}) {
                 if (msg.session_id && !activeSessionId) {
                     activeSessionId = msg.session_id;
                 }
+
+                if (preambleMode) {
+                    if (msg.kind === "message" && msg.role === "assistant" && msg.text) {
+                        if (onPreambleLine) onPreambleLine(msg.text);
+                        ui.debug.log(`Instructions: "${msg.text}"`, "server");
+                        return;
+                    }
+                    if (msg.kind === "session" && msg.action === "instructions_complete") {
+                        if (onInstructionsComplete) onInstructionsComplete();
+                        ui.debug.log("Pre-interview instructions complete.", "success");
+                        return;
+                    }
+                    // Ignore other preamble-phase events for the live chat panel.
+                    return;
+                }
+
                 if (ui.conversationStore) {
                     ui.conversationStore.applyEvent(msg);
                 }
@@ -183,12 +219,13 @@ export function createVoiceSession(config, ui, hooks = {}) {
                     ui.debug.log(`Phase: ${msg.phase}`, "info");
                 }
             } else if (msg.type === "text") {
-                // Legacy fallback when conversation events are unavailable.
-                ui.conversation.addBotMessage(msg.text);
+                if (!preambleMode) {
+                    ui.conversation.addBotMessage(msg.text);
+                }
                 ui.debug.log(`Bot says: "${msg.text}"`, "server");
             } else if (msg.type === "transcript" || msg.type === "user_text") {
                 const text = msg.text || msg.transcript || "";
-                if (text) ui.conversation.addUserMessage(text);
+                if (text && !preambleMode) ui.conversation.addUserMessage(text);
             } else if (msg.type === "end") {
                 ui.debug.log("Session wrap-up signal received from server.", "info");
                 disconnect();
@@ -200,16 +237,51 @@ export function createVoiceSession(config, ui, hooks = {}) {
         }
     }
 
-    async function connect() {
+    function waitForOpen(socket, timeoutMs = 15000) {
+        return new Promise((resolve, reject) => {
+            if (socket.readyState === WebSocket.OPEN) {
+                resolve();
+                return;
+            }
+            const timer = setTimeout(() => {
+                reject(new Error("WebSocket connect timed out."));
+            }, timeoutMs);
+            socket.addEventListener("open", () => {
+                clearTimeout(timer);
+                resolve();
+            }, { once: true });
+            socket.addEventListener("error", () => {
+                clearTimeout(timer);
+                reject(new Error("WebSocket connection error."));
+            }, { once: true });
+        });
+    }
+
+    /**
+     * Open WebSocket (+ optional mic) without starting the interview.
+     * @param {{ preamble?: boolean, enableMicUpload?: boolean, needMic?: boolean }} options
+     */
+    async function connect(options = {}) {
+        const forPreamble = options.preamble === true;
+        const needMic = options.needMic !== false && !forPreamble;
+        const enableMic = options.enableMicUpload !== false && needMic;
+
         ui.debug.log("Initializing AudioContext…", "info");
         bargeInCtrl.reset();
         botChunksReceived = 0;
         sessionEndNotified = false;
         activeSessionId = "";
+        preambleMode = forPreamble;
+        micUploadEnabled = enableMic;
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)({
             sampleRate: 16000,
         });
+        try {
+            await audioContext.resume();
+        } catch {
+            // ignore — some browsers resume on first audio
+        }
         playback = createPlaybackController(audioContext, config, {
             onPlaybackStarted: (wasEmpty) => {
                 ui.status.setBotSpeaking(true);
@@ -221,33 +293,26 @@ export function createVoiceSession(config, ui, hooks = {}) {
         playback.reset();
 
         ui.debug.log(`AudioContext sample rate: ${audioContext.sampleRate} Hz`, "info");
-        ui.debug.log("Requesting microphone permissions…", "info");
 
-        micStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                channelCount: 1,
-                sampleRate: 16000,
-                echoCancellation: true,
-                noiseSuppression: true,
-            },
-        });
-        ui.debug.log("Microphone access granted.", "success");
+        if (needMic) {
+            ui.debug.log("Requesting microphone permissions…", "info");
+            micStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    sampleRate: 16000,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                },
+            });
+            ui.debug.log("Microphone access granted.", "success");
+        } else {
+            ui.debug.log("Skipping microphone for pre-interview instructions.", "info");
+        }
 
         ui.status.setConnection(false, true);
         ui.debug.log(`Connecting to ${wsUrl}…`, "info");
 
         ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-            isConnected = true;
-            ui.status.setConnection(true);
-            ui.status.setPhase("live");
-            ui.debug.log("WebSocket connection established.", "success");
-            ui.debug.log("Sending startup handshake…", "info");
-            ws.send(JSON.stringify(getStartPayload()));
-            attachMicPipeline();
-            ui.debug.log("Microphone stream is live.", "success");
-        };
 
         ws.onmessage = async (event) => {
             if (event.data instanceof Blob) {
@@ -266,10 +331,74 @@ export function createVoiceSession(config, ui, hooks = {}) {
             ui.debug.log("WebSocket connection closed.", "info");
             disconnect();
         };
+
+        await waitForOpen(ws);
+        isConnected = true;
+        ui.status.setConnection(true);
+        ui.status.setPhase(forPreamble ? "setup" : "live");
+        ui.debug.log("WebSocket connection established.", "success");
+        if (micStream) {
+            attachMicPipeline();
+            ui.debug.log(
+                forPreamble
+                    ? "Connected for instructions (mic muted until Ready)."
+                    : "Microphone stream is live.",
+                "success"
+            );
+        } else {
+            ui.debug.log("Connected for instructions (no mic yet).", "success");
+        }
+    }
+
+    /** Request mic after preamble, before live interview. */
+    async function ensureMicrophone() {
+        if (micStream) {
+            micUploadEnabled = true;
+            if (!scriptProcessor) attachMicPipeline();
+            return;
+        }
+        if (!audioContext) {
+            throw new Error("Audio is not initialized. Start the interview from the welcome screen.");
+        }
+        ui.debug.log("Requesting microphone permissions…", "info");
+        micStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                channelCount: 1,
+                sampleRate: 16000,
+                echoCancellation: true,
+                noiseSuppression: true,
+            },
+        });
+        ui.debug.log("Microphone access granted.", "success");
+        micUploadEnabled = true;
+        attachMicPipeline();
+    }
+
+    /** Connect and immediately start the interview (lab Connect button). */
+    async function connectAndStart() {
+        await connect({ preamble: false, enableMicUpload: true, needMic: true });
+        sendStart();
+    }
+
+    function sendInstructions() {
+        preambleMode = true;
+        micUploadEnabled = false;
+        ui.debug.log("Requesting Cartesia instruction preamble…", "info");
+        sendJson({ type: "instructions" });
+    }
+
+    function sendStart() {
+        preambleMode = false;
+        micUploadEnabled = true;
+        ui.status.setPhase("live");
+        ui.debug.log("Sending interview start handshake…", "info");
+        sendJson(getStartPayload());
     }
 
     function disconnect() {
         isConnected = false;
+        preambleMode = false;
+        micUploadEnabled = true;
         ui.status.setConnection(false);
         ui.status.setPhase("ended");
         ui.status.setBotSpeaking(false);
@@ -341,6 +470,10 @@ export function createVoiceSession(config, ui, hooks = {}) {
 
     return {
         connect,
+        connectAndStart,
+        ensureMicrophone,
+        sendInstructions,
+        sendStart,
         disconnect,
         isConnected: () => isConnected,
         getSessionId: () => activeSessionId,

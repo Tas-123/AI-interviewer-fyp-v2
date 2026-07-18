@@ -5,6 +5,7 @@ import { createStatusView } from "./ui/statusView.js";
 import { createVisualizerView } from "./ui/visualizerView.js";
 import { createConversationView } from "./ui/conversationView.js";
 import { createDebugLogView } from "./ui/debugLogView.js";
+import { createPreInterviewFlow } from "./ui/preInterviewFlow.js";
 import {
     renderInterviewReport,
     showReportError,
@@ -56,35 +57,43 @@ async function loadReport(ui, expectedSessionId = null) {
 }
 
 function scheduleReportLoad(ui, expectedSessionId = null) {
-    // Server writes report on WebSocket disconnect; give it a moment.
     setTimeout(() => loadReport(ui, expectedSessionId), 1500);
+}
+
+async function connectAndStartSession(session, ui) {
+    const { btnConnect, btnDisconnect } = ui.refs;
+    if (btnConnect) btnConnect.disabled = true;
+    if (btnDisconnect) btnDisconnect.disabled = true;
+    try {
+        ui.conversationStore?.reset();
+        ui.conversation.clear();
+        showReportLoading(ui.refs.reportPanel);
+        await session.connectAndStart();
+        if (btnConnect) btnConnect.disabled = true;
+        if (btnDisconnect) btnDisconnect.disabled = false;
+    } catch (err) {
+        ui.debug.log(`Failed to start session: ${err.message}`, "error");
+        if (btnConnect) btnConnect.disabled = false;
+        if (btnDisconnect) btnDisconnect.disabled = true;
+        throw err;
+    }
 }
 
 function wireControls(session, ui) {
     const { btnConnect, btnDisconnect } = ui.refs;
 
-    btnConnect.addEventListener("click", async () => {
-        btnConnect.disabled = true;
-        btnDisconnect.disabled = true;
+    btnConnect?.addEventListener("click", async () => {
         try {
-            ui.conversationStore?.reset();
-            ui.conversation.clear();
-            showReportLoading(ui.refs.reportPanel);
-            await session.connect();
-            btnConnect.disabled = true;
-            btnDisconnect.disabled = false;
-        } catch (err) {
-            ui.debug.log(`Failed to start session: ${err.message}`, "error");
-            btnConnect.disabled = false;
-            btnDisconnect.disabled = true;
+            await connectAndStartSession(session, ui);
+        } catch (_) {
+            /* logged in connectAndStartSession */
         }
     });
 
-    btnDisconnect.addEventListener("click", () => {
+    btnDisconnect?.addEventListener("click", () => {
         session.disconnect();
-        btnConnect.disabled = false;
-        btnDisconnect.disabled = true;
-        // Report fetch is handled by onSessionEnded (natural end + Disconnect).
+        if (btnConnect) btnConnect.disabled = false;
+        if (btnDisconnect) btnDisconnect.disabled = true;
     });
 }
 
@@ -94,18 +103,18 @@ function bootstrap() {
 
     ui.status.setPhase(SESSION_PHASES.SETUP);
     ui.conversation.showEmpty(
-        "Connect your microphone to begin. Your conversation with the interviewer will appear here."
+        "Complete the welcome steps, then your conversation with the interviewer will appear here."
     );
-    ui.debug.log("Ready. Click Connect to begin the voice interview.", "info");
+    ui.debug.log("Welcome screen ready. Click Start Interview to begin.", "info");
 
     let reportLoadScheduled = false;
     let expectedSessionId = null;
+    let preInterview = null;
 
     const scheduleOnce = (sessionId) => {
         if (reportLoadScheduled) return;
         reportLoadScheduled = true;
         scheduleReportLoad(ui, sessionId || expectedSessionId);
-        // Allow a new load after the next reconnect.
         setTimeout(() => {
             reportLoadScheduled = false;
         }, 5000);
@@ -133,10 +142,47 @@ function bootstrap() {
                 if (btnConnect) btnConnect.disabled = false;
                 if (btnDisconnect) btnDisconnect.disabled = true;
             },
+            onPreambleLine: (text) => preInterview?.onPreambleLine(text),
+            onInstructionsComplete: () => preInterview?.onInstructionsComplete(),
         }
     );
 
     wireControls(session, ui);
+
+    preInterview = createPreInterviewFlow(refs, {
+        onLog: (msg, level) => ui.debug.log(msg, level),
+        onStartInstructions: async () => {
+            const { btnConnect, btnDisconnect } = ui.refs;
+            if (btnConnect) {
+                btnConnect.disabled = true;
+                btnConnect.hidden = true;
+            }
+            if (btnDisconnect) btnDisconnect.disabled = false;
+            ui.conversationStore?.reset();
+            ui.conversation.clear();
+            // No mic yet — only Cartesia playback for instructions.
+            await session.connect({
+                preamble: true,
+                enableMicUpload: false,
+                needMic: false,
+            });
+            session.sendInstructions();
+        },
+        onReadyStart: async () => {
+            const { btnConnect, btnDisconnect } = ui.refs;
+            ui.conversationStore?.reset();
+            ui.conversation.clear();
+            showReportLoading(ui.refs.reportPanel);
+            await session.ensureMicrophone();
+            session.sendStart();
+            if (btnConnect) {
+                btnConnect.disabled = true;
+                btnConnect.hidden = false;
+            }
+            if (btnDisconnect) btnDisconnect.disabled = false;
+        },
+    });
+    preInterview.wire();
 }
 
 bootstrap();

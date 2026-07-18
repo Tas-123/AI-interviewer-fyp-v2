@@ -23,6 +23,7 @@ from core.config import settings
 from core.logging_config import setup_logging
 from pipecat_integration import config
 from pipecat_integration.interview_processor import InterviewProcessor, sanitize_tts_text
+from pipecat_integration.preamble_copy import PREAMBLE_INSTRUCTION_LINES
 from integration.dialogue_adapter import InterviewDialogueAdapter
 
 # Configure logging
@@ -176,6 +177,11 @@ async def run_bot():
         def __init__(self):
             super().__init__()
             self.pending_start_payload: dict = {}
+            self.processor = None
+            self._control_handlers = {}
+
+        def set_control_handlers(self, handlers: dict) -> None:
+            self._control_handlers = handlers or {}
 
         async def serialize(self, frame: Frame) -> str | bytes | None:
             if isinstance(frame, OutputAudioRawFrame):
@@ -210,17 +216,24 @@ async def run_bot():
                 import json
                 try:
                     msg = json.loads(data)
-                    if msg.get("type") == "start":
-                        self.pending_start_payload = {
-                            k: v for k, v in msg.items() if k != "type"
-                        }
-                        return ClientConnectedFrame()
-                    elif msg.get("type") == "end":
+                    msg_type = msg.get("type")
+                    if msg_type == "instructions":
+                        handler = self._control_handlers.get("instructions")
+                        if handler:
+                            asyncio.create_task(handler())
+                        return None
+                    if msg_type == "start":
+                        payload = {k: v for k, v in msg.items() if k != "type"}
+                        handler = self._control_handlers.get("start")
+                        if handler:
+                            asyncio.create_task(handler(payload))
+                        return None
+                    if msg_type == "end":
                         # Client disconnect should close the WebSocket only.
                         # EndFrame would tear down Deepgram/Cartesia and break the next reconnect.
                         logger.info("Ignoring client end control message (session ends on WebSocket close).")
                         return None
-                    elif msg.get("type") == "interrupt":
+                    if msg_type == "interrupt":
                         reason = msg.get("reason", "unknown")
                         logger.info(f"SERVER_INTERRUPT_CONTROL_RECEIVED: reason={reason}")
                         proc = getattr(self, "processor", None)
@@ -305,16 +318,76 @@ async def run_bot():
 
     # Store the active session ID per connection (supporting one active session at a time in this single runner)
     active_sessions = {}
+    current_websocket = {"ws": None}
 
-    # Register client connection lifecycle hooks
-    @transport.event_handler("on_client_connected")
-    async def on_client_connected(transport, websocket):
-        logger.info("New WebSocket audio client connected.")
-        
+    async def speak_preamble_instructions() -> None:
+        """Speak fixed instruction lines via the same Cartesia TTS pipeline."""
+        if interview_processor.interview_live:
+            logger.info("Ignoring instructions — interview already live.")
+            return
+        if interview_processor.preamble_active:
+            logger.info("Preamble already in progress — ignoring duplicate request.")
+            return
+
+        interview_processor.preamble_active = True
+        interview_processor.interview_live = False
+        logger.info(
+            "Speaking pre-interview instructions via Cartesia (%d lines).",
+            len(PREAMBLE_INSTRUCTION_LINES),
+        )
         try:
-            start_payload = json_serializer.pending_start_payload or {}
-            json_serializer.pending_start_payload = {}
+            for line in PREAMBLE_INSTRUCTION_LINES:
+                text = (line or "").strip()
+                if not text:
+                    continue
+                interview_processor.arm_bot_stopped_waiter()
+                await task.queue_frames([
+                    interview_processor.conversation.frame_for(
+                        interview_processor.conversation.message(
+                            role="assistant", text=text
+                        )
+                    ),
+                    TTSSpeakFrame(text),
+                ])
+                await interview_processor.wait_until_bot_stopped()
+                await asyncio.sleep(0.15)
+            await task.queue_frames([
+                interview_processor.conversation.frame_for(
+                    interview_processor.conversation.session("instructions_complete")
+                ),
+            ])
+            logger.info("Pre-interview instructions complete.")
+        except asyncio.CancelledError:
+            logger.info("Pre-interview instructions cancelled.")
+            raise
+        except Exception:
+            logger.exception("Failed while speaking pre-interview instructions")
+            try:
+                await task.queue_frames([
+                    interview_processor.conversation.frame_for(
+                        interview_processor.conversation.session("instructions_complete")
+                    ),
+                ])
+            except Exception:
+                pass
+        finally:
+            interview_processor.preamble_active = False
 
+    async def begin_interview(start_payload: dict | None = None) -> None:
+        """Start DialogueManager session and speak the real interviewer greeting."""
+        start_payload = start_payload or {}
+        ws = current_websocket.get("ws")
+
+        interview_processor.preamble_active = False
+
+        if interview_processor.interview_live and interview_processor.session_id:
+            logger.info(
+                "Interview already live for session %s — ignoring duplicate start.",
+                interview_processor.session_id,
+            )
+            return
+
+        try:
             if start_payload:
                 logger.info(
                     "Starting interview with client profile (target_role=%s)",
@@ -324,25 +397,28 @@ async def run_bot():
             else:
                 logger.info("Starting interview with default profile (no resume supplied)")
                 result = adapter.start_interview()
-            
+
             if result.get("error"):
                 logger.error(f"Failed to start dialogue session: {result['error']}")
                 await task.queue_frames([
-                    TTSSpeakFrame("I'm sorry, I failed to start an interview session. Please try reconnecting.")
+                    TTSSpeakFrame(
+                        "I'm sorry, I failed to start an interview session. Please try reconnecting."
+                    )
                 ])
                 return
-                
+
             session_id = result.get("session_id")
             greeting = result.get("ai_response_text")
-            
-            # Map session to this connection and update the processor's active session_id
-            active_sessions[websocket] = session_id
+
+            if ws is not None:
+                active_sessions[ws] = session_id
             interview_processor.session_id = session_id
             interview_processor.reset_for_new_session()
-            
-            logger.info(f"Interview session {session_id} successfully started for new connection.")
+            interview_processor.interview_live = True
+            interview_processor.preamble_active = False
 
-            # Speak the greeting through TTS + emit one finalized chat bubble.
+            logger.info(f"Interview session {session_id} successfully started.")
+
             if greeting:
                 greeting = sanitize_tts_text(greeting)
                 await task.queue_frames([
@@ -356,12 +432,30 @@ async def run_bot():
                     ),
                     TTSSpeakFrame(greeting),
                 ])
-                
-        except Exception as ex:
-            logger.exception("Error in client connection handler")
+        except Exception:
+            logger.exception("Error beginning interview session")
+
+    json_serializer.set_control_handlers({
+        "instructions": speak_preamble_instructions,
+        "start": begin_interview,
+    })
+
+    # Register client connection lifecycle hooks
+    @transport.event_handler("on_client_connected")
+    async def on_client_connected(transport, websocket):
+        logger.info("New WebSocket audio client connected (awaiting instructions/start).")
+        current_websocket["ws"] = websocket
+        interview_processor.reset_for_new_session()
+        interview_processor.interview_live = False
+        interview_processor.preamble_active = False
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, websocket):
+        if current_websocket.get("ws") is websocket:
+            current_websocket["ws"] = None
+        interview_processor.interview_live = False
+        interview_processor.preamble_active = False
+
         session_id = active_sessions.pop(websocket, None)
         if session_id:
             logger.info(f"WebSocket client disconnected. Concluding session: {session_id}")

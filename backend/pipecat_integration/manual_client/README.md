@@ -23,6 +23,7 @@ manual_client/
     │   └── conversationStore.js  # Apply conversation_event → bubbles
     ├── ui/
     │   ├── dom.js          # Central DOM id map (change layout here)
+    │   ├── preInterviewFlow.js  # Welcome → instructions → Ready lobby
     │   ├── statusView.js   # Connection / mic / phase indicators
     │   ├── visualizerView.js
     │   ├── conversationView.js   # Chat bubbles (bot / user / system)
@@ -42,6 +43,7 @@ manual_client/
 
 | Change | Edit |
 |--------|------|
+| Pre-interview lobby / copy | `js/ui/preInterviewFlow.js` + `styles/components/preInterview.css` |
 | Colors / spacing | `styles/tokens.css` |
 | Conversation bubble layout | `styles/components/conversation.css` + `js/ui/conversationView.js` |
 | Live transcript event handling | `js/core/conversationStore.js` + `js/network/voiceSession.js` |
@@ -78,14 +80,28 @@ manual_client/
 3. Open:
    [http://localhost:8000/backend/pipecat_integration/manual_client/](http://localhost:8000/backend/pipecat_integration/manual_client/)
 
+## Pre-interview lobby
+
+On load, candidates see a welcome screen (**AI Interviewer** / Junior AI Engineer Interview).
+
+1. **Start Interview** → instructions panel opens immediately (name screen goes away)  
+2. Client connects and sends `{type:"instructions"}` — Cartesia speaks each line (same voice as the interview); bullets appear one-by-one  
+3. **Ready** → mic permission → `{type:"start"}` on the same socket → real interview greeting  
+
+**Important:** restart `interview_bot.py` after pulling these changes, then hard-refresh the browser (`Ctrl+Shift+R`). Do not use **Connect Mic & Bot** during the lobby — that lab button skips instructions.
+
+Lab **Connect Mic & Bot** remains available only after the lobby closes (or for reconnect after disconnect).
+
 ## Manual verification
 
-1. Click **Connect Mic & Bot** and allow microphone access.
-2. Confirm the greeting appears in **Live Conversation** as an Interviewer bubble (and plays as audio).
-3. Speak an answer; after you pause, your finalized transcript should appear as a **You** bubble, then the next Interviewer question.
-4. Speak during bot TTS to verify barge-in interruption.
-5. Click **Disconnect**, or let the interview finish naturally — both paths load the report (~1.5s delay) in the Interview Report panel.
-6. Expand **Technical debug log** for PCM/WebSocket diagnostics.
+1. Open the client and confirm the welcome overlay (not an immediate live session).
+2. Optionally fill name/resume on the welcome screen, then click **Start Interview**.
+3. Confirm loading, then instruction bullets appear **one-by-one** while Cartesia speaks (same interviewer voice).
+4. Wait for **Ready** to enable, click it, and confirm the real interviewer greeting in **Live Conversation**.
+5. Speak an answer; after you pause, your finalized transcript should appear as a **You** bubble, then the next Interviewer question.
+6. Speak during bot TTS to verify barge-in interruption.
+7. Click **Disconnect**, or let the interview finish naturally — both paths load the report (~1.5s delay) in the Interview Report panel.
+8. Expand **Technical debug log** for PCM/WebSocket diagnostics.
 
 ## Query-string overrides
 

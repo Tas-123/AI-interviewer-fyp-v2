@@ -175,6 +175,12 @@ class InterviewProcessor(FrameProcessor):
         self._last_submitted_transcript = ""
         self._last_submitted_word_count = 0
 
+        # Pre-interview Cartesia preamble (before DialogueManager starts).
+        self.preamble_active = False
+        self.interview_live = False
+        self._bot_stop_waiter: asyncio.Event | None = None
+        self._preamble_task: asyncio.Task | None = None
+
     async def request_client_interrupt(self, reason: str = "client_interrupt") -> None:
         """Stop bot TTS promptly when the browser client detects user barge-in."""
         logger.info("Client interrupt received — broadcasting interruption (%s)", reason)
@@ -209,6 +215,12 @@ class InterviewProcessor(FrameProcessor):
         self._resume_window_until = 0.0
         self._last_submitted_transcript = ""
         self._last_submitted_word_count = 0
+        self.preamble_active = False
+        self.interview_live = False
+        self._bot_stop_waiter = None
+        if self._preamble_task and not self._preamble_task.done():
+            self._preamble_task.cancel()
+        self._preamble_task = None
         if self._debounce_task and not self._debounce_task.done():
             self._debounce_task.cancel()
         self._debounce_task = None
@@ -217,6 +229,26 @@ class InterviewProcessor(FrameProcessor):
         self._interim_finalize_task = None
         self._cancel_silence_watch()
 
+    def mark_bot_stopped_for_waiter(self) -> None:
+        """Release waiters that sequence Cartesia preamble lines."""
+        if self._bot_stop_waiter is not None:
+            self._bot_stop_waiter.set()
+
+    def arm_bot_stopped_waiter(self) -> None:
+        """Create the Event before queuing the next TTSSpeakFrame."""
+        self._bot_stop_waiter = asyncio.Event()
+
+    async def wait_until_bot_stopped(self, timeout: float = 45.0) -> None:
+        """Block until the next BotStoppedSpeakingFrame (or timeout)."""
+        if self._bot_stop_waiter is None:
+            self._bot_stop_waiter = asyncio.Event()
+        try:
+            await asyncio.wait_for(self._bot_stop_waiter.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.warning("Timed out waiting for BotStoppedSpeakingFrame (%.1fs)", timeout)
+        finally:
+            self._bot_stop_waiter = None
+
     def _cancel_silence_watch(self) -> None:
         if self._silence_watch_task and not self._silence_watch_task.done():
             self._silence_watch_task.cancel()
@@ -224,6 +256,8 @@ class InterviewProcessor(FrameProcessor):
 
     def _schedule_silence_watch(self) -> None:
         """After bot finishes speaking, nudge / rephrase if the candidate stays silent."""
+        if not self.interview_live or self.preamble_active:
+            return
         if self.policy.candidate_silence_nudge_seconds <= 0:
             return
         # Do not restart while a silence cycle is already in progress (nudge/rephrase TTS)
@@ -716,6 +750,9 @@ class InterviewProcessor(FrameProcessor):
 
     async def _submit_turn(self, user_text: str, direction: FrameDirection) -> None:
         """Process one complete transcript through the adapter and push TTS response."""
+        if not self.interview_live or self.preamble_active:
+            logger.info("Ignoring transcript — interview not live yet: %r", user_text[:80])
+            return
         self._note_candidate_activity()
         # Ready for a new silence cycle after the next interview question finishes.
         self._silence_stage = None
@@ -856,6 +893,7 @@ class InterviewProcessor(FrameProcessor):
             logger.debug("Bot stopped speaking — short mic echo cooldown")
             self.bot_is_speaking = False
             self._bot_speech_started_at = 0.0
+            self.mark_bot_stopped_for_waiter()
             if self._in_barge_in_mic_allow_window():
                 self.ignore_user_audio_until = (
                     time.time() + self._barge_in_echo_cooldown_seconds
@@ -864,11 +902,26 @@ class InterviewProcessor(FrameProcessor):
                 self.ignore_user_audio_until = (
                     time.time() + self.policy.bot_stop_echo_cooldown_seconds
                 )
-            if not self.latest_user_transcript.strip():
-                self._schedule_silence_watch()
-            await self._emit_phase("listening", direction)
+            if self.interview_live and not self.preamble_active:
+                if not self.latest_user_transcript.strip():
+                    self._schedule_silence_watch()
+                await self._emit_phase("listening", direction)
             await self.push_frame(frame, direction)
             return
+
+        if not self.interview_live or self.preamble_active:
+            # Pre-interview / idle: pass audio frames through but ignore STT turns.
+            if isinstance(
+                frame,
+                (
+                    TranscriptionFrame,
+                    InterimTranscriptionFrame,
+                    VADUserStartedSpeakingFrame,
+                    VADUserStoppedSpeakingFrame,
+                ),
+            ):
+                await self.push_frame(frame, direction)
+                return
 
         if isinstance(frame, VADUserStartedSpeakingFrame):
             logger.debug("VAD: user started speaking")

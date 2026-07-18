@@ -9,7 +9,60 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles/main.css">
 </head>
-<body>
+<body class="pre-interview-active">
+    <div
+        id="pre-interview-overlay"
+        class="pre-interview-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pre-interview-brand"
+    >
+        <div class="pre-interview-card">
+            <!-- Welcome -->
+            <section id="pre-panel-welcome" class="pre-panel is-active" aria-labelledby="pre-interview-brand">
+                <p class="pre-brand" id="pre-interview-brand">AI Interviewer</p>
+                <h1 class="pre-title">Junior AI Engineer Interview</h1>
+                <p class="pre-description">
+                    A real-time voice interview with adaptive questions and an automated evaluation report.
+                    Take a moment to set your name and skills, then start when you are ready.
+                </p>
+                <div class="pre-profile">
+                    <div class="field">
+                        <label for="pre-input-name">Display name <span class="optional">(optional)</span></label>
+                        <input id="pre-input-name" type="text" placeholder="Alex" autocomplete="name">
+                    </div>
+                    <div class="field">
+                        <label for="pre-input-resume">Resume or skills summary <span class="optional">(optional)</span></label>
+                        <textarea id="pre-input-resume" rows="3" placeholder="Python, TensorFlow, NLP chatbot project…"></textarea>
+                    </div>
+                </div>
+                <button class="btn btn-primary pre-cta" id="btn-start-interview" type="button">
+                    Start Interview
+                </button>
+            </section>
+
+            <!-- Loading / initializing -->
+            <section id="pre-panel-loading" class="pre-panel" hidden aria-live="polite">
+                <p class="pre-brand">AI Interviewer</p>
+                <h2 class="pre-title pre-title-sm">Initializing</h2>
+                <p class="pre-description" id="pre-loading-message">Initializing AI interviewer…</p>
+                <div class="pre-spinner" aria-hidden="true"></div>
+            </section>
+
+            <!-- Instructions + Ready -->
+            <section id="pre-panel-instructions" class="pre-panel" hidden aria-labelledby="pre-instructions-heading">
+                <p class="pre-brand">AI Interviewer</p>
+                <h2 class="pre-title pre-title-sm" id="pre-instructions-heading">Interview instructions</h2>
+                <p class="pre-speaking-hint" id="pre-speaking-hint">Listening to instructions…</p>
+                <ul class="pre-instructions-list" id="pre-instructions-list"></ul>
+                <p class="pre-instructions-spoken sr-only" id="pre-instructions-spoken"></p>
+                <button class="btn btn-primary pre-cta" id="btn-ready" type="button" disabled>
+                    Ready
+                </button>
+            </section>
+        </div>
+    </div>
+
     <div class="app-shell">
         <header class="app-header">
             <h1>AI Voice Interview</h1>

@@ -1,0 +1,165 @@
+/* Pre-interview welcome / instructions / Ready lobby (frontend only). */
+
+.pre-interview-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+        radial-gradient(circle at 20% 15%, rgba(99, 102, 241, 0.28) 0%, transparent 45%),
+        radial-gradient(circle at 85% 80%, rgba(56, 189, 248, 0.12) 0%, transparent 40%),
+        rgba(11, 18, 32, 0.92);
+    backdrop-filter: blur(8px);
+}
+
+.pre-interview-overlay[hidden] {
+    display: none !important;
+}
+
+body.pre-interview-active .app-shell {
+    pointer-events: none;
+    user-select: none;
+    filter: blur(2px);
+    opacity: 0.25;
+}
+
+body.pre-interview-active .app-shell .controls-row {
+    visibility: hidden;
+}
+
+.pre-status-line {
+    font-style: italic;
+    color: var(--text-secondary) !important;
+    border-style: dashed !important;
+}
+
+.pre-status-line::before {
+    background: var(--text-muted) !important;
+    box-shadow: none !important;
+}
+
+.pre-interview-card {
+    width: min(520px, 100%);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: clamp(24px, 4vw, 36px);
+    box-shadow: var(--shadow-lg);
+    animation: fadeIn 0.35s ease;
+}
+
+.pre-panel[hidden] {
+    display: none !important;
+}
+
+.pre-brand {
+    font-size: clamp(1.75rem, 4vw, 2.35rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #c7d2fe, #6366f1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+}
+
+.pre-title {
+    font-size: clamp(1.15rem, 2.5vw, 1.4rem);
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 12px;
+    line-height: 1.35;
+}
+
+.pre-title-sm {
+    font-size: 1.2rem;
+}
+
+.pre-description {
+    color: var(--text-secondary);
+    font-weight: 300;
+    line-height: 1.55;
+    margin-bottom: 20px;
+}
+
+.pre-profile {
+    margin-bottom: 18px;
+}
+
+.pre-profile .optional {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 0.85em;
+}
+
+.pre-cta {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+    padding: 14px 20px;
+    font-size: 1rem;
+}
+
+.pre-spinner {
+    width: 40px;
+    height: 40px;
+    margin: 8px auto 0;
+    border-radius: 50%;
+    border: 3px solid rgba(99, 102, 241, 0.25);
+    border-top-color: var(--accent-primary);
+    animation: preSpin 0.8s linear infinite;
+}
+
+@keyframes preSpin {
+    to { transform: rotate(360deg); }
+}
+
+.pre-speaking-hint {
+    color: var(--status-speaking);
+    font-size: 0.9rem;
+    margin-bottom: 14px;
+}
+
+.pre-instructions-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 0 20px;
+    padding: 0;
+}
+
+.pre-instructions-list li {
+    position: relative;
+    padding: 10px 12px 10px 36px;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.pre-instructions-list li::before {
+    content: "";
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    transform: translateY(-50%);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+@media (max-width: 520px) {
+    .pre-interview-overlay {
+        padding: 16px;
+        align-items: flex-start;
+        padding-top: 48px;
+    }
+}
