@@ -199,8 +199,14 @@ def test_html_renderer_includes_executive_summary():
     legacy = generate_final_report(ctx)
     report = build_report_v2(ctx, legacy, session_id="html-test")
     html = render_report_html(report)
-    assert "Executive Summary" in html
-    assert report["executive_summary"][:20] in html or "Alex" in html
+    assert "Executive summary" in html
+    assert "Recruiter interview assessment" in html
+    assert "<h1>" in html
+    name = report["report_meta"].get("candidate_display_name") or "Alex"
+    assert name in html
+    assert report["executive_summary"][:20] in html or name in html
+    assert "Recommendation" in html
+    assert "Domain assessment" in html
 
 
 def test_narrative_fallback_without_llm():

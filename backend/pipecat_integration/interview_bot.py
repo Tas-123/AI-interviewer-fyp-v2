@@ -33,10 +33,22 @@ logger = logging.getLogger("InterviewBot")
 def start_report_http_server(host="localhost", port=None):
     """
     Small local HTTP server for the manual browser client.
-    It serves the latest saved report from the reports folder.
+    Serves latest report JSON and matching HTML from the reports folder.
     """
     if port is None:
         port = settings.report_http_port
+
+    def _latest_report_json_path():
+        reports_dir = settings.reports_dir
+        if not reports_dir.exists():
+            return None
+        report_files = sorted(
+            reports_dir.glob("interview_report_*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        return report_files[0] if report_files else None
+
     class ReportHandler(BaseHTTPRequestHandler):
         def _send_json(self, status_code, payload):
             body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
@@ -49,36 +61,79 @@ def start_report_http_server(host="localhost", port=None):
             self.end_headers()
             self.wfile.write(body)
 
+        def _send_bytes(self, status_code, body: bytes, content_type: str):
+            self.send_response(status_code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
         def do_OPTIONS(self):
             self._send_json(200, {"ok": True})
 
         def do_GET(self):
-            if self.path not in ["/latest-report", "/reports/latest"]:
+            path = self.path.split("?", 1)[0]
+
+            if path in ("/latest-report.html", "/reports/latest.html"):
+                latest = _latest_report_json_path()
+                if latest is None:
+                    self._send_bytes(
+                        404,
+                        b"No report files found yet",
+                        "text/plain; charset=utf-8",
+                    )
+                    return
+                html_path = latest.with_suffix(".html")
+                if not html_path.exists():
+                    # Regenerate HTML from JSON if sibling missing (e.g. older runs).
+                    try:
+                        from reporting.renderers.html_renderer import render_report_html
+
+                        data = json.loads(latest.read_text(encoding="utf-8"))
+                        html_body = render_report_html(data).encode("utf-8")
+                        html_path.write_text(
+                            html_body.decode("utf-8"), encoding="utf-8"
+                        )
+                    except Exception as exc:
+                        self._send_bytes(
+                            500,
+                            str(exc).encode("utf-8"),
+                            "text/plain; charset=utf-8",
+                        )
+                        return
+                else:
+                    html_body = html_path.read_bytes()
+                self._send_bytes(200, html_body, "text/html; charset=utf-8")
+                return
+
+            if path not in ("/latest-report", "/reports/latest"):
                 self._send_json(404, {"error": "Not found"})
                 return
 
-            reports_dir = settings.reports_dir
-            if not reports_dir.exists():
-                self._send_json(404, {"error": "No reports folder found yet"})
+            latest = _latest_report_json_path()
+            if latest is None:
+                if not settings.reports_dir.exists():
+                    self._send_json(404, {"error": "No reports folder found yet"})
+                else:
+                    self._send_json(404, {"error": "No report files found yet"})
                 return
 
-            report_files = sorted(
-                reports_dir.glob("interview_report_*.json"),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True
-            )
-
-            if not report_files:
-                self._send_json(404, {"error": "No report files found yet"})
-                return
-
-            latest = report_files[0]
             try:
                 data = json.loads(latest.read_text(encoding="utf-8"))
-                self._send_json(200, {
-                    "file": str(latest),
-                    "report": data
-                })
+                html_path = latest.with_suffix(".html")
+                base = f"http://{host}:{port}"
+                self._send_json(
+                    200,
+                    {
+                        "file": str(latest),
+                        "html_file": str(html_path) if html_path.exists() else None,
+                        "html_url": f"{base}/latest-report.html",
+                        "report": data,
+                    },
+                )
             except Exception as exc:
                 self._send_json(500, {"error": str(exc)})
 
@@ -93,7 +148,10 @@ def start_report_http_server(host="localhost", port=None):
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    logger.info(f"Report HTTP server running at http://{host}:{port}/latest-report")
+    logger.info(
+        f"Report HTTP server running at http://{host}:{port}/latest-report "
+        f"and http://{host}:{port}/latest-report.html"
+    )
 
 async def run_bot():
     """

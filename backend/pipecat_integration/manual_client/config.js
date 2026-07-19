@@ -1,6 +1,7 @@
 /**
  * Manual client configuration — URLs and barge-in thresholds.
- * Override via query string: ?ws=ws://host:8765&report=http://host:8766/latest-report
+ * Override via query string:
+ *   ?ws=ws://host:8765&report=http://host:8766/latest-report&report_html=http://host:8766/latest-report.html
  */
 (function () {
     const params = new URLSearchParams(window.location.search);
@@ -8,6 +9,8 @@
     window.MANUAL_CLIENT_CONFIG = {
         wsUrl: params.get("ws") || "ws://localhost:8765",
         reportUrl: params.get("report") || "http://localhost:8766/latest-report",
+        reportHtmlUrl:
+            params.get("report_html") || "http://localhost:8766/latest-report.html",
         bargeIn: {
             rmsThreshold: parseFloat(params.get("barge_rms") || "0.055"),
             minFrames: parseInt(params.get("barge_frames") || "4", 10),

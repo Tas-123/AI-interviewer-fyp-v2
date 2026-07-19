@@ -107,6 +107,48 @@
     font-size: 0.9rem;
 }
 
+.completion-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 42rem;
+}
+
+.completion-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.completion-body {
+    margin: 0;
+    color: #e2e8f0;
+    line-height: 1.65;
+    font-size: 0.95rem;
+}
+
+.completion-meta {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.completion-demo-note {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    border-left: 3px solid var(--border-color);
+    padding-left: 10px;
+}
+
+.completion-report-link {
+    align-self: flex-start;
+    text-decoration: none;
+    margin-top: 4px;
+}
+
 .hire-signal-strong {
     color: #86efac;
 }

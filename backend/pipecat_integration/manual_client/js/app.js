@@ -7,14 +7,17 @@ import { createConversationView } from "./ui/conversationView.js";
 import { createDebugLogView } from "./ui/debugLogView.js";
 import { createPreInterviewFlow } from "./ui/preInterviewFlow.js";
 import {
-    renderInterviewReport,
+    renderCompletionMessage,
+    renderCompletionMessageImmediate,
     showReportError,
     showReportLoading,
-} from "./ui/report/renderReport.js";
-import { fetchLatestReportMatched } from "./network/reportClient.js";
-import { createVoiceSession } from "./network/voiceSession.js";
+} from "./ui/report/renderReport.js?v=20260719c";
+import { fetchLatestReportMatched } from "./network/reportClient.js?v=20260719c";
+import { createVoiceSession } from "./network/voiceSession.js?v=20260719c";
 
 const cfg = window.MANUAL_CLIENT_CONFIG || {};
+const DEFAULT_HTML =
+    cfg.reportHtmlUrl || "http://localhost:8766/latest-report.html";
 
 function buildUiBundle(refs) {
     const conversation = createConversationView(refs);
@@ -37,27 +40,34 @@ function buildUiBundle(refs) {
     };
 }
 
-async function loadReport(ui, expectedSessionId = null) {
-    showReportLoading(ui.refs.reportPanel);
+async function loadCompletion(ui, expectedSessionId = null) {
+    const htmlOpts = { reportHtmlUrl: DEFAULT_HTML };
+    // Always show thank-you + link first (do not wait on HTTP).
+    renderCompletionMessageImmediate(ui.refs.reportPanel, DEFAULT_HTML);
     try {
         const data = await fetchLatestReportMatched(cfg.reportUrl, expectedSessionId);
-        renderInterviewReport(ui.refs.reportPanel, data);
-        const reportSessionId = data?.report_meta?.session_id || "unknown";
+        renderCompletionMessage(ui.refs.reportPanel, data, htmlOpts);
+        const reportSessionId =
+            data?.report?.report_meta?.session_id ||
+            data?.report_meta?.session_id ||
+            "unknown";
         ui.debug.log(
-            `Final interview report loaded (session ${reportSessionId}).`,
+            `Session finalized — completion message shown (report session ${reportSessionId}).`,
             "success"
         );
     } catch (err) {
         showReportError(
             ui.refs.reportPanel,
-            `Could not fetch report: ${err.message}. Is the report HTTP server running?`
+            `Recruiter report link may be unavailable: ${err.message}`
         );
         ui.debug.log(`Report fetch failed: ${err.message}`, "error");
     }
 }
 
 function scheduleReportLoad(ui, expectedSessionId = null) {
-    setTimeout(() => loadReport(ui, expectedSessionId), 1500);
+    // Show thank-you immediately on disconnect; refresh link after short delay.
+    renderCompletionMessageImmediate(ui.refs.reportPanel, DEFAULT_HTML);
+    setTimeout(() => loadCompletion(ui, expectedSessionId), 1500);
 }
 
 async function connectAndStartSession(session, ui) {
@@ -136,7 +146,9 @@ function bootstrap() {
                 ui.debug.log(`Voice session started (${sessionId}).`, "info");
             },
             onSessionEnded: (sessionId) => {
-                ui.debug.log("Session ended — loading interview report…", "info");
+                ui.debug.log("Session ended — showing completion message…", "info");
+                // Paint thank-you + link immediately (before the 1.5s report poll).
+                renderCompletionMessageImmediate(ui.refs.reportPanel, DEFAULT_HTML);
                 scheduleOnce(sessionId);
                 const { btnConnect, btnDisconnect } = ui.refs;
                 if (btnConnect) btnConnect.disabled = false;

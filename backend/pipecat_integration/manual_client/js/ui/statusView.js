@@ -1,7 +1,7 @@
 const PHASE_LABELS = {
     setup: "Ready to connect",
     live: "Interview in progress",
-    ended: "Session ended — review report below",
+    ended: "Session ended — see confirmation below",
 };
 
 export function createStatusView(refs) {

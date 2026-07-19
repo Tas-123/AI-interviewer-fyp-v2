@@ -7,8 +7,13 @@ export async function fetchLatestReport(reportUrl) {
     return data;
 }
 
-function extractReportSessionId(report) {
-    if (!report || typeof report !== "object") return "";
+function unwrapReport(payload) {
+    if (!payload || typeof payload !== "object") return {};
+    return payload.report || payload;
+}
+
+function extractReportSessionId(payload) {
+    const report = unwrapReport(payload);
     const meta = report.report_meta || {};
     const legacy = report.interview_metadata || {};
     return meta.session_id || legacy.session_id || "";

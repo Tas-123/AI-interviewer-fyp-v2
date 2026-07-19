@@ -100,7 +100,7 @@ Lab **Connect Mic & Bot** remains available only after the lobby closes (or for 
 4. Wait for **Ready** to enable, click it, and confirm the real interviewer greeting in **Live Conversation**.
 5. Speak an answer; after you pause, your finalized transcript should appear as a **You** bubble, then the next Interviewer question.
 6. Speak during bot TTS to verify barge-in interruption.
-7. Click **Disconnect**, or let the interview finish naturally — both paths load the report (~1.5s delay) in the Interview Report panel.
+7. Click **Disconnect**, or let the interview finish naturally — both paths show a **thank-you / completion** message (~1.5s delay). Use **Open recruiter assessment** (or `http://localhost:8766/latest-report.html`) for the detailed HTML report.
 8. Expand **Technical debug log** for PCM/WebSocket diagnostics.
 
 ## Query-string overrides
