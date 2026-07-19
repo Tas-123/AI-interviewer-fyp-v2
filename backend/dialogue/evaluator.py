@@ -59,7 +59,8 @@ class Evaluator:
             {
                 "role": "system",
                 "content": (
-                    "You are a strict senior HR interviewer and evaluator. "
+                    "You are a fair senior engineer evaluating Junior AI Engineer "
+                    "candidates in a live voice interview. "
                     "Return only valid JSON when JSON is requested. "
                     "No markdown, no code fences, no extra commentary."
                 ),

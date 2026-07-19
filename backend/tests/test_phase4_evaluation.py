@@ -41,7 +41,9 @@ def test_compute_weighted_score():
 
 def test_derive_hire_signal():
     assert derive_hire_signal(4.5) == "Strong Hire"
+    assert derive_hire_signal(4.0) == "Strong Hire"
     assert derive_hire_signal(3.5) == "Hire"
+    assert derive_hire_signal(3.0) == "Hire"
     assert derive_hire_signal(2.8) == "Borderline"
     assert derive_hire_signal(2.0) == "No Hire"
     print("[PASS] test_derive_hire_signal")

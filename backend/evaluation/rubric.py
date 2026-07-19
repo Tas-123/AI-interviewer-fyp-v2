@@ -72,9 +72,10 @@ def should_apply_transcript_quality_adjustment(
 
 
 # Per-answer hire signal thresholds (weighted score)
+# Aligned with interview-level analytics aggregates (4.0 / 3.0) for consistent labelling.
 HIRE_SIGNAL_THRESHOLDS: dict[str, float] = {
-    "strong_hire": 4.2,
-    "hire": 3.4,
+    "strong_hire": 4.0,
+    "hire": 3.0,
     "borderline": 2.5,
 }
 
