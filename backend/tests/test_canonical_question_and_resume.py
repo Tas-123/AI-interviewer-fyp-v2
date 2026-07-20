@@ -175,6 +175,21 @@ def test_bootstrap_resume_profile_prefers_resume():
     assert profile.resume_questions
 
 
+def test_resume_only_skills_exclude_default_pollution():
+    profile = build_candidate_profile(
+        resume_text=(
+            "Skills: NLP, Computer Vision, YOLO. "
+            "Built classification and detection systems."
+        )
+    )
+    assert profile.profile_source == "resume"
+    skills_l = [s.lower() for s in profile.skills]
+    assert "python" not in skills_l
+    assert "machine learning" not in skills_l
+    docker = build_candidate_profile(resume_data={"skills": ["Docker"]})
+    assert docker.skills == ["Docker"]
+
+
 def test_soft_next_still_stays_via_canonical():
     from dialogue.guards.meta_conversation_guard import MetaConversationGuard
 
@@ -213,6 +228,7 @@ if __name__ == "__main__":
         test_idk_guard_uses_broad_detection,
         test_resume_projects_and_domain_mapping,
         test_bootstrap_resume_profile_prefers_resume,
+        test_resume_only_skills_exclude_default_pollution,
         test_soft_next_still_stays_via_canonical,
     ]
     for fn in tests:

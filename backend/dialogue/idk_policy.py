@@ -217,7 +217,7 @@ def idk_attempt_response(
         )
 
     return (
-        "That's fine — let's move on to a different topic.",
+        "That's okay — we'll continue with another part of the interview.",
         "skip_domain",
     )
 

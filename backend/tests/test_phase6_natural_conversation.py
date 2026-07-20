@@ -25,14 +25,22 @@ def test_naturalize_seed0_has_no_lets_talk_frame():
 
 
 def test_naturalize_rotates_openers():
-    a = _naturalize_static_question("python", "x", variety_seed=0)
-    b = _naturalize_static_question("python", "x", variety_seed=1)
-    c = _naturalize_static_question("python", "x", variety_seed=2)
-    assert a != b or b != c
-    assert "organize the code" in a.lower()
-    assert "organize the code" in b.lower()
-    # Core ask identical after stripping openers
-    assert a.endswith("debug?") or "easy to debug" in a.lower()
+    # Seeds 0–2 are empty openers; seed 3 adds "Alright —".
+    bare = _naturalize_static_question("python", "x", variety_seed=0)
+    with_opener = _naturalize_static_question("python", "x", variety_seed=3)
+    assert "organize the code" in bare.lower()
+    assert with_opener.startswith("Alright")
+    assert "organize the code" in with_opener.lower()
+    # Resume/bank path keeps question text (no domain-core swap).
+    resume_q = "How did you train YOLO for your computer vision project?"
+    kept = _naturalize_static_question(
+        "nlp_speech_ai",
+        resume_q,
+        variety_seed=0,
+        replace_with_core=False,
+    )
+    assert "yolo" in kept.lower()
+    assert "organize the code" not in kept.lower()
 
 
 def test_soft_domain_redirect():

@@ -9,8 +9,9 @@ NATURAL INTERVIEWER STYLE RULES:
 - Sound like a calm senior technical interviewer, not a robotic questionnaire.
 - Keep the same domain and intent, but vary the wording naturally.
 - Ask only ONE question at a time.
-- Use short, varied transitions (e.g. "Alright —", "Next up:", "Building on that —",
-  "Suppose…", "In a real project…"). Avoid opening every question with "Let's talk/move…".
+- Use short, varied transitions (e.g. "Alright —", "Building on that —",
+  "Suppose…", "In a real project…"). Prefer no opener when the question already stands alone.
+  Avoid opening every question with "Let's talk/move…".
 - Avoid repeating the exact same wording from previous questions.
 - Avoid long greetings after the first question.
 - Avoid overexplaining the question.
@@ -143,7 +144,8 @@ class LLMAdapter:
 
     def _generate_intro(self, context):
         """Generate a warm professional greeting."""
-        skills_str = ", ".join(context.skills) if context.skills else "general"
+        skills_list = list(getattr(context, "skills", []) or [])[:5]
+        skills_str = ", ".join(skills_list) if skills_list else "general"
         experience = context.resume_data.get("experience", "not specified")
         role_title = context.resume_data.get("role", "Junior AI Engineer")
         name = context.resume_data.get("name", "Candidate")
@@ -162,9 +164,9 @@ Session context:
 - Target role: {role_title}
 - Profile source: {profile_source}
 - Projects from resume: {project_hint or "none listed"}
-- If profile_source is resume, you MUST briefly name one concrete skill or project from their resume in the greeting before asking them to introduce themselves.
-- If profile_source is default, explain this is a structured {role_title} practice interview.
-- Ask exactly ONE opening question (introduce yourself + one project).
+- If profile_source is resume and Skills is not "general", briefly name ONE concrete skill or project from the Skills/Projects lists above — never invent others.
+- If profile_source is default, explain this is a structured {role_title} practice interview without inventing a personal skill list.
+- Ask exactly ONE opening question (introduce yourself + one project or technical experience).
 """
         return self._call_llm(prompt)
 
@@ -187,7 +189,10 @@ Session context:
                 if bank_question:
                     candidate = self._clip_spoken_question(
                         _naturalize_static_question(
-                            domain, bank_question, variety_seed=variety
+                            domain,
+                            bank_question,
+                            variety_seed=variety,
+                            replace_with_core=False,
                         )
                     )
                     if candidate and not is_semantic_duplicate(
@@ -292,7 +297,13 @@ Interview policy:
         if projects and domain in ("project_overview", "nlp_speech_ai", "machine_learning"):
             lines.append("- Projects: " + "; ".join(str(p) for p in projects[:3]))
         if skills:
-            lines.append("- Skills: " + ", ".join(str(s) for s in skills[:8]))
+            # Prefer skills that appear in domain evidence when available.
+            evidence_l = " ".join(str(e).lower() for e in evidence)
+            domain_skills = [
+                s for s in skills if str(s).lower() in evidence_l
+            ] if evidence else []
+            show = (domain_skills or skills)[:6]
+            lines.append("- Skills: " + ", ".join(str(s) for s in show))
         if len(lines) == 1:
             return ""
         lines.append(
@@ -519,13 +530,18 @@ Follow-up policy:
 
 
 def _naturalize_static_question(
-    domain: str, question: str, variety_seed: int = 0
+    domain: str,
+    question: str,
+    variety_seed: int = 0,
+    *,
+    replace_with_core: bool = True,
 ) -> str:
     """
     Lightly naturalize fixed blueprint questions without changing their intent.
 
-    Phase 6: rotate short transitions so consecutive interviews don't all
-    open with the same \"Let's talk / move…\" frame. Core ask stays fixed.
+    When replace_with_core is True (seed path), swap in the fair fixed core for
+    the domain. When False (resume/bank path), keep the question text and only
+    optionally add a short opener.
     """
     d = (domain or "").lower().strip()
     q = (question or "").strip()
@@ -550,7 +566,7 @@ def _naturalize_static_question(
     ):
         return q
 
-    # Fixed cores (fairness / coverage). Transitions rotate separately.
+    # Fixed cores (fairness / coverage). Used for seed path only.
     cores = {
         "python": (
             "In a small ML project, how would you organize the code so it stays "
@@ -594,19 +610,24 @@ def _naturalize_static_question(
         ),
     }
 
-    core = cores.get(d)
-    if not core:
-        return q
+    if replace_with_core:
+        core = cores.get(d)
+        if not core:
+            return q
+        spoken = core
+    else:
+        spoken = q
 
+    # Prefer empty openers so interviews sound less scripted.
     openers = (
         "",
+        "",
+        "",
         "Alright — ",
-        "Next up: ",
         "Building on that — ",
-        "Shifting topics briefly — ",
     )
     # Deterministic rotation from seed (turn index) so tests stay stable for seed=0.
     opener = openers[int(variety_seed) % len(openers)]
-    return f"{opener}{core}".strip()
+    return f"{opener}{spoken}".strip()
 
 

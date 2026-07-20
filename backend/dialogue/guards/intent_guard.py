@@ -342,7 +342,7 @@ def intent_redirect_response(
         domain = str(getattr(interview_context, "current_domain", "") or "")
 
     if intent == "SKIP_REQUEST":
-        return "Sure — let's move on to a different area of the interview."
+        return "Sure — we can cover a different area next."
 
     mode = "repeat"
     if intent == "CLARIFICATION_REQUEST":

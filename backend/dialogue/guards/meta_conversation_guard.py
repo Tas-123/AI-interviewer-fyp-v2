@@ -94,10 +94,10 @@ def meta_response(
     from dialogue.rephrase_policy import rephrase_recovery, resolve_core_question
 
     if intent == "ALREADY_ANSWERED":
-        return "Understood — I'll move us forward. Let's try the next topic."
+        return "Understood — I've noted that. We'll continue from here."
 
     if intent == "CHANGE_TOPIC":
-        return "Sure — let's switch to a different area of the interview."
+        return "Sure — we can cover a different area next."
 
     core = resolve_core_question(interview_context, last_question)
     domain = ""

@@ -118,26 +118,29 @@ def build_candidate_profile(
     Build a normalized candidate profile for session start.
 
     Priority:
-    1. target_role → blueprint + default profile (structure)
-    2. resume_data / resume_text → personalization overlay (wording)
+    1. target_role → blueprint + role title (structure)
+    2. resume_data / resume_text → skills/tools/projects REPLACE defaults
+    3. No resume → copy role default profile (Python/ML fallback)
     """
     role_cfg: RoleConfig = get_role_config(target_role)
     default = dict(role_cfg.default_profile)
 
+    inline_text = (resume_data or {}).get("resume_text") if resume_data else None
+    text_to_parse = (resume_text or inline_text or "").strip()
+    has_resume = bool(text_to_parse) or _has_substance(resume_data)
+
+    # Bare skeleton — never seed resume path with DEFAULT skills.
     merged: dict[str, Any] = {
         "name": default.get("name", "Candidate"),
         "role": role_cfg.display_title,
-        "skills": list(default.get("skills", [])),
-        "experience": default.get("experience", "not specified"),
-        "projects": list(default.get("projects", [])),
-        "tools": list(default.get("tools", [])),
+        "skills": [],
+        "experience": "not specified",
+        "projects": [],
+        "tools": [],
     }
 
     profile_source = "default"
     parsed_fields: dict[str, Any] = {}
-
-    inline_text = (resume_data or {}).get("resume_text") if resume_data else None
-    text_to_parse = (resume_text or inline_text or "").strip()
 
     if text_to_parse:
         parsed_fields = _parsed_to_fields(parse_resume(text_to_parse))
@@ -148,12 +151,13 @@ def build_candidate_profile(
         rd = resume_data or {}
         if rd.get("name"):
             merged["name"] = str(rd["name"]).strip()
+        # Replace (do not merge with defaults) — merge only among resume sources below.
         if rd.get("skills"):
-            merged["skills"] = _merge_skills(merged["skills"], list(rd["skills"]))
+            merged["skills"] = _merge_skills(list(rd["skills"]))
         if rd.get("tools"):
-            merged["tools"] = _merge_skills(merged["tools"], list(rd["tools"]))
+            merged["tools"] = _merge_skills(list(rd["tools"]))
         if rd.get("projects"):
-            merged["projects"] = _merge_skills(merged["projects"], list(rd["projects"]))
+            merged["projects"] = _merge_skills(list(rd["projects"]))
         if rd.get("experience"):
             merged["experience"] = str(rd["experience"]).strip()
         # Explicit resume role is informational only; target_role drives blueprint.
@@ -161,16 +165,35 @@ def build_candidate_profile(
             merged["detected_role"] = str(rd["resume_role"]).strip()
 
     if parsed_fields:
-        merged["skills"] = _merge_skills(merged["skills"], parsed_fields.get("skills", []))
-        merged["tools"] = _merge_skills(merged["tools"], parsed_fields.get("tools", []))
+        profile_source = "resume"
+        # Merge parsed text with structured resume fields only (never defaults).
+        merged["skills"] = _merge_skills(
+            merged.get("skills", []),
+            parsed_fields.get("skills", []),
+        )
+        merged["tools"] = _merge_skills(
+            merged.get("tools", []),
+            parsed_fields.get("tools", []),
+        )
         if parsed_fields.get("projects"):
             merged["projects"] = _merge_skills(
-                merged.get("projects", []), list(parsed_fields["projects"])
+                merged.get("projects", []),
+                list(parsed_fields["projects"]),
             )
         if parsed_fields.get("experience", "not specified") != "not specified":
             merged["experience"] = parsed_fields["experience"]
         if parsed_fields.get("detected_role", "not specified") != "not specified":
             merged["detected_role"] = parsed_fields["detected_role"]
+
+    if not has_resume or profile_source == "default":
+        # No usable resume — fall back to Junior AI default profile.
+        profile_source = "default"
+        merged["skills"] = list(default.get("skills", []))
+        merged["experience"] = default.get("experience", "not specified")
+        merged["projects"] = list(default.get("projects", []))
+        merged["tools"] = list(default.get("tools", []))
+        if not (display_name and display_name.strip()):
+            merged["name"] = default.get("name", "Candidate")
 
     if display_name and display_name.strip():
         merged["name"] = display_name.strip()

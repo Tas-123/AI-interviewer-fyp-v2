@@ -134,7 +134,7 @@ def generate_speakable_redirect(
     from dialogue.rephrase_policy import rephrase_recovery, resolve_core_question
 
     if attempt >= 2:
-        return "Thanks — let's move on to the next topic."
+        return "Alright — we'll leave that for now and continue with the interview."
 
     core = resolve_core_question(interview_context, last_question)
     domain = ""

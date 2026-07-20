@@ -1,0 +1,1840 @@
+ABSTRACT
+Artificial Intelligence (AI) has transformed the recruitment industry by enabling organizations to automate various stages of the hiring process. However, many existing AI interview platforms primarily rely on text-based interactions or predefined question sets, limiting their ability to conduct realistic interviews, evaluate communication skills effectively, and adapt dynamically to candidate responses. Furthermore, most available solutions lack real-time conversational capabilities, intelligent follow-up questioning, behavioral assessment, and comprehensive interview analytics, making them less suitable for practical recruitment scenarios.
+To address these limitations, this project presents an AI-Driven Real-Time Interview Platform capable of conducting adaptive voice-based technical interviews for software and Artificial Intelligence-related roles. The proposed system integrates Automatic Speech Recognition (ASR), Large Language Models (LLMs), Text-to-Speech (TTS), Voice Activity Detection (VAD), and an adaptive dialogue management framework to simulate the behavior of a professional human interviewer. Unlike conventional interview systems, the proposed platform continuously analyzes candidate responses, generates context-aware follow-up questions, evaluates technical knowledge and communication skills, prevents repetitive questioning, and dynamically adjusts the interview flow based on candidate performance.
+The system adopts a modular architecture consisting of a browser-based client interface, a FastAPI backend, a real-time voice communication pipeline, an intelligent dialogue management engine, an evaluation module, and an automated reporting subsystem. Speech input from candidates is transcribed using Deepgram Speech-to-Text services, while conversational intelligence is powered by the Groq-hosted Llama 3.3 language model. Interview responses are synthesized into natural speech using Cartesia Text-to-Speech, enabling seamless two-way voice communication with minimal latency. Supporting components including transcript processing, silence detection, interruption handling, semantic duplicate prevention, adaptive evaluation, and coverage tracking collectively enhance interview realism and user experience.
+The proposed platform was designed and implemented using Python, FastAPI, Pipecat, WebSockets, JavaScript, HTML, CSS, and modern AI APIs. The developed system supports structured technical interviews, intelligent domain progression, automated candidate evaluation, recruiter-oriented reporting, and real-time conversational interaction. Experimental testing demonstrated stable real-time communication, low-latency response generation, effective adaptive questioning, and consistent interview flow management across multiple interview sessions. The modular architecture also enables future integration of facial behavior analysis, emotion recognition, multilingual interviewing, and cloud-based deployment for enterprise-scale recruitment.
+This project contributes a comprehensive AI-powered interviewing platform that bridges the gap between traditional online assessments and human-conducted interviews by combining advanced speech technologies, natural language understanding, adaptive decision-making, and automated evaluation into a unified intelligent recruitment system. The proposed solution provides an efficient, scalable, and extensible framework for conducting realistic technical interviews while reducing interviewer workload, improving candidate assessment consistency, and supporting data-driven hiring decisions.
+DEDICATION
+We dedicate this project to our parents and families whose unconditional love, sacrifices, encouragement, and continuous support have been the foundation of our academic journey. Their belief in our abilities has motivated us to overcome challenges and pursue excellence throughout the development of this project.
+We also dedicate this work to our teachers, mentors, and friends who provided guidance, inspiration, and encouragement at every stage of our studies. Their support played a significant role in helping us successfully complete this research and development effort.
+Finally, this project is dedicated to all students and researchers who strive to use Artificial Intelligence for creating practical solutions that contribute positively to society and technological advancement.
+ACKNOWLEDGMENTS
+We express our sincere gratitude to our respected supervisors, Engr. Usman Javed and Engr. M. Abdullah Umar, for their invaluable guidance, continuous support, constructive feedback, and encouragement throughout the development of our project, AI-Driven Real-Time Interview Platform. Their expertise and mentorship greatly contributed to the successful completion of this work.
+We are also thankful to the faculty members and administration of Hamdard University, Islamabad Campus, for providing a supportive academic environment and the necessary resources required for conducting this project. 
+Our heartfelt appreciation goes to our families for their patience, motivation, prayers, and unwavering support during the entire duration of our degree program and project development process.
+We would also like to acknowledge our friends and colleagues who assisted us through discussions, testing, feedback, and encouragement during various stages of this project.
+Lastly, we are grateful to all individuals who directly or indirectly contributed to the completion of this research and development work.
+Muhammad Usman Sajid (ECI-IT-22-xxx)
+Taimur Ali Sakhawat (ECI-IT-22-xxx)
+Eimaan Khan Bangash (ECI-IT-22-xxx)
+Bismah Khan Bangash (ECI-IT-22-xxx)
+PROJECT BRIEF
+Project Name
+AI-Driven Real-Time Interview Platform
+Objective
+To design and develop an intelligent real-time voice-based interview system capable of conducting adaptive technical interviews, evaluating candidate responses, and generating automated interview reports using Artificial Intelligence technologies.
+Submitted By
+Muhammad Usman Sajid (ECI-IT-22-xxx),Taimur Ali Sakhawat (ECI-IT-22-xxx),
+Eimaan Khan Bangash (ECI-IT-22-xxx),  Bismah Khan Bangash (ECI-IT-22-xxx)
+Project Supervisors
+Engr. Usman Javed; Engr. M. Abdullah Umar
+Date Started
+October 2025
+Date Completed
+September 2026
+Tools Used
+Python, FastAPI, Pipecat, Deepgram, Groq API, Cartesia TTS, Visual Studio Code, GitHub, HTML, CSS, JavaScript
+System Used
+-------
+CONTENTS
+Abstract ........................................................................................................ iDedication .................................................................................................... iiAcknowledgments ....................................................................................... iiiProject Brief ................................................................................................. ivList of Figures ............................................................................................ viiiList of Tables ............................................................................................... ixList of Abbreviations ................................................................................... x
+Introduction ................................................................................ 1
+Introduction ............................................................................................. 21.1.1 Problem Statement ............................................................................ 41.1.2 Organization of Project ..................................................................... 5
+2. Literature Review ....................................................................... 7
+3. System Background .................................................................. 16
+3.1 Artificial Intelligence in Recruitment .................................................... 173.2 Automatic Speech Recognition (ASR) .................................................. 193.3 Text-to-Speech (TTS) Systems .............................................................. 223.4 Large Language Models (LLMs) .......................................................... 253.5 Voice Activity Detection (VAD) ........................................................... 283.6 Real-Time Communication Architecture ............................................... 303.7 Evaluation Metrics ................................................................................ 34
+4. Methodology .............................................................................. 38
+4.1 Requirement Analysis ............................................................................ 394.2 System Architecture .............................................................................. 414.3 Frontend Development .......................................................................... 444.4 Backend Development ........................................................................... 474.5 Dialogue Management Engine ............................................................... 504.6 Evaluation Pipeline ................................................................................ 544.7 Report Generation ................................................................................. 57
+5. Results and Discussion .............................................................. 60
+5.1 Experimental Setup ............................................................................... 615.2 Real-Time Voice Interaction Results ..................................................... 635.3 Adaptive Questioning Analysis ............................................................. 665.4 System Performance Evaluation ............................................................ 695.5 Discussion .............................................................................................. 72
+6. System Design and Implementation .......................................... 74
+6.1 Overall System Architecture ................................................................. 756.2 Voice Pipeline Implementation .............................................................. 786.3 Dialogue Engine Workflow ................................................................... 826.4 Reporting Dashboard ............................................................................. 866.5 Deployment Considerations .................................................................. 896.6 Future Enhancements ............................................................................ 92
+7. Conclusion .................................................................................. 95
+Appendix A: Project Configuration and System Information ................................101Appendix B: Code Snippets ....................................................................... 104Appendix C: Sustainable Development Goals (SDGs) ............................ 112
+LIST OF FIGURES
+3.1 Architecture of the AI-Driven Interview Platform .......................... 183.2 Automatic Speech Recognition Workflow ...................................... 213.3 Text-to-Speech Processing Pipeline ................................................ 243.4 Large Language Model Interaction Flow ....................................... 273.5 Voice Activity Detection Process ................................................... 293.6 Real-Time Communication Architecture ........................................ 334.1 Overall Methodology of the Proposed System ............................... 424.2 Frontend User Interface Workflow ................................................. 454.3 Backend Processing Pipeline .......................................................... 484.4 Dialogue Management and Decision Engine .................................. 524.5 Evaluation and Scoring Workflow .................................................. 564.6 Automated Report Generation Process ........................................... 585.1 Real-Time Interview Session Flow ................................................. 645.2 Adaptive Question Progression Across Domains ........................... 675.3 System Response Time Analysis .................................................... 706.1 Layered System Architecture ......................................................... 766.2 Voice Processing Pipeline .............................................................. 796.3 Dialogue Engine Workflow ............................................................ 846.4 Recruiter Report Dashboard .......................................................... 87
+A.1 Sample Interview Session Structure ............................................ 102
+LIST OF TABLES
+2.1 Comparison of Existing AI Interview Platforms .............................. 153.1 Comparison of ASR Technologies .................................................. 203.2 Comparison of TTS Technologies ................................................... 233.3 Evaluation Metrics Used in the System ........................................... 354.1 Software and Hardware Requirements ............................................ 404.2 System Modules and Responsibilities ............................................. 434.3 API Endpoints Implemented in the Backend ................................... 494.4 Interview Evaluation Criteria .......................................................... 555.1 Experimental Test Configuration .................................................... 625.2 Average Response Time Measurements .......................................... 685.3 Overall System Performance Results .............................................. 716.1 Deployment Components and Services ........................................... 90
+C.1 Alignment with Sustainable Development Goals (SDGs) ............ 113
+LIST OF ABBREVIATIONS
+Abbreviation
+Meaning
+AI
+Artificial Intelligence
+API
+Application Programming Interface
+ASR
+Automatic Speech Recognition
+CPU
+Central Processing Unit
+CSS
+Cascading Style Sheets
+GPU
+Graphics Processing Unit
+HTML
+HyperText Markup Language
+HTTP
+HyperText Transfer Protocol
+JSON
+JavaScript Object Notation
+LLM
+Large Language Model
+NLP
+Natural Language Processing
+PCM
+Pulse Code Modulation
+REST
+Representational State Transfer
+RMS
+Root Mean Square
+STT
+Speech-to-Text
+TTS
+Text-to-Speech
+VAD
+Voice Activity Detection
+ViT
+Vision Transformer
+WebRTC
+Web Real-Time Communication
+WS
+WebSocket
+ROC
+Receiver Operating Characteristic
+AUC
+Area Under the Curve
+F1-Score
+Harmonic Mean of Precision and Recall
+TP
+True Positive
+FP
+False Positive
+TN
+True Negative
+FN
+False Negative
+SQL
+Structured Query Language
+UI
+User Interface
+UX
+User Experience
+RAM
+Random Access Memory
+SSD
+Solid State Drive
+OS
+Operating System
+CHAPTER 1
+Introduction
+  INTRODUCTION
+The rapid advancement of Artificial Intelligence (AI) has transformed numerous industries by automating complex tasks, improving decision-making processes, and enhancing user experiences. Among these industries, recruitment and talent acquisition have experienced significant technological evolution through the adoption of AI-powered tools for resume screening, candidate ranking, online assessments, and interview scheduling. Organizations increasingly rely on intelligent recruitment systems to reduce hiring time, minimize operational costs, and improve the overall quality of candidate selection. Despite these advancements, one of the most critical stages of the recruitment process—the technical interview—still largely depends on human interviewers, making it time-consuming, expensive, and susceptible to inconsistency and subjective bias.
+Traditional online interviewing platforms primarily focus on scheduling interviews or facilitating video communication between interviewers and candidates. Although these platforms simplify remote interviewing, they do not actively participate in evaluating candidate performance or adapting interview questions based on candidate responses. Similarly, many AI-based interviewing solutions currently available rely on scripted conversations, static questionnaires, or text-based chatbots that lack the ability to conduct realistic, dynamic, and context-aware interviews. As a result, these systems often fail to accurately assess a candidate's technical knowledge, communication skills, analytical thinking, and problem-solving abilities in a manner comparable to an experienced human interviewer.
+Recent advancements in Large Language Models (LLMs), Automatic Speech Recognition (ASR), Text-to-Speech (TTS), and real-time conversational AI have created new opportunities for developing intelligent interview systems capable of conducting interactive voice-based interviews. These technologies enable machines to understand spoken language, generate natural responses, maintain conversational context, and produce human-like speech with remarkably low latency. By integrating these technologies into a unified architecture, AI systems can move beyond simple question-answer interactions and provide adaptive interviewing experiences that closely resemble real-world technical interviews.
+The development of intelligent interview platforms has become particularly important due to the increasing demand for remote hiring and global recruitment. Companies frequently receive hundreds or even thousands of applications for a single position, making manual interviewing an increasingly difficult and resource-intensive process. Recruiters and technical interviewers must invest considerable time evaluating each candidate while ensuring fairness and consistency across interviews. Human interviewers may unintentionally introduce bias, vary the difficulty of questions, overlook important competencies, or provide inconsistent evaluations depending on experience, workload, or personal judgment. An AI-powered interviewing system can help address these challenges by providing standardized interview procedures, objective evaluation criteria, and consistent questioning strategies for every candidate.
+The proposed AI-Driven Real-Time Interview Platform is designed to simulate the behavior of a professional technical interviewer by combining state-of-the-art speech processing, natural language understanding, adaptive dialogue management, and automated evaluation techniques. Unlike conventional chatbot-based interview systems, the proposed platform conducts interviews entirely through natural voice conversations, allowing candidates to interact with the system as they would with a human interviewer. The platform continuously listens to candidate responses, converts speech into text using Automatic Speech Recognition, evaluates responses using Large Language Models, generates context-aware follow-up questions, synthesizes responses into natural speech using Text-to-Speech technology, and produces comprehensive interview reports for recruiters upon interview completion.
+To achieve real-time performance, the system adopts a modular architecture consisting of multiple interconnected components. The browser-based client captures candidate audio and communicates with the backend through WebSocket connections to support low-latency streaming. The backend processes incoming audio using Voice Activity Detection (VAD) to distinguish speech from silence and forwards speech segments to the Speech-to-Text service for transcription. Once the candidate's response has been transcribed, an intelligent dialogue management engine evaluates the answer, determines the next interview action, selects appropriate technical questions, and generates interviewer responses using a Large Language Model. Finally, the generated response is converted back into speech using a Text-to-Speech engine and delivered to the candidate, completing a continuous conversational cycle. This pipeline enables natural interaction without requiring the candidate to type responses or manually control the interview flow.
+A distinguishing feature of the proposed platform is its adaptive dialogue management capability. Instead of asking a predefined sequence of questions, the system analyzes candidate responses in real time and dynamically determines whether additional probing questions are required, whether the candidate has sufficiently demonstrated competency in a particular domain, or whether the interview should progress to another technical topic. This adaptive interviewing strategy enables more accurate assessment of candidate knowledge while maintaining a conversational flow similar to that of experienced human interviewers. The platform also incorporates mechanisms to prevent repetitive questioning, manage interview coverage across multiple technical domains, and maintain contextual awareness throughout the interview session.
+In addition to intelligent questioning, the proposed system provides automated candidate evaluation based on predefined technical and communication criteria. Each candidate response is assessed using multiple evaluation dimensions, allowing the platform to generate objective scores, identify strengths and weaknesses, and summarize overall interview performance. Rather than relying solely on keyword matching or simple correctness checks, the evaluation process considers response quality, technical depth, clarity of explanation, ownership of ideas, and communication effectiveness. These evaluations are aggregated into detailed recruiter reports that support informed hiring decisions while reducing the manual effort required from interviewers.
+Another important aspect of the proposed system is its emphasis on user experience and conversational realism. The platform incorporates interruption handling, silence detection, transcript refinement, duplicate question prevention, and timing policies to produce smooth and natural conversations. Voice Activity Detection allows the system to recognize when candidates begin and finish speaking, while interruption handling enables candidates to naturally interrupt the interviewer when necessary, creating a more realistic interview environment. Such conversational features distinguish the proposed platform from conventional AI interview systems that often rely on rigid turn-taking mechanisms or predefined interaction patterns.
+The implementation of this project utilizes modern software engineering principles and AI technologies. The backend is developed using Python and FastAPI, providing scalable REST APIs and WebSocket communication. Pipecat serves as the real-time voice orchestration framework, while Deepgram provides high-quality Speech-to-Text capabilities, Groq hosts the Llama 3.3 Large Language Model for conversational intelligence and evaluation, and Cartesia generates natural Text-to-Speech output. HTML, CSS, and JavaScript are employed to develop the browser-based user interface, allowing candidates to participate in interviews without requiring specialized software installation. The modular architecture further ensures maintainability, scalability, and future extensibility for integrating additional AI capabilities such as multilingual interviewing, facial behavior analysis, emotion recognition, and cloud deployment.
+The significance of this project extends beyond academic research. As organizations increasingly adopt AI-driven recruitment practices, intelligent interview systems have the potential to reduce recruitment costs, improve interview consistency, shorten hiring cycles, and enhance candidate experience. Educational institutions may also utilize such systems to conduct mock interviews, assess student preparedness, and provide personalized feedback before placement activities. Furthermore, the modular design of the proposed platform enables future adaptation for interviews across different technical domains, industries, and organizational requirements.
+In conclusion, this project presents a comprehensive AI-powered real-time interviewing platform that integrates advanced speech technologies, conversational AI, adaptive decision-making, and automated evaluation into a unified recruitment solution. By combining real-time voice interaction with intelligent dialogue management and objective performance assessment, the proposed system bridges the gap between conventional online interview platforms and human-conducted technical interviews. The following sections describe the problem addressed by this research, the organization of the project, the underlying technologies, system architecture, implementation methodology, experimental evaluation, and future directions in detail.
+1.1.1 Problem Statement
+The rapid growth of remote recruitment and online hiring has increased the demand for intelligent interview systems that can efficiently assess candidates while reducing the workload of human interviewers. Traditional interview processes require significant time, resources, and technical expertise, making it difficult for organizations to interview a large number of applicants consistently. Differences in interviewer experience, questioning style, and evaluation criteria may also lead to inconsistent hiring decisions and potential bias.
+Although several AI-based interview platforms are available, most existing solutions rely on predefined questionnaires, rule-based conversations, or text-based interactions that do not accurately simulate a real technical interview. These systems often lack the ability to conduct natural voice conversations, generate context-aware follow-up questions, evaluate candidate responses intelligently, and adapt the interview according to candidate performance. As a result, they provide limited assessment of technical knowledge, communication skills, and problem-solving abilities.
+Developing an intelligent interview platform also presents several technical challenges, including accurate speech recognition, real-time conversation management, adaptive question generation, response evaluation, and natural speech synthesis. These components must operate together efficiently to provide a smooth and realistic interview experience.
+Therefore, there is a need for an AI-driven real-time interview platform capable of conducting adaptive voice-based technical interviews while providing consistent and objective candidate evaluation. The proposed system addresses these challenges by integrating Automatic Speech Recognition (ASR), Voice Activity Detection (VAD), Large Language Models (LLMs), Text-to-Speech (TTS), adaptive dialogue management, and automated reporting into a unified framework. The system aims to improve recruitment efficiency, reduce interviewer workload, and provide a realistic and scalable technical interviewing solution. 
+1.1.2 Organization of Project
+The project is organized into seven chapters:
+Chapter 1: Introduction presents the background of AI in recruitment, the problem statement, objectives, scope, and overall organization of the project. 
+Chapter 2: Literature Review reviews existing research on AI-based interview systems, conversational AI, speech processing technologies, and intelligent recruitment platforms while identifying current limitations and research gaps. 
+Chapter 3: System Background explains the fundamental concepts and technologies used in the proposed system, including Speech-to-Text, Text-to-Speech, Large Language Models, Voice Activity Detection, and real-time communication architecture. 
+Chapter 4: Methodology describes the proposed system architecture, development methodology, implementation process, dialogue management, evaluation framework, and integration of different system components. 
+Chapter 5: Results and Discussion presents the implementation results, evaluates system performance, and discusses the effectiveness and limitations of the proposed platform. 
+Chapter 6: System Design and Implementation explains the software architecture, voice processing pipeline, deployment considerations, and practical implementation of the AI-Driven Real-Time Interview Platform. 
+Chapter 7: Conclusion summarizes the research contributions, discusses the overall findings, identifies limitations, and provides recommendations for future work
+Chapter 2
+Literature Review
+In this chapter, a detailed literature review of recent studies related to Artificial Intelligence (AI)-based interview systems is presented to provide an understanding of the latest developments in intelligent recruitment technologies. Researchers have proposed various approaches that integrate Machine Learning (ML), Natural Language Processing (NLP), Automatic Speech Recognition (ASR), Large Language Models (LLMs), and conversational AI to automate candidate screening and interviewing processes. These systems aim to reduce recruitment time, improve evaluation consistency, and enhance candidate experience by minimizing manual effort and supporting intelligent decision-making. Recent advancements in speech processing, deep learning, and generative AI have further enabled the development of adaptive interview platforms capable of conducting interactive and context-aware conversations. Furthermore, the increasing demand for remote recruitment has encouraged organizations to adopt intelligent interviewing solutions that provide scalable, consistent, and unbiased candidate evaluation. However, existing solutions still face challenges such as limited adaptability, lack of real-time voice interaction, insufficient contextual understanding, restricted automated evaluation capabilities, dependence on predefined interview workflows, and difficulty handling dynamic interview scenarios. Therefore, reviewing previous research helps identify existing gaps and provides the foundation for developing the proposed AI-Driven Real-Time Interview Platform [1].
+The study proposed an AI-powered recruitment framework that integrates Machine Learning techniques to automate candidate screening and preliminary interviews [2]. The system analyzes applicant resumes, compares candidate qualifications with predefined job requirements, and conducts structured interviews using predefined conversational workflows. Machine learning algorithms are employed to rank candidates according to their technical skills, educational background, work experience, and overall suitability for specific job roles. The proposed framework significantly reduces manual effort during the initial stages of recruitment while improving consistency in candidate selection. Experimental results demonstrated improved recruitment efficiency by reducing manual screening effort, increasing consistency in candidate evaluation, and shortening the overall hiring process. The framework also assists recruiters by filtering large numbers of applications within a shorter period. However, the system relies on fixed interview questions and lacks adaptive dialogue management, real-time voice communication, intelligent follow-up questioning, and contextual understanding, limiting its ability to simulate realistic technical interviews and evaluate higher-order problem-solving abilities.
+The authors presented a conversational AI interview system based on Large Language Models (LLMs) for conducting intelligent candidate interviews [3]. The proposed system generates context-aware interview questions, maintains conversational flow, and evaluates candidate responses using Natural Language Processing techniques. By understanding previous responses, the system is capable of producing more relevant follow-up questions, thereby creating a more engaging and personalized interview experience. The integration of transformer-based language models enables the interviewer to provide human-like interactions while maintaining coherence throughout the conversation. Experimental evaluation showed improved interaction quality, better candidate engagement, and more natural conversations compared to traditional rule-based chatbot systems. Despite these advantages, the system depends heavily on cloud-based AI services and requires high computational resources, which may increase response latency, operational cost, deployment complexity, and dependency on reliable internet connectivity.
+The research introduced an Automatic Speech Recognition (ASR)-based interview platform that enables candidates to communicate through natural voice instead of text [4]. Speech input is converted into textual form for further processing and evaluation, providing a more realistic and interactive interview experience. The platform incorporates modern speech recognition algorithms capable of handling continuous voice conversations while reducing the need for manual typing during interviews. Integration with language processing modules enables automatic understanding of candidate responses and supports conversational interaction. Experimental results demonstrated high transcription accuracy under controlled environments and significantly improved user interaction by enabling hands-free communication. Nevertheless, speech recognition performance decreased in noisy environments, for speakers with diverse accents, and during overlapping speech, affecting transcription quality and the overall reliability of candidate evaluation.
+The study developed an adaptive dialogue management system capable of generating follow-up interview questions according to candidate responses [5]. The system continuously analyzes conversation context, determines candidate knowledge levels, and dynamically adjusts interview difficulty based on previous answers. This adaptive questioning strategy enables more effective assessment of technical skills while maintaining a natural interview flow throughout the session. The dialogue manager also attempts to prevent abrupt topic transitions and ensures logical progression between interview questions. Experimental results demonstrated improved interview flexibility, enhanced candidate engagement, and better evaluation of technical knowledge when compared to static interview systems. However, maintaining long conversational context, preventing repetitive questioning, handling unexpected candidate responses, and balancing interview coverage across multiple technical topics remained significant challenges during extended interview sessions.
+The authors proposed an AI-based candidate assessment system that combines Natural Language Processing (NLP) and Machine Learning algorithms to evaluate candidate responses during interviews [6]. The system analyzes semantic meaning, communication quality, response relevance, grammatical correctness, and linguistic patterns to generate automated performance scores. By applying machine learning models, the framework provides objective and consistent evaluation across multiple candidates while reducing dependence on manual scoring by recruiters. The proposed approach also assists interviewers by identifying strengths and weaknesses in candidate responses through automated analysis. Experimental results indicated improved evaluation consistency, reduced recruiter workload, and faster candidate assessment compared to conventional manual evaluation methods. However, the system primarily focused on textual responses and lacked support for real-time voice interaction, adaptive questioning, emotional understanding, and continuous conversational assessment.
+The study presented a multimodal interview analysis framework that integrates speech, facial expressions, and textual responses to assess candidate performance [7]. The proposed system extracts verbal and non-verbal features using deep learning models to evaluate communication skills, confidence, behavioural characteristics, and overall interview performance. By combining multiple sources of information, the framework achieves more comprehensive candidate assessment than systems relying solely on textual responses. Experimental evaluation demonstrated improved prediction accuracy and better understanding of candidate behaviour during interviews. The proposed approach also supports behavioural analysis by incorporating visual cues alongside speech and language processing. However, the framework requires high computational resources, specialized hardware, high-quality video input, and additional processing time, making large-scale real-time deployment more challenging in practical recruitment environments.
+The researchers developed a real-time conversational AI platform designed to simulate human interviewers using Large Language Models and speech processing technologies [8]. The platform supports continuous dialogue, generates context-aware follow-up questions, and provides automated feedback based on candidate responses. Integration of speech recognition, language generation, and speech synthesis enables candidates to interact naturally without relying on predefined conversational scripts. The adaptive nature of the platform improves interview realism by allowing conversations to evolve according to candidate performance and response quality. Experimental results showed enhanced interview realism, improved user engagement, and more personalized interview experiences compared to conventional chatbot systems. Despite these advantages, the platform experienced occasional response latency, increased computational requirements, and dependency on stable internet connectivity because most processing was performed using cloud-based AI services.
+The study proposed an intelligent recruitment platform that integrates Automatic Speech Recognition (ASR), Large Language Models (LLMs), and Text-to-Speech (TTS) technologies to conduct voice-based interviews [9]. The system enables candidates to communicate naturally while automatically evaluating technical knowledge, communication skills, response quality, and overall interview performance. The integration of speech recognition, conversational AI, and speech synthesis creates a complete voice-based interviewing pipeline that closely resembles interviews conducted by human recruiters. The platform also generates automated evaluation reports that assist recruiters during the hiring process. Experimental results demonstrated improved interview automation, reduced recruiter workload, consistent candidate evaluation, and enhanced interview efficiency. However, the proposed system provided limited support for dynamic interview progression, interruption handling, duplicate question prevention, advanced conversational memory, and comprehensive recruiter reporting, leaving opportunities for further research and improvement.
+Table 2.1 Comparison of Existing AI-Based Interview Systems
+Study / Model
+Key Technique
+Dataset  Evaluation
+Performance Metric
+Notes
+AI Interview Systems Survey [1]
+Comprehensive review of AI-based recruitment, NLP, ASR, and LLM technologies
+Review of existing AI interview literature
+Identifies current trends and research challenges
+Highlights limitations such as lack of adaptive dialogue, real-time voice interaction, and comprehensive evaluation frameworks.
+MockLLM (Sun et al.) [2]
+LLM-based adaptive interview agent with contextual dialogue
+Mock interview benchmark and human evaluation
+High contextual relevance and human-like questioning
+Generates adaptive questions but lacks real-time voice interaction and interruption handling.
+InterviewBot (Wang et al.) [3]
+Conversational AI using LLMs for technical interviews
+Simulated technical interview sessions
+Improved interview quality and automated evaluation
+Limited transparency in scoring and recruiter reporting.
+InterviewEase (Kothari et al.) [4]
+Resume-aware interview generation using NLP
+Resume dataset and interview scenarios
+Personalized interview generation
+Focuses mainly on resume-based questioning and lacks adaptive dialogue.
+Khapekar et al. (2025) [5]
+AI-powered mock interview platform
+User evaluation and mock interview sessions
+Improved interview preparation and user engagement
+Limited support for real-time voice conversations.
+Jagtap et al. (2025) [6]
+Multimodal interview analysis using speech and facial expressions
+Video interview datasets
+Enhanced behavioural assessment
+Requires facial analysis and high computational resources.
+Koshti et al. (2025) [7]
+Machine Learning-based recruitment and candidate screening
+Recruitment datasets
+Improved candidate filtering efficiency
+Primarily designed for screening rather than technical interviewing.
+Amrutha et al. (2024) [8]
+Voice and emotion analysis for interview assessment
+Speech and interview recordings
+Better communication assessment
+Emotion analysis is sensitive to environmental noise and recording quality.
+Proposed AI-Based Real-Time Interview Simulator [9]
+ASR + LLM + TTS + VAD + Adaptive Dialogue Management
+Real-time Junior AI Engineer interview sessions
+End-to-end voice interview with automated evaluation
+Integrates adaptive questioning, interruption handling, structured scoring, and recruiter-oriented reporting in a unified system.
+Chapter 3
+System Background
+This chapter presents the technical background and core technologies that form the foundation of the proposed AI-Driven Real-Time Interview Platform. Unlike conventional AI interview systems that primarily rely on text-based interactions, the proposed platform integrates real-time speech processing, intelligent dialogue management, adaptive question generation, and automated candidate evaluation into a unified architecture. The objective is to simulate a realistic technical interview by enabling natural voice-based communication while continuously analyzing candidate responses.
+The proposed system combines several modern Artificial Intelligence technologies, including Automatic Speech Recognition (ASR), Large Language Models (LLMs), Text-to-Speech (TTS), Voice Activity Detection (VAD), WebSocket-based real-time communication, and intelligent evaluation algorithms. These components work together to provide a seamless interview experience in which the interviewer can dynamically generate questions, interrupt naturally, evaluate candidate responses, and produce comprehensive interview reports.
+This chapter discusses the fundamental technologies, system architecture, speech processing pipeline, dialogue management process, evaluation methodology, and performance considerations employed in the proposed platform. It also describes the role of each major software component and explains how these technologies collectively contribute to building a scalable and intelligent AI interviewer.
+3.1 Overall System Architecture
+The proposed AI Interview Platform follows a modular client-server architecture designed to support low-latency communication and real-time interview interaction. The system is divided into several independent components responsible for speech recognition, dialogue management, candidate evaluation, and speech synthesis. Each module communicates through asynchronous APIs and WebSocket connections, allowing simultaneous processing of multiple interview sessions.
+The interview process begins when a candidate joins the interview through a web browser. Audio captured from the user's microphone is transmitted continuously to the backend server using WebRTC/WebSocket communication. The backend processes the incoming audio using a Voice Activity Detection (VAD) module to determine speech boundaries before forwarding speech segments to the Speech-to-Text engine. The transcribed text is then analyzed by the Dialogue Manager, which coordinates interview flow, candidate evaluation, follow-up question generation, and conversation state management. Finally, the generated interviewer response is converted into natural speech using the Text-to-Speech engine and streamed back to the candidate.
+This modular architecture enables each subsystem to operate independently while maintaining synchronized communication throughout the interview session. Such separation improves scalability, simplifies maintenance, and allows individual AI components to be upgraded without affecting the remaining modules.
+Figure 3.1 Overall System Architecture
+                    +---------------------------+
+                    |       Candidate           |
+                    +------------+--------------+
+                                 |
+                        Voice / Browser
+                                 |
+                                 ▼
+                 +-------------------------------+
+                 | Frontend (HTML, CSS, JS)      |
+                 +---------------+---------------+
+                                 |
+                        WebSocket / WebRTC
+                                 |
+                                 ▼
+                  +------------------------------+
+                  |      FastAPI Backend         |
+                  +---------------+--------------+
+                                  |
+          -------------------------------------------------
+          |                 |               |             |
+          ▼                 ▼               ▼             ▼
+    Voice Activity      Speech-to-      Dialogue     Evaluation
+      Detection         Text Engine      Manager       Engine
+          |                 |               |             |
+          ------------------+---------------+-------------
+                                  |
+                           Large Language Model
+                               (Groq Llama)
+                                  |
+                                  ▼
+                         Text-to-Speech Engine
+                             (Cartesia TTS)
+                                  |
+                                  ▼
+                           Audio Response
+                                  |
+                                  ▼
+                              Candidate
+Figure 3.1: Overall architecture of the proposed AI-driven real-time interview platform.
+3.1.1 Frontend Layer
+The frontend serves as the primary interface between the candidate and the AI interviewer. It is developed using modern web technologies, including HTML, CSS, and JavaScript, to provide a responsive and interactive interview environment. The frontend is responsible for capturing microphone input, displaying interview questions, presenting conversation history, and streaming synthesized audio responses generated by the backend.
+To achieve real-time interaction, the frontend establishes a persistent WebSocket connection with the FastAPI server. Unlike conventional HTTP communication, WebSockets support bidirectional communication, enabling continuous transmission of audio streams and interview events with minimal latency.
+The frontend also manages interview controls such as starting or ending the interview session, displaying interview status, monitoring microphone activity, and presenting evaluation reports upon completion of the interview.
+3.1.2 Backend Layer
+The backend forms the core processing unit of the proposed platform. It is implemented using the FastAPI framework, which provides asynchronous request handling and high-performance API execution suitable for real-time AI applications.
+The backend coordinates communication among all AI modules, including speech recognition, dialogue management, candidate evaluation, and speech synthesis. It maintains interview sessions, stores conversation context, processes incoming speech, generates interviewer responses, and produces structured interview reports.
+By employing asynchronous processing techniques, the backend minimizes response latency while supporting multiple concurrent interview sessions.
+(Leave approximately half a page here)
+Figure 3.1: Backend Processing Pipeline (Insert detailed backend architecture diagram here.)
+3.2 Speech Processing Pipeline
+Speech processing is one of the most critical components of the proposed AI-Driven Real-Time Interview Platform. Unlike traditional chatbot systems that rely solely on textual communication, the proposed platform supports continuous voice interaction between the interviewer and the candidate. The speech processing pipeline transforms spoken language into machine-readable text, enables intelligent processing of candidate responses, and converts generated interview questions back into natural-sounding speech.
+The pipeline consists of three major components: Voice Activity Detection (VAD), Automatic Speech Recognition (ASR), and Text-to-Speech (TTS). These components operate sequentially while maintaining real-time communication throughout the interview session. By combining these technologies, the system achieves low-latency interaction and provides an interview experience that closely resembles communication with a human interviewer.
+3.2.1 Voice Activity Detection (VAD)
+Voice Activity Detection (VAD) is responsible for determining whether the incoming audio stream contains human speech or silence. Since microphone input contains pauses, breathing sounds, background noise, and environmental disturbances, processing every audio frame would significantly increase computational overhead and response latency. The VAD module filters non-speech segments before forwarding meaningful audio to the speech recognition engine.
+The proposed platform employs the Silero Voice Activity Detection model, which continuously analyzes incoming audio frames and determines whether speech is present. Once speech is detected, the corresponding audio segment is transmitted to the Speech-to-Text module. When silence is detected for a predefined duration, the current speech segment is finalized and processed.
+The incorporation of VAD significantly reduces unnecessary computation while improving transcription quality by preventing fragmented speech recognition. Additionally, it enables natural conversational behavior by allowing the AI interviewer to distinguish between intentional pauses and the completion of candidate responses.
+The speech detection process can be mathematically represented as
+where:
+V(t) represents the speech activity decision, 
+E(t) denotes the short-term energy of the audio frame, 
+θ is the predefined speech detection threshold. 
+Equation (3.1) classifies each incoming audio frame as either speech or silence based on its energy level. Frames whose energy exceeds the threshold are processed further, whereas silent frames are discarded.
+Figure 3.2 Voice Activity Detection Pipeline
+          Microphone Input
+                 │
+                 ▼
+      Continuous Audio Frames
+                 │
+                 ▼
+      Voice Activity Detection
+         (Silero VAD Model)
+                 │
+      ┌──────────┴───────────┐
+      │                      │
+      ▼                      ▼
+ Speech Detected         Silence
+      │                      │
+      ▼                      ▼
+Send to STT          Ignore Frame
+Figure 3.2: Voice Activity Detection workflow used to separate speech from silence before transcription.
+3.2.2 Automatic Speech Recognition (Speech-to-Text)
+Automatic Speech Recognition (ASR) converts spoken language into textual form that can be interpreted by the Dialogue Manager. This component enables the AI interviewer to understand candidate responses and generate contextually appropriate follow-up questions.
+The proposed platform integrates the Deepgram Speech Recognition API to perform real-time transcription of candidate speech. Audio segments produced by the Voice Activity Detection module are streamed to Deepgram through persistent WebSocket connections. The transcription engine processes the incoming audio incrementally and returns recognized text with minimal latency.
+Unlike conventional offline speech recognition systems, Deepgram supports continuous streaming transcription, allowing partial transcripts to be generated before the speaker finishes a sentence. This capability significantly reduces waiting time and contributes to a more natural interview conversation.
+The transcription workflow consists of several sequential stages:
+Audio acquisition from the candidate's microphone. 
+Speech segmentation using Voice Activity Detection. 
+Streaming audio packets to the Deepgram server. 
+Real-time speech decoding. 
+Returning partial and final transcripts. 
+Forwarding transcribed text to the Dialogue Manager. 
+The accuracy of speech recognition directly influences the quality of question generation and candidate evaluation. Therefore, high-quality audio capture and effective preprocessing are essential for maintaining reliable interview performance.
+Figure 3.4 Speech-to-Text Pipeline
+          Candidate Speech
+                  │
+                  ▼
+          Audio Stream
+                  │
+                  ▼
+      Voice Activity Detection
+                  │
+                  ▼
+        Deepgram Streaming API
+                  │
+                  ▼
+      Partial Speech Transcript
+                  │
+                  ▼
+       Final Speech Transcript
+                  │
+                  ▼
+         Dialogue Manager
+Figure 3.3: Real-time Speech-to-Text processing pipeline.
+3.2.3 Text-to-Speech (TTS)
+The Text-to-Speech component converts AI-generated interview questions into natural human-like speech, enabling voice-based interaction throughout the interview session. Rather than displaying textual responses only, the proposed platform synthesizes spoken interviewer responses to create a realistic interview environment.
+The system utilizes the Cartesia Text-to-Speech service, which generates high-quality speech with low latency. After the Dialogue Manager generates the next interview question, the textual response is transmitted to the Cartesia API, which synthesizes natural audio and streams it back to the candidate in real time.
+The synthesized speech maintains conversational pacing and pronunciation, improving user engagement and reducing the robotic nature commonly associated with traditional text-based interview systems.
+The TTS pipeline includes the following stages:
+Receive generated interview question. 
+Convert text into phonetic representation. 
+Generate speech waveform. 
+Stream synthesized audio. 
+Play audio through the candidate's browser. 
+Figure 3.4 Text-to-Speech Pipeline
+      Generated Question
+               │
+               ▼
+      Cartesia TTS Engine
+               │
+               ▼
+     Speech Synthesis Model
+               │
+               ▼
+      Audio Waveform Output
+               │
+               ▼
+        Browser Audio Player
+               │
+               ▼
+          Candidate
+Figure 3.5: Text-to-Speech generation process for interviewer responses.
+3.2.4 Real-Time Speech Processing Workflow
+The proposed speech processing architecture integrates Voice Activity Detection, Automatic Speech Recognition, and Text-to-Speech into a unified real-time pipeline. These modules communicate through asynchronous WebSocket channels to minimize processing delays and maintain conversational continuity.
+When a candidate begins speaking, the microphone continuously captures audio and forwards it to the backend server. Voice Activity Detection identifies speech boundaries and eliminates silent intervals before transmitting meaningful speech segments to the Speech-to-Text engine. The recognized transcript is analyzed by the Dialogue Manager, which generates the next interview question based on the current conversation context and candidate performance. Finally, the generated response is converted into speech and streamed back to the candidate.
+This pipeline enables uninterrupted voice interaction while maintaining low latency and efficient utilization of computational resources.
+3.3 Dialogue Management
+Dialogue management is one of the fundamental components of the proposed AI-Driven Real-Time Interview Platform, as it governs the interaction between the AI interviewer and the candidate throughout the interview session. Unlike conventional chatbot systems that follow predefined conversation flows, the proposed platform employs an intelligent dialogue management mechanism capable of maintaining conversational context, generating adaptive interview questions, evaluating candidate responses, and deciding appropriate follow-up actions in real time.
+The dialogue manager acts as the central controller of the interview pipeline by coordinating communication between the Automatic Speech Recognition (ASR) module, the Large Language Model (LLM), the evaluation engine, and the Text-to-Speech (TTS) module. Once a candidate's spoken response has been converted into text by the Speech-to-Text module, the dialogue manager analyzes the response together with the current interview state before determining the next action. Depending on the quality, completeness, and relevance of the candidate's answer, the system may generate a new interview question, ask a probing follow-up question, request clarification, or proceed to the next interview topic.
+Unlike rule-based interview systems, the proposed dialogue manager maintains contextual awareness throughout the interview. Every candidate response is stored as part of the conversation history, enabling the system to reference previous answers and avoid repetitive questioning. This contextual memory allows the interviewer to conduct a coherent conversation that closely resembles the behavior of a human interviewer.
+The dialogue management process also incorporates interview control mechanisms such as session initialization, candidate introduction, topic progression, interruption handling, silence detection, interview termination, and final report generation. These mechanisms ensure that the interview proceeds smoothly while maintaining a structured assessment process.
+Figure 3.6: Dialogue Management Architecture
+(Leave approximately half-page space here for the final system diagram.)
+                Candidate Response
+                        │
+                        ▼
+               Speech-to-Text Module
+                        │
+                        ▼
+               Dialogue Manager
+                        │
+        ┌───────────────┼────────────────┐
+        │               │                │
+        ▼               ▼                ▼
+ Conversation      Evaluation      Interview State
+    Memory           Engine          Management
+        │               │                │
+        └───────────────┼────────────────┘
+                        │
+                        ▼
+              Large Language Model
+                        │
+                        ▼
+              Generated Response
+                        │
+                        ▼
+              Text-to-Speech Module
+                        │
+                        ▼
+                  Candidate
+Figure 3.6: Architecture of the dialogue management module illustrating the interaction between the conversation memory, evaluation engine, interview state management, and language model.
+3.3.1 Conversation State Management
+Conversation state management is responsible for maintaining the complete context of the interview session from its initiation until completion. During a real-time interview, the AI interviewer must remember previously asked questions, candidate responses, evaluation scores, and the current interview topic in order to generate meaningful follow-up questions and maintain conversational continuity.
+The proposed platform implements a session-based conversation memory where each interview is assigned a unique session identifier. Throughout the interview, every interaction is appended to the conversation history, including system prompts, interviewer questions, candidate responses, evaluation feedback, and generated follow-up questions. This accumulated context is continuously provided to the Large Language Model, enabling it to produce responses that remain consistent with the ongoing discussion.
+Maintaining conversation state also allows the system to prevent duplicate questions, detect incomplete responses, and revisit previous topics when additional clarification is required. Furthermore, it enables the interviewer to personalize the conversation based on the candidate's earlier answers, resulting in a more natural and engaging interview experience.
+The conversation state can be represented as
+where:
+St​ represents the interview state at time t, 
+Qn​ denotes the nth interview question, 
+An​ denotes the corresponding candidate response. 
+Equation (3.2) represents the interview session as an ordered sequence of questions and responses that collectively define the conversational context used by the dialogue manager.
+3.5 Large Language Model (LLM)
+The Large Language Model (LLM) serves as the intelligence layer of the proposed AI-Driven Real-Time Interview Platform. It is responsible for understanding candidate responses, maintaining interview context, generating adaptive interview questions, evaluating technical knowledge, and producing constructive feedback throughout the interview session. Unlike conventional rule-based interview systems that rely on predefined question banks, the proposed platform employs an LLM to dynamically generate context-aware interview conversations that closely resemble interactions with a human interviewer.
+The proposed system integrates the Groq API using the Llama 3.3-70B Versatile model as the primary reasoning engine. The model receives the candidate's transcribed response together with the interview context and predefined interviewer instructions. Based on this information, it determines the next appropriate interview action. These actions include asking a new technical question, generating a follow-up question, requesting clarification, or concluding the interview when all evaluation objectives have been satisfied.
+Unlike static interview systems, the LLM continuously updates its understanding of the conversation using the accumulated interview history. This contextual awareness enables the system to avoid repetitive questioning while maintaining logical transitions between interview topics. Consequently, the interview becomes adaptive rather than sequential, allowing the AI interviewer to adjust question difficulty according to candidate performance.
+The complete reasoning process performed by the language model is illustrated in Figure 3.8.
+Figure 3.8: Large Language Model Processing Pipeline
+                 Candidate Transcript
+                         │
+                         ▼
+                Prompt Construction
+                         │
+                         ▼
+              Conversation History
+                         │
+                         ▼
+         System Instructions + Context
+                         │
+                         ▼
+              Groq Llama 3.3-70B
+                         │
+        ┌────────────────┼────────────────┐
+        │                                    │                                     │                
+        ▼                                 ▼                                  ▼                     
+ Interview Question  Follow-up                   Evaluation
+     Generation       Question                          Feedback
+                         │
+                         ▼
+                Dialogue Manager
+Figure 3.8: Overall processing workflow of the Large Language Model for adaptive interview generation.
+3.5.1 Prompt Engineering
+Prompt engineering plays a significant role in ensuring that the language model behaves as a professional technical interviewer rather than a general conversational chatbot. Carefully designed system prompts define the interview objectives, communication style, evaluation criteria, and questioning strategy.
+The proposed platform employs structured prompts containing candidate information, interview role, technical domain, conversation history, evaluation guidelines, and interviewer instructions. These prompts provide the model with sufficient contextual information to generate relevant and technically accurate interview questions.
+The prompt generally consists of the following components:
+System Instructions 
+Candidate Profile 
+Job Position 
+Interview History 
+Previous Evaluation 
+Current Candidate Response 
+Expected Output Format 
+Providing structured prompts significantly improves response consistency while reducing hallucination and irrelevant question generation.
+3.5.2 Adaptive Question Generation
+One of the major advantages of employing a Large Language Model is its ability to generate adaptive interview questions based on candidate performance. Instead of presenting questions in a fixed sequence, the proposed system continuously analyzes candidate responses before selecting the next interview question.
+If a candidate demonstrates strong technical understanding, the system gradually increases question complexity by introducing scenario-based problems, optimization questions, or system design discussions. Conversely, if the candidate struggles with a topic, the interviewer generates simpler clarification questions to better assess conceptual understanding.
+This adaptive questioning mechanism enables a more realistic interview process by approximating the behavior of experienced human interviewers.
+The adaptive question generation process can be represented as
+where
+Qn​      represents the current interview question, 
+An​      denotes the candidate response, 
+C             represents the accumulated interview context, 
+Qn+1​ denotes the next generated interview question. 
+Equation (3.6) illustrates that every subsequent interview question depends on the previous question, candidate response, and the overall interview context maintained by the dialogue manager.
+3.5.3 Follow-up Question Generation
+Follow-up questioning is an essential feature that differentiates the proposed platform from traditional AI interview systems. Rather than immediately proceeding to the next predefined question, the interviewer evaluates whether the candidate's response is sufficiently detailed and technically correct.
+When an incomplete, vague, or partially correct response is detected, the dialogue manager instructs the Large Language Model to generate an appropriate probing question. These follow-up questions encourage candidates to elaborate on their reasoning, explain implementation details, justify design decisions, or clarify ambiguous statements.
+This capability enables deeper assessment of technical competency while maintaining a natural conversational flow.
+3.5.4 Interview Completion
+The dialogue manager continuously monitors interview progress by tracking completed topics, evaluation scores, interview duration, and candidate performance. Once all required competencies have been assessed or the predefined interview duration has elapsed, the system concludes the interview automatically.
+At the conclusion of the interview, the Large Language Model generates a professional closing statement before transferring the complete interview transcript to the evaluation engine for report generation.
+3.6 Candidate Evaluation Engine
+The Candidate Evaluation Engine is responsible for assessing candidate performance throughout the interview. Unlike conventional online assessments that evaluate only final answers, the proposed platform performs continuous evaluation during the interview by analyzing each candidate response individually.
+The evaluation engine receives transcribed responses from the dialogue manager and applies predefined assessment criteria to determine the quality of each answer. The evaluation considers several aspects, including technical correctness, conceptual understanding, communication quality, completeness of the response, confidence, and overall relevance to the interview question.
+The generated evaluation results contribute to the candidate's overall interview score and assist the dialogue manager in selecting appropriate follow-up questions.
+3.6.1 Evaluation Criteria
+The proposed platform evaluates candidate performance using multiple assessment parameters rather than relying on a single numerical score. This multidimensional evaluation enables a more comprehensive assessment of technical competency.
+The primary evaluation criteria include:
+Technical Accuracy 
+Conceptual Understanding 
+Problem Solving Ability 
+Communication Skills 
+Response Completeness 
+Confidence 
+Relevance 
+Critical Thinking 
+Each parameter contributes to the overall interview score according to predefined weighting factors.
+Figure 3.9 Candidate Evaluation Workflow
+             Candidate Response
+                     │
+                     ▼
+           Speech Transcript
+                     │
+                     ▼
+          Dialogue Manager
+                     │
+                     ▼
+          Evaluation Engine
+                     │
+     ┌───────────────┼────────────────┐
+     ▼               ▼                ▼
+ Technical      Communication     Completeness
+ Assessment       Assessment        Assessment
+     │               │                │
+     └───────────────┼────────────────┘
+                     ▼
+           Overall Candidate Score
+                     │
+                     ▼
+             Interview Report
+Figure 3.9: Candidate evaluation workflow illustrating the assessment of multiple performance criteria.
+3.6.2 Response Scoring
+Each candidate response is assigned an evaluation score based on predefined assessment metrics. Responses demonstrating accurate technical knowledge, logical reasoning, and complete explanations receive higher scores than incomplete or incorrect responses.
+The overall response score can be expressed as
+S=i=1∑n wi ×  mi​ 
+where
+S represents the overall response score, 
+mi  denotes the score obtained for the ith evaluation metric, 
+wi  represents the corresponding weighting factor, 
+n denotes the total number of evaluation criteria. 
+Equation (3.7) calculates the weighted performance score by combining multiple evaluation metrics into a single numerical value representing candidate performance.
+3.6.3 Interview Report Generation
+Upon completion of the interview, the evaluation engine generates a comprehensive interview report summarizing candidate performance. The report includes interview metadata, candidate information, technical strengths, identified weaknesses, overall evaluation score, interviewer observations, and recommendations.
+The generated report serves as a valuable resource for recruiters and hiring managers by providing a structured summary of candidate performance without requiring manual interview evaluation.
+3.6.4 Advantages of Automated Evaluation
+The automated evaluation framework provides several advantages over traditional interview assessment methods. It ensures consistent scoring by eliminating subjective bias, reduces recruiter workload through automated report generation, enables rapid evaluation of multiple candidates, and supports scalable interview processes for large recruitment campaigns.
+Furthermore, continuous assessment throughout the interview allows the system to adapt questioning strategies dynamically, resulting in a more comprehensive evaluation of candidate knowledge and communication skills.
+3.7 Technology Stack
+The proposed AI-Driven Real-Time Interview Platform integrates several modern software frameworks, cloud services, and artificial intelligence technologies to provide an intelligent, scalable, and real-time interview experience. Each technology has been selected based on its performance, reliability, and compatibility with the overall system architecture. The modular design of the platform allows independent integration of each component while maintaining seamless communication among all system modules.
+The technology stack consists of frontend technologies for user interaction, backend frameworks for request processing, cloud-based artificial intelligence services for speech processing and language understanding, and communication protocols that enable real-time data transmission between the client and server.
+The overall software architecture is designed to support asynchronous execution, low-latency communication, and efficient resource utilization, making it suitable for conducting multiple interview sessions simultaneously.
+3.7.1 Frontend Technologies
+The frontend of the proposed platform provides an interactive environment through which candidates communicate with the AI interviewer. It is responsible for capturing audio input, displaying interview questions, playing synthesized speech, and presenting interview results.
+The user interface is developed using standard web technologies including HTML, CSS, and JavaScript. HTML provides the structural layout of the application, CSS enhances the visual presentation, while JavaScript manages client-side interactions and asynchronous communication with the backend server.
+To enable continuous voice communication, the frontend establishes persistent WebSocket connections with the backend server. Unlike conventional HTTP requests, WebSockets support full-duplex communication, allowing simultaneous transmission of audio streams and interviewer responses with minimal delay.
+The frontend also performs microphone permission handling, interview session initialization, audio streaming, and playback of synthesized interviewer responses.
+3.7.2 Backend Framework
+The backend is implemented using the FastAPI framework, which provides asynchronous request handling and high-performance API execution suitable for real-time artificial intelligence applications.
+FastAPI was selected due to its lightweight architecture, automatic API documentation, efficient asynchronous processing, and native support for WebSocket communication. The framework coordinates all interview activities, including session management, speech processing, dialogue generation, candidate evaluation, and report generation.
+Incoming audio streams from connected clients are processed asynchronously, enabling multiple candidates to participate in interviews simultaneously without significant degradation in system performance.
+Furthermore, FastAPI integrates seamlessly with modern AI frameworks and cloud-based inference services, making it highly suitable for deploying intelligent conversational systems.
+Figure 3.10 Backend Technology Stack
+                     Candidate Browser
+                            │
+                            ▼
+                     HTML / CSS / JS
+                            │
+                    WebSocket Client
+                            │
+                            ▼
+                  FastAPI Application Server
+                            │
+      ┌─────────────┬───────────────┬─────────────┐
+      ▼                           ▼                                 ▼                            ▼
+ Dialogue      Speech Module                Evaluation           Report Module
+ Manager                                                    Engine
+      │
+      ▼
+ External AI Services
+Figure 3.10: Software technology stack of the proposed AI interview platform.
+3.7.3 Artificial Intelligence Services
+The intelligence of the proposed interview platform is achieved through the integration of multiple AI services, each performing a specialized task within the interview pipeline.
+Deepgram provides high-accuracy streaming speech recognition capable of converting spoken language into text with minimal latency. The Groq inference platform hosts the Llama 3.3-70B Versatile language model, which is responsible for generating interview questions, maintaining conversation context, evaluating candidate responses, and producing adaptive follow-up questions.
+Cartesia serves as the Text-to-Speech engine, converting AI-generated textual responses into natural-sounding speech. Together, these services enable fully voice-based human-computer interaction throughout the interview session.
+The modular integration of cloud-based AI services allows the platform to leverage state-of-the-art models while simplifying maintenance and future upgrades.
+3.7.4 Database and Session Management
+The proposed platform maintains interview sessions through a structured session management mechanism. Each candidate interview is assigned a unique session identifier that stores conversation history, generated questions, candidate responses, evaluation scores, timestamps, and interview status.
+Session persistence enables the dialogue manager to retrieve previous interactions and maintain conversational continuity throughout the interview process. Additionally, session information supports report generation and future retrieval of interview records when required.
+Although the current implementation stores interview information during runtime, the architecture can easily be extended to integrate relational or NoSQL database systems for long-term persistence and large-scale deployment.
+3.8 Real-Time Communication Framework
+Real-time communication is fundamental to the proposed AI-Driven Interview Platform because it enables natural voice interaction between candidates and the AI interviewer. Unlike conventional request-response applications that rely on repeated HTTP requests, the proposed platform utilizes persistent WebSocket connections to establish continuous bidirectional communication.
+This communication model allows audio packets, transcribed text, interview events, and synthesized speech to be exchanged without repeatedly opening new network connections. Consequently, communication latency is significantly reduced, resulting in smoother and more natural interview conversations.
+3.8.1 WebSocket Communication
+WebSocket technology establishes a persistent communication channel between the browser and the FastAPI backend server. After connection establishment, both client and server may exchange information independently without waiting for explicit requests.
+This communication mechanism is particularly suitable for real-time speech applications because audio data is transmitted continuously rather than in discrete files. Continuous streaming minimizes processing delays and enables immediate generation of interviewer responses.
+The communication sequence consists of the following stages:
+Candidate connects to the interview server. 
+WebSocket session is established. 
+Audio packets are continuously transmitted. 
+Speech transcription is performed. 
+Dialogue manager generates interviewer response. 
+Text-to-Speech synthesizes audio. 
+Audio response is streamed back to the candidate. 
+Figure 3.11 Real-Time Communication Pipeline
+        Candidate Browser
+                │
+                ▼
+       WebSocket Connection
+                │
+                ▼
+        FastAPI Web Server
+                │
+       ┌────────┼─────────┐
+       ▼              ▼               ▼
+ Speech             Dialogue       Evaluation
+ Module              Manager         Engine
+       │
+       ▼
+   Groq LLM
+       │
+       ▼
+ Cartesia TTS
+       │
+       ▼
+ Candidate Browser
+Figure 3.11: Real-time communication architecture using WebSocket technology.
+3.8.2 Low-Latency Audio Streaming
+Maintaining low response latency is essential for creating a realistic interview environment. Several optimization strategies are incorporated into the proposed platform to minimize communication delays.
+Voice Activity Detection reduces unnecessary processing by filtering silent audio segments before speech recognition. Streaming Speech-to-Text processes audio incrementally instead of waiting for complete recordings. Similarly, Text-to-Speech responses are streamed immediately after generation, allowing playback to begin before the complete audio response has been synthesized.
+The asynchronous execution model provided by FastAPI further improves overall responsiveness by allowing independent execution of speech recognition, language processing, and speech synthesis tasks.
+3.8.3 Scalability Considerations
+The modular architecture of the proposed system allows individual services to operate independently, improving scalability and maintainability. Since speech recognition, dialogue generation, evaluation, and speech synthesis are implemented as separate processing modules, each component may be upgraded or replaced without affecting the remaining architecture.
+Furthermore, asynchronous processing enables multiple interview sessions to execute concurrently while efficiently utilizing computational resources.
+This modular design also facilitates future deployment using containerized microservices and cloud orchestration platforms capable of supporting enterprise-scale recruitment systems.
+Chapter 4
+Methodology
+This chapter presents the methodology adopted for the design, development, and implementation of the proposed AI-Driven Real-Time Interview Platform. The implementation process consists of several stages, including requirement analysis, system development, speech processing integration, interview workflow implementation, algorithm development, performance evaluation, and system testing. The methodology was designed to develop a modular and scalable interview platform capable of conducting real-time voice-based technical interviews while automatically evaluating candidate performance.
+The development process began with requirement analysis and technology selection, followed by the implementation of the frontend and backend components. Cloud-based Artificial Intelligence services including Deepgram Speech-to-Text, Groq Large Language Model, and Cartesia Text-to-Speech were integrated using the Pipecat framework to enable low-latency voice communication. Finally, the implemented system was evaluated through functional and integration testing to ensure reliable interview execution.
+4.1 Requirement Analysis
+Requirement analysis was performed to identify the functional and technical requirements necessary for implementing the proposed interview platform. The objective was to develop a system capable of conducting adaptive voice-based interviews while maintaining low response latency, accurate speech recognition, and automated candidate evaluation. The identified requirements were classified into functional requirements, non-functional requirements, and development resources.
+4.1.1 Functional Requirements
+The functional requirements describe the core operations that the AI interview platform must perform during an interview session. These functions ensure smooth interaction between the candidate and the AI interviewer while supporting automated evaluation and report generation.
+The major functional requirements are summarized in Table 4.1.
+Table 4.1: Functional Requirements of the Proposed AI Interview Platform
+Requirement ID
+Functional Requirement
+Description
+FR-1
+User Authentication
+Allow candidates to access interview sessions securely.
+FR-2
+Voice Input
+Capture candidate responses through the microphone.
+FR-3
+Speech Recognition
+Convert speech into text using Deepgram STT.
+FR-4
+Question Generation
+Generate interview questions using Groq Llama 3.3.
+FR-5
+Candidate Evaluation
+Evaluate responses based on predefined criteria.
+FR-6
+Voice Response
+Convert generated responses into speech using Cartesia.
+FR-7
+Report Generation
+Produce an interview performance report after completion.
+4.1.2 Non-Functional Requirements
+Non-functional requirements define the quality attributes of the proposed system. These characteristics ensure that the platform operates efficiently under real-time conditions while providing an interactive interview experience.
+The proposed platform emphasizes low communication latency, high availability, scalability, usability, and reliability. Since interview conversations occur in real time, minimizing processing delay between candidate responses and AI-generated questions is essential. The system should also support multiple interview sessions without significant degradation in performance.
+The primary non-functional requirements are presented in Table 4.2.
+Table 4.2: Non-Functional Requirements
+Attribute
+Requirement
+Performance
+Low-latency interview interaction
+Reliability
+Stable interview execution
+Scalability
+Support concurrent interview sessions
+Availability
+Continuous service operation
+Maintainability
+Modular software architecture
+Security
+Secure API communication
+Usability
+Simple and intuitive interface
+4.1.3 Technology Selection
+The selection of software technologies was based on compatibility with real-time voice communication, artificial intelligence integration, and deployment flexibility. FastAPI was selected as the backend framework due to its asynchronous architecture and high performance in handling concurrent API requests. Deepgram was selected for speech recognition because of its streaming transcription capabilities, while Groq Llama 3.3 was integrated to generate adaptive interview questions and evaluate candidate responses. Cartesia was used to synthesize natural-sounding speech for the AI interviewer, enabling realistic voice interactions. Communication between the client and server was established using WebSocket connections to provide continuous bidirectional data transfer.
+The technologies utilized during development are summarized in Table 4.3.
+Table 4.3: Development Technologies
+Component
+Technology
+Programming Language
+Python
+Backend Framework
+FastAPI
+Frontend
+HTML, CSS, JavaScript
+Speech-to-Text
+Deepgram
+Large Language Model
+Groq Llama 3.3-70B
+Text-to-Speech
+Cartesia
+Voice Pipeline
+Pipecat
+Communication
+WebSocket
+Version Control
+Git & GitHub
+4.2 System Development Methodology
+The proposed AI-Driven Real-Time Interview Platform was developed using a modular software development methodology consisting of requirement gathering, system design, implementation, integration, and testing. Each software module was developed independently before being integrated into the complete interview platform. This approach simplified development, improved maintainability, and ensured reliable communication between all system components.
+The implementation integrates FastAPI, Pipecat, Deepgram Speech-to-Text, Groq Llama 3.3, Cartesia Text-to-Speech, and WebSocket communication to support adaptive real-time interviews. The overall development methodology adopted in this research is illustrated in Figure 4.1.
+Figure 4.1: Overall Development Methodology of the Proposed AI Interview Platform
+Requirement Analysis
+        │
+        ▼
+System Design
+        │
+        ▼
+Frontend Development
+        │
+        ▼
+Backend Development
+        │
+        ▼
+AI Service Integration
+        │
+        ▼
+System Testing
+        │
+        ▼
+Final AI Interview Platform
+(Replace with a professional workflow diagram.)
+4.2.1 Requirement Gathering
+Requirement gathering was the first phase of system development. During this stage, the functional and non-functional requirements were identified by analyzing existing AI interview platforms and conversational AI systems. The objective was to develop a platform capable of conducting adaptive voice-based interviews, evaluating candidate responses, and generating interview reports automatically.
+The gathered requirements also considered real-time communication, low response latency, speech recognition accuracy, scalability, and compatibility with cloud-based AI services.
+4.2.2 System Design
+After identifying the system requirements, a modular architecture was designed by dividing the platform into independent software components. The architecture consists of the frontend interface, backend server, speech processing services, dialogue manager, evaluation engine, and reporting module. Each component performs a dedicated task while communicating through WebSocket connections and REST APIs.
+The modular design allows individual components to be updated or replaced without affecting the overall functionality of the system.
+Figure 4.2: Modular System Architecture
+              Candidate
+                  │
+                  ▼
+        Frontend Interface
+                  │
+            WebSocket API
+                  │
+                  ▼
+           FastAPI Backend
+                  │
+      ┌───────────┼───────────┐
+      ▼                       ▼                      ▼
+ Dialogue      Evaluation             Reports
+ Manager         Engine
+      │
+      ▼
+AI Services
+(Deepgram • Groq • Cartesia)
+(Replace with a professional architecture diagram.)
+4.2.3 System Implementation
+The implementation of the proposed platform was carried out using Python and the FastAPI framework. Individual software modules were developed separately and integrated through Pipecat to support continuous voice communication. Deepgram was utilized for speech recognition, Groq Llama 3.3 for adaptive question generation and response evaluation, and Cartesia for speech synthesis.
+The modular implementation enabled efficient interaction between all software components while maintaining low processing latency during interview sessions.
+4.2.4 System Testing
+After implementation, the platform was tested to verify the functionality of each software module and their overall integration. Unit testing was performed on individual modules, while integration testing ensured successful communication among the frontend, backend, and AI services. End-to-end testing was conducted by executing complete interview sessions to evaluate the overall performance and reliability of the proposed system.
+Table 4.4: Development Phases of the Proposed System
+Phase
+Description
+Requirement Gathering
+Identification of functional and non-functional requirements
+System Design
+Design of the modular software architecture
+Implementation
+Development of individual software modules
+Integration
+Integration of AI services and communication framework
+Testing
+Functional and end-to-end validation
+4.3 System Implementation
+The proposed AI-Driven Real-Time Interview Platform was implemented using a modular client-server architecture. The system consists of a browser-based frontend, a FastAPI backend, AI service integrations, and an automated evaluation engine. Each module performs an independent task while communicating through WebSocket connections to support continuous real-time interaction.
+The implementation focuses on providing a realistic interview experience by integrating speech recognition, natural language processing, adaptive question generation, speech synthesis, and automated candidate evaluation into a single platform. The overall implementation workflow is illustrated in Figure 4.3.
+Figure 4.3: Overall Implementation Workflow
+                 Candidate
+                     │
+                     ▼
+          Browser User Interface
+                     │
+          Voice / Text Interaction
+                     │
+                 WebSocket
+                     │
+                     ▼
+               FastAPI Server
+                     │
+      ┌──────────────┼──────────────┐
+      ▼                            ▼                              ▼
+ Deepgram STT    Dialogue                   Evaluation
+                             Manager                        Engine
+                      │
+                      ▼
+                 Groq LLM
+                      │
+                      ▼
+                Cartesia TTS
+                      │
+                      ▼
+              Audio Response
+(Professional system implementation diagram to be inserted.)
+4.3.1 Frontend Implementation
+The frontend was developed using HTML, CSS, and JavaScript to provide an interactive interview interface. It allows candidates to join interview sessions, communicate with the AI interviewer, and receive voice responses in real time. JavaScript manages microphone access, WebSocket communication, and interview state updates throughout the session.
+The interface was designed to minimize user interaction by automatically handling audio streaming and displaying interview progress.
+4.3.2 Backend Implementation
+The backend was implemented using the FastAPI framework due to its asynchronous architecture and high performance in handling concurrent requests. FastAPI manages interview sessions, processes incoming requests, coordinates AI services, and returns responses to the frontend.
+The backend also maintains interview state, candidate information, evaluation results, and communication with external APIs.
+4.3.3 WebSocket Communication
+Real-time communication between the frontend and backend is established using WebSocket technology. Unlike traditional HTTP communication, WebSockets provide continuous bidirectional communication, allowing speech data and AI responses to be exchanged with minimal latency.
+The communication process can be represented as
+Connection=Client↔Server(4.1) 
+where the client continuously sends audio streams while the server simultaneously returns generated responses.
+Figure 4.4: WebSocket Communication Framework
+ Browser Client
+       │
+       │ Audio Stream
+       ▼
+ ┌───────────────┐
+ │  WebSocket    │
+ └───────────────┘
+       ▲
+       │ AI Response
+       │
+ FastAPI Server
+(Professional communication diagram to be inserted.)
+4.3.4 AI Service Integration
+The proposed system integrates multiple Artificial Intelligence services to perform speech recognition, language understanding, and speech synthesis. Deepgram converts candidate speech into text, Groq Llama 3.3 generates interview questions and evaluates responses, while Cartesia converts generated text into natural speech.
+The Pipecat framework coordinates communication among these services, enabling continuous streaming without interrupting the interview process.
+Table 4.5: AI Services Used in the Proposed System
+Service
+Function
+Deepgram
+Speech-to-Text Conversion
+Groq Llama 3.3
+Question Generation and Response Evaluation
+Cartesia
+Text-to-Speech Conversion
+Pipecat
+Voice Pipeline Management
+FastAPI
+Backend Server
+WebSocket
+Real-Time Communication
+4.3.5 Interview Session Management
+Interview sessions are managed by the backend server throughout the interview lifecycle. After a candidate joins the platform, the system initializes the interview, establishes communication channels, and loads the required interview configuration. Each response generated during the interview is stored temporarily to maintain conversational context and support adaptive questioning.
+The interview continues until all predefined questions are completed or the interview is terminated by the candidate. Upon completion, the evaluation engine generates the final performance report.
+The interview session workflow is illustrated in Figure 4.5.
+Figure 4.5: Interview Session Management
+Candidate Login
+        │
+        ▼
+Interview Initialization
+        │
+        ▼
+Voice Communication
+        │
+        ▼
+Question Generation
+        │
+        ▼
+Response Evaluation
+        │
+        ▼
+Next Question
+        │
+        ▼
+Interview Completion
+        │
+        ▼
+Performance Report
+(Replace with a professional workflow diagram.)
+Transition
+The implementation discussed in this section establishes the software foundation of the proposed interview platform. The following section explains the implementation of the speech processing pipeline, including voice activity detection, speech recognition, dialogue management, language model integration, and speech synthesis, which collectively enable real-time AI-powered interview conversations.
+4.4 Speech Processing Implementation
+Speech processing is one of the fundamental components of the proposed AI-Driven Real-Time Interview Platform. It enables real-time interaction between the candidate and the AI interviewer by converting speech into text, generating intelligent responses, and synthesizing natural speech. The complete speech processing pipeline consists of Voice Activity Detection (VAD), Speech-to-Text (STT), Dialogue Management, Large Language Model (LLM) processing, and Text-to-Speech (TTS). These components operate sequentially to ensure smooth and uninterrupted interview sessions.
+The overall speech processing pipeline implemented in the proposed system is illustrated in Figure 4.6.
+Figure 4.6: Speech Processing Pipeline
+ Candidate Speech
+        │
+        ▼
+ Voice Activity Detection
+        │
+        ▼
+ Deepgram Speech-to-Text
+        │
+        ▼
+ Dialogue Manager
+        │
+        ▼
+ Groq Llama 3.3
+        │
+        ▼
+ Cartesia Text-to-Speech
+        │
+        ▼
+ AI Voice Response
+(Replace with a professional system pipeline diagram.)
+4.4.1 Voice Activity Detection
+Voice Activity Detection (VAD) is responsible for identifying speech segments from continuous microphone input. Instead of processing the entire audio stream, the VAD module detects the presence of speech and forwards only valid speech segments for transcription. This significantly reduces unnecessary processing while improving response time during interviews.
+The proposed system utilizes Silero Voice Activity Detection integrated through the Pipecat framework. The detector continuously analyzes incoming audio frames and determines whether speech is present before transmitting the data to the Speech-to-Text service.
+The speech detection process can be represented as
+                            (4.2)
+where E(t) represents the energy of the incoming audio frame, θis the predefined speech threshold, and V(t) indicates whether speech is detected.
+Figure 4.7: Voice Activity Detection Process
+Microphone Audio
+        │
+        ▼
+ Audio Frames
+        │
+        ▼
+ Voice Activity Detector
+      ┌───────┐
+      │Speech?│
+      └───┬───┘
+      Yes │ No
+          ▼
+ Deepgram STT
+(Replace with a professional VAD workflow.)
+4.4.2 Speech-to-Text Implementation
+After speech has been detected, the audio stream is forwarded to the Deepgram Speech-to-Text service. Deepgram performs real-time transcription by converting spoken language into textual representations that can be processed by the dialogue management system.
+Streaming transcription minimizes response latency because audio is processed continuously instead of waiting for complete recordings. This allows the AI interviewer to respond naturally during the interview session.
+The implemented Speech-to-Text workflow is shown in Figure 4.8.
+Figure 4.8: Speech-to-Text Processing
+Speech Audio
+      │
+      ▼
+ Deepgram API
+      │
+      ▼
+ Live Transcript
+      │
+      ▼
+ Dialogue Manager
+(Replace with a professional Deepgram processing diagram.)
+4.4.3 Dialogue Manager
+The Dialogue Manager coordinates the overall interview conversation by maintaining interview context and controlling the interaction flow. It receives transcribed candidate responses, determines the current interview stage, and forwards relevant information to the Large Language Model for generating subsequent interview questions.
+To ensure contextual consistency, the dialogue manager maintains the conversation history throughout the interview session. This enables the AI interviewer to generate adaptive follow-up questions based on previous responses rather than relying on predefined question sequences.
+The dialogue state can be represented as
+S_t+1​=f(St,Rt)                                    (4.3)
+where (S_t) represents the current interview state, (R_t) denotes the candidate's response, and (S_{t+1}) is the updated dialogue state.
+Figure 4.9: Dialogue Management Workflow
+Transcript
+     │
+     ▼
+Current Interview State
+     │
+     ▼
+Dialogue Manager
+     │
+     ▼
+Updated Context
+     │
+     ▼
+Groq LLM
+(Replace with a professional dialogue management diagram.)
+4.4.4 Large Language Model Integration
+The proposed platform utilizes the Groq Llama 3.3-70B model to generate interview questions, evaluate candidate responses, and maintain conversational continuity. The model receives the current dialogue context together with candidate responses and generates context-aware interview questions suitable for the selected interview domain.
+Prompt engineering techniques were incorporated to ensure that generated questions remain technically relevant while avoiding unnecessary repetition. The model also adapts question difficulty according to the candidate's previous responses, providing a more realistic interview experience.
+The response generation process can be expressed as
+Qt+1 = LLM(Ct,Rt)                                       (4.4)
+where (Q_{t+1}) represents the next interview question, (C_t) denotes the conversation context, and (R_t) is the candidate's latest response.
+Figure 4.10: Large Language Model Integration
+Candidate Response
+        │
+        ▼
+ Conversation Context
+        │
+        ▼
+ Groq Llama 3.3
+        │
+        ▼
+ Generated Question
+(Replace with a professional LLM architecture diagram.)
+4.4.5 Text-to-Speech Implementation
+The generated interview questions are converted into natural speech using the Cartesia Text-to-Speech service. Cartesia synthesizes high-quality speech that is streamed back to the candidate through the browser, enabling continuous voice interaction.
+Streaming speech synthesis reduces waiting time by generating audio incrementally instead of producing complete recordings before playback. This contributes to a more natural conversational experience.
+The complete speech synthesis process is illustrated in Figure 4.11.
+Figure 4.11: Text-to-Speech Processing
+Generated Text
+       │
+       ▼
+ Cartesia API
+       │
+       ▼
+ Synthesized Speech
+       │
+       ▼
+ Browser Audio Output
+(Replace with a professional Text-to-Speech workflow.)
+The speech processing components discussed above collectively enable real-time voice communication between the candidate and the AI interviewer. The following section presents the complete interview workflow, describing how these components interact to conduct adaptive interviews, evaluate candidate performance, and generate automated interview reports.
+4.5 Interview Workflow
+The interview workflow defines the sequence of operations performed during an interview session. It begins when the candidate joins the interview through the web interface and continues until the final evaluation report is generated. Throughout the interview, the system maintains conversational context, dynamically generates questions, evaluates candidate responses, and provides natural voice interaction. The complete workflow ensures a smooth and adaptive interview experience while minimizing manual intervention.
+The implemented interview workflow is illustrated in Figure 4.12.
+Figure 4.12: Complete Interview Workflow
+                 Start Interview
+                        │
+                        ▼
+             Candidate Authentication
+                        │
+                        ▼
+          Interview Configuration Loaded
+                        │
+                        ▼
+          AI Generates Introduction
+                        │
+                        ▼
+        Candidate Speaks Response
+                        │
+                        ▼
+         Voice Activity Detection
+                        │
+                        ▼
+        Speech-to-Text Conversion
+                        │
+                        ▼
+         Dialogue Management
+                        │
+                        ▼
+      Groq LLM Question Generation
+                        │
+                        ▼
+     Cartesia Text-to-Speech Output
+                        │
+                        ▼
+      Candidate Answers Question
+                        │
+               ┌────┴────────┐
+               │                      │
+          More Questions?              No
+               │                      │
+              Yes                       ▼ 
+               │               Candidate Evaluation
+               │                       │
+               └─────────────►▼
+                   Interview Report
+                        │
+                        ▼
+                  End Interview
+(Replace with a professional workflow diagram.)
+4.5.1 Interview Initialization
+The interview session begins after the candidate accesses the platform and establishes a connection with the backend server. During initialization, the system loads the interview configuration, verifies API connectivity, initializes the speech processing pipeline, and prepares the dialogue manager. Once initialization is complete, the AI interviewer introduces the interview and requests the candidate to begin.
+4.5.2 Candidate Interaction
+During the interview, the candidate communicates naturally through voice. The speech is continuously monitored using Voice Activity Detection before being transcribed by the Speech-to-Text service. The generated transcript is forwarded to the dialogue manager, which maintains the interview context throughout the session.
+The interaction cycle continues until all interview questions have been completed.
+4.5.3 Adaptive Question Generation
+Unlike traditional interview systems that follow a predefined list of questions, the proposed platform dynamically generates interview questions based on the candidate's previous responses. This enables the interview to adapt according to the candidate's knowledge and technical proficiency.
+The adaptive question generation process can be expressed as
+Qi+1 = f(Qi,Ri,Ci)                                 (4.5)
+where (Q_i) is the current interview question, (R_i) represents the candidate's response, (C_i) denotes the interview context, and (Q_{i+1}) is the next generated question.
+This adaptive approach produces a more natural conversation and allows follow-up questions to explore candidate knowledge in greater depth.
+Figure 4.13: Adaptive Question Generation Process
+Current Question
+        │
+        ▼
+Candidate Response
+        │
+        ▼
+Conversation Context
+        │
+        ▼
+Groq LLM
+        │
+        ▼
+Next Question
+(Replace with a professional adaptive questioning diagram.)
+4.5.4 Candidate Evaluation
+The candidate evaluation module analyzes each response during the interview and assigns performance scores according to predefined evaluation criteria. The assessment considers multiple factors, including technical correctness, communication quality, response completeness, confidence, and overall interview performance.
+The overall interview score is computed using a weighted scoring model:
+where (S) represents the overall interview score, (w_i) is the weight assigned to the (i^{th}) evaluation criterion, (s_i) is the corresponding candidate score, and (n) is the total number of evaluation criteria.
+The weighted evaluation provides a balanced assessment by considering multiple aspects of candidate performance instead of relying on a single metric.
+Table 4.6: Candidate Evaluation Criteria
+Evaluation Criterion
+Description
+Technical Knowledge
+Accuracy of technical responses
+Communication Skills
+Clarity and fluency of speech
+Problem Solving
+Ability to analyze and solve problems
+Confidence
+Confidence during response delivery
+Response Completeness
+Coverage of the interview question
+Overall Performance
+Final aggregated interview score
+4.5.5 Report Generation
+After the interview is completed, the evaluation engine generates a comprehensive interview report summarizing the candidate's performance. The report includes interview statistics, evaluation scores, overall performance, and AI-generated feedback. This report assists recruiters in reviewing candidate performance and supports objective decision-making during the recruitment process.
+The report generation workflow is illustrated in Figure 4.14.
+Figure 4.14: Interview Report Generation
+Candidate Responses
+         │
+         ▼
+ Evaluation Engine
+         │
+         ▼
+ Score Calculation
+         │
+         ▼
+ AI Feedback
+         │
+         ▼
+ Interview Report
+         │
+         ▼
+ Recruiter Dashboard
+(Replace with a professional report generation diagram.)
+The interview workflow described in this section integrates speech processing, dialogue management, candidate evaluation, and report generation into a unified process. The following section presents the implementation of the underlying algorithms and prompt engineering techniques used to support adaptive interviewing and automated candidate assessment.
+Chapter 5
+Results and Discussion
+This chapter presents the implementation results and evaluation of the proposed AI-Driven Real-Time Interview Platform. The developed system integrates Groq (Llama 3.3 70B) for adaptive interview generation and evaluation, Deepgram Nova-2 for real-time speech recognition, Cartesia for low-latency speech synthesis, Pipecat v1.4 for voice orchestration, Silero Voice Activity Detection (VAD) for speech segmentation, and FastAPI for backend service management.
+Unlike traditional interview simulators that rely on static questionnaires, the developed platform conducts dynamic interviews by analysing candidate responses, adapting subsequent questions according to interview progress, maintaining conversational context, and producing structured recruiter-oriented evaluation reports. Throughout development, multiple implementation phases and extensive testing were conducted to improve interview quality, transcript reliability, fairness, and reporting accuracy. The following sections discuss the final implementation results and system performance.
+5.1 Results and Discussion
+The completed system successfully achieved the primary objectives defined in the project proposal. The final implementation supports complete voice-based interviews with adaptive questioning, automatic response evaluation, domain coverage tracking, recruiter report generation, and real-time conversational interaction.
+The system architecture combines several AI services into a unified interview pipeline. Candidate speech is streamed through Deepgram for transcription, processed by the Dialogue Manager, evaluated using Groq's large language model, and converted back into natural speech using Cartesia. Pipecat manages the entire voice communication pipeline while Silero VAD detects speech activity to reduce latency and improve responsiveness.
+Table 5.1 summarises the major capabilities implemented in the final system.
+Table 5.1: Final System Capabilities
+Feature
+Status
+Real-time voice interview
+Implemented
+Adaptive questioning
+Implemented
+Resume-aware interview
+Implemented
+Dynamic follow-up questions
+Implemented
+Six-dimensional evaluation rubric
+Implemented
+Communication & Technical score profiles
+Implemented
+Recruiter hiring recommendation
+Implemented
+Domain coverage tracking
+Implemented
+Transcript quality assessment
+Implemented
+Noisy transcript fairness adjustment
+Implemented
+Human-study export
+Implemented
+JSON interview reports
+Implemented
+Voice interruption (Barge-in)
+Implemented
+PostgreSQL support (optional)
+Implemented
+REST API
+Implemented
+The completed platform demonstrates that modern LLMs combined with real-time speech technologies can produce an interview experience that closely resembles human-led technical interviews. Throughout testing, the system maintained coherent dialogue while dynamically selecting follow-up questions according to candidate performance and interview progression.
+5.2 System Performance
+Several implementation phases were completed during development to improve interview quality, conversation flow, transcript reliability, and reporting accuracy. Phase 6 introduced the largest improvements through three major modules.
+Phase 6A – Interview Flow Improvements
+The first set of improvements focused on conversation management.
+Major additions included:
+Semantic duplicate question detection 
+MetaConversationGuard 
+Three-stage "I Don't Know" handling 
+Domain synchronization 
+Improved interview progression 
+The duplicate question detection module prevents the interviewer from asking semantically similar questions multiple times. MetaConversationGuard processes conversational commands such as "repeat the question" or "next question" without affecting candidate evaluation. The IDK Guard applies a three-stage policy consisting of question rephrasing, contextual hints, and domain skipping, producing a more natural interview experience.
+Phase 6B – Transcript Quality and Fairness
+Live speech transcription frequently contains repeated words, sentence fragments, and recognition noise. To address this issue, transcript preprocessing was introduced before answer evaluation.
+Major improvements include:
+Stutter removal 
+N-gram repetition removal 
+Progressive phrase collapsing 
+Transcript quality scoring 
+Fairness-aware rubric adjustment 
+The transcript quality module calculates repeated token ratios and reduction statistics to determine whether speech recognition quality is sufficiently reliable. When excessive transcription noise is detected, communication-related evaluation weights are automatically reduced while technical understanding receives greater emphasis. This approach minimizes unfair penalties caused by imperfect speech recognition.
+Phase 6C – Reporting Improvements
+The final reporting system produces significantly more informative interview reports than earlier project versions.
+The generated report now includes:
+Technical score profile 
+Communication score profile 
+Domain assessment map 
+Interview completion percentage 
+Adaptive questioning trace 
+Recruiter hiring recommendation 
+Bias-awareness documentation 
+These additions improve report transparency and make the evaluation easier for recruiters and academic reviewers to interpret.
+5.3 Voice Pipeline Performance
+The voice subsystem was extensively tested under real interview conditions.
+The complete processing pipeline consists of:
+Candidate Speech → Silero VAD → Deepgram STT → Dialogue Manager → Groq Evaluation → Cartesia TTS → Candidate Response
+Several practical issues were discovered during live testing, including speech interruptions, VAD sensitivity, transcript fragmentation, reconnect failures, and nested TTS responses.
+A dedicated Voice Hotfix phase resolved these problems through:
+Browser microphone gain adjustment 
+Improved Silero VAD thresholds 
+Interim speech fallback after silence 
+Improved interruption handling 
+Better TTS response sanitization 
+Skip-question intent detection 
+These improvements significantly increased conversation stability and reduced missed speech events during live interviews.
+5.4 Testing Results
+The developed platform was evaluated through automated regression testing, integration testing, and manual voice testing.
+Table 5.2: Testing Summary
+Test Category
+Purpose
+Status
+Phase 3 Tests
+Session management
+Passed
+Phase 4 Tests
+Evaluation pipeline
+Passed
+Phase 5 Tests
+Voice turn policy
+Passed
+Phase 6A Tests
+Interview flow
+Passed
+Phase 6B Tests
+Transcript quality
+Passed
+Phase 6C Tests
+Reporting
+Passed
+Integration Tests
+Pipecat integration
+Passed
+Dialogue Adapter Tests
+Voice communication
+Passed
+Manual Voice Testing
+End-to-end interview
+Passed
+Overall, more than 40 automated regression tests were executed successfully. Manual interviews further confirmed stable interaction between Deepgram, Groq, Cartesia, and Pipecat under realistic conditions.
+5.5 System Performance Metrics
+The developed interview platform was evaluated using practical runtime metrics rather than conventional machine learning classification accuracy.
+Table 5.3: Runtime Performance
+Metric
+Observation
+Greeting TTS latency
+Approximately 10–12 seconds
+Average response generation
+3–8 seconds
+Speech finalization
+Dependent on VAD endpointing
+Regression execution
+Under 2 minutes
+Supported interview duration
+Approximately 8–15 minutes
+Maximum interview domains
+10
+During evaluation, asynchronous processing prevented long language model inference times from blocking the voice pipeline, resulting in smoother interaction between interviewer and candidate.
+5.6 Sample Interview Results
+A representative live interview session was conducted after implementing the Phase 6 Voice Hotfix.
+Table 5.4: Sample Interview Session
+Metric
+Value
+Interview Duration
+~9 minutes
+Total Conversation Turns
+17
+Domains Assessed
+4 / 10
+Coverage
+40%
+Average Weighted Score
+1.42
+Communication Composite
+1.62
+Technical Composite
+1.25
+Recruiter Recommendation
+No Hire
+The relatively low interview score reflects candidate responses rather than system performance. The session successfully demonstrated adaptive questioning, transcript processing, evaluation, report generation, and recruiter recommendation.
+5.7 Overall Performance Analysis
+The final implementation successfully integrates multiple artificial intelligence technologies into a unified real-time interview platform. Compared with the initial proposal, the completed system prioritised robust conversational interaction, adaptive evaluation, and practical deployment over computationally intensive emotion recognition models.
+The platform demonstrates several significant achievements. First, it supports complete end-to-end voice interviews through seamless integration of Pipecat, Deepgram, Groq, Cartesia, and FastAPI. Second, the Dialogue Manager effectively adapts interview flow based on candidate performance while maintaining domain coverage and conversational coherence. Third, the transcript preprocessing and fairness mechanisms improve evaluation reliability under noisy speech conditions. Finally, the reporting framework provides comprehensive recruiter-oriented feedback, including technical competency, communication ability, hiring recommendations, and domain assessment summaries.
+Although facial emotion recognition, speech emotion recognition, Docker deployment, and psychometric IRT/CAT adaptation were deferred due to project scope and resource constraints, the implemented platform satisfies the primary objectives of the Final Year Project. The completed system demonstrates that large language models combined with real-time speech technologies can provide an intelligent, adaptive, and scalable interview solution suitable for educational demonstrations and future research.
+Figures to Include
+Figure 5.1: Complete AI Interview System Running During a Live Voice Interview. 
+Figure 5.2: Voice Pipeline (Candidate → STT → Dialogue Manager → LLM → TTS). 
+Figure 5.3: Sample Generated Interview Report Showing Communication and Technical Score Profiles. 
+Figure 5.4: Domain Assessment Map Generated After Interview Completion. 
+Figure 5.5: Recruiter Summary and Hiring Recommendation. 
+Figure 5.6: Adaptive Interview Flow Showing PROBE and ADVANCE Decision Paths.
+Chapter 6
+Web Interface
+One of the most significant components of the proposed AI-Driven Real-Time Interview Platform is its web-based interface, which provides users with an intuitive environment for conducting technical interviews. While the underlying artificial intelligence modules—including speech recognition, adaptive dialogue management, large language model evaluation, and speech synthesis—operate as backend services, the web interface acts as the central interaction layer between candidates and the interview system.
+Traditional AI interview prototypes often require command-line execution or isolated testing environments, making them unsuitable for practical demonstrations. To overcome these limitations, a browser-based client was developed that communicates with the backend through WebSockets and REST APIs. The interface enables candidates to participate in complete voice interviews without requiring any technical knowledge of the underlying implementation.
+The web application works together with FastAPI, Pipecat, Deepgram, Cartesia, Groq, and Silero Voice Activity Detection (VAD) to provide real-time conversational interviewing. Through this architecture, the user experiences a natural interview while the backend continuously manages speech processing, adaptive questioning, response evaluation, and report generation.
+6.1 System Design and Architecture
+The developed interview platform follows a modular multi-layer architecture consisting of five primary components.
+Presentation Layer 
+The presentation layer consists of a browser-based HTML, CSS, and JavaScript client. The interface allows candidates to:
+Connect to the interview server 
+Grant microphone permission 
+View interview status 
+Listen to interviewer speech 
+Speak naturally throughout the interview 
+View connection logs 
+Receive interview completion notification 
+Unlike traditional chatbot interfaces, the application provides continuous voice interaction rather than text-based messaging.
+Communication Layer 
+Communication between the browser and backend is performed through Pipecat's WebSocket transport.
+The browser continuously streams microphone audio to the interview server while receiving synthesized interviewer responses. This bidirectional streaming enables natural conversation with minimal delay.
+Dialogue Layer 
+The Dialogue Manager represents the core intelligence of the system.
+Its responsibilities include:
+Interview state management 
+Adaptive question selection 
+Candidate evaluation 
+Domain progression 
+Guard pipeline execution 
+Transcript preprocessing 
+Report generation 
+Rather than following a fixed questionnaire, the Dialogue Manager dynamically determines the next interview action according to candidate performance.
+AI Services Layer 
+Several AI services work together during every interview turn.
+Component
+Technology
+Large Language Model
+Groq (Llama 3.3 70B Versatile)
+Speech Recognition
+Deepgram Nova-2
+Speech Synthesis
+Cartesia
+Voice Activity Detection
+Silero VAD
+Voice Framework
+Pipecat v1.4
+REST Backend
+FastAPI
+Each service performs a dedicated task while Pipecat orchestrates communication between them.
+Data Layer 
+The data layer stores interview sessions and generated reports.
+The system maintains:
+InterviewContext 
+Session state 
+Adaptive evaluation trace 
+Recruiter reports 
+JSON interview reports 
+Optional PostgreSQL storage 
+Figure 6.1 illustrates the overall architecture of the implemented interview platform.
+Figure 6.1: Overall System Architecture of the AI-Driven Real-Time Interview Platform.
+6.1.1 Dialogue Manager Implementation
+The Dialogue Manager serves as the central orchestration engine responsible for controlling interview progression.
+During every candidate response, the Dialogue Manager performs the following sequence:
+Clean transcript 
+Assess transcript quality 
+Execute Guard Pipeline 
+Evaluate response using Groq 
+Decide interview progression 
+Generate follow-up question 
+Remove duplicate questions 
+Save interview state 
+Update reports 
+This modular workflow enables adaptive interviewing while maintaining consistent evaluation across interview sessions.
+6.1.2 Voice Processing Workflow
+The developed voice pipeline enables complete real-time conversation between the interviewer and candidate.
+The workflow consists of the following stages:
+Candidate speaks through the browser microphone. 
+Silero Voice Activity Detection identifies speech segments. 
+Audio is streamed to Deepgram for speech recognition. 
+The generated transcript is cleaned and merged. 
+The Dialogue Manager evaluates the response. 
+Groq determines interview scores and follow-up strategy. 
+A new interview question is generated. 
+Cartesia converts the question into speech. 
+Audio is streamed back to the browser. 
+This process repeats until all interview domains have been assessed or the interview reaches completion.
+Figure 6.2 presents the complete voice processing workflow.
+Figure 6.2: Real-Time Voice Processing Pipeline.
+6.1.3 Adaptive Interview Flow
+Unlike conventional interview systems that follow predefined question lists, the proposed platform adapts interview progression according to candidate responses.
+The adaptive mechanism consists of several modules.
+Guard Pipeline
+The Guard Pipeline executes six conversational guards before answer evaluation.
+These include:
+Echo Guard 
+Repeat Guard 
+MetaConversation Guard 
+Intent Guard 
+IDK Guard 
+Conversation Flow Guard 
+These guards prevent conversational failures while ensuring fair evaluation.
+Decision Engine
+After evaluation, the Decision Engine selects one of three actions:
+PROBE 
+ADVANCE 
+COMPLETE 
+The selected action determines whether the interviewer asks a follow-up question, moves to another domain, or finishes the interview.
+Coverage Engine
+The Coverage Engine tracks assessment progress across all interview domains and ensures balanced interview coverage.
+6.1.4 REST API Endpoints
+FastAPI exposes several REST endpoints supporting interview management and report retrieval.
+Table 6.1: REST API Endpoints
+Method
+Endpoint
+Purpose
+POST
+/start
+Start interview session
+POST
+/chat
+Process interview response
+GET
+/session/{id}
+Retrieve session state
+GET
+/report/{id}
+Complete interview report
+GET
+/report/hr/{id}
+Recruiter summary
+GET
+/sessions
+List interview sessions
+GET
+/sessions/rank
+Candidate ranking
+GET
+/roles
+Available interview roles
+GET
+/health
+Health monitoring
+GET
+/export/human-study/{id}
+Human-study export
+These APIs allow external applications to integrate with the interview platform while maintaining a modular backend architecture.
+6.1.5 Voice Runtime Implementation
+The production voice runtime is implemented using Pipecat.
+The interview pipeline follows:
+Browser Client
+↓
+WebSocket Transport
+↓
+Silero VAD
+↓
+Deepgram STT
+↓
+InterviewProcessor
+↓
+Dialogue Manager
+↓
+Groq Evaluation
+↓
+Cartesia TTS
+↓
+Browser Client
+The InterviewProcessor merges transcript fragments, manages interruptions, buffers speech frames, and synchronizes voice communication with the Dialogue Manager.
+6.1.6 Interview Reporting
+Upon interview completion, the Analytics module automatically generates structured recruiter reports.
+Each report contains:
+Overall interview score 
+Communication profile 
+Technical profile 
+Domain assessment map 
+Interview completion statistics 
+Adaptive questioning trace 
+Recruiter recommendation 
+Bias-awareness notes 
+Reports are generated in JSON format and can optionally be stored in PostgreSQL.
+Figure 6.3 illustrates an example interview report.
+Figure 6.3: Sample Generated Interview Report.
+6.1.7 Voice Quality Improvements
+Extensive live testing identified several practical voice communication challenges.
+Major improvements introduced during the Voice Hotfix include:
+Improved Silero VAD sensitivity 
+Browser microphone gain enhancement 
+Interim speech fallback 
+Better transcript merging 
+Improved interruption handling 
+TTS response sanitization 
+Skip-domain voice commands 
+These enhancements significantly improved interview continuity and reduced missed speech during live interviews.
+6.1.8 Security and Error Handling
+Several mechanisms were incorporated to ensure reliable operation.
+These include:
+Session validation 
+API key protection through environment variables 
+Structured exception handling 
+Invalid session detection 
+WebSocket reconnection handling 
+Transcript validation 
+Duplicate question prevention 
+Graceful interview termination 
+All configuration parameters are stored externally using the .env file, preventing exposure of API credentials within the source code.
+6.1.9 Deployment Considerations
+The system is currently deployed in a local development environment.
+The deployment consists of:
+FastAPI backend server 
+Pipecat interview server 
+Browser-based manual client 
+HTTP report server 
+Optional PostgreSQL database 
+The modular architecture allows future deployment using Docker, cloud virtual machines, or Kubernetes without significant architectural modifications.
+6.1.10 Practical Applications and Future Extensions
+The developed platform has several practical applications.
+Current applications include:
+Technical interview preparation 
+University mock interviews 
+Recruitment assistance 
+Candidate self-assessment 
+AI interview research 
+Future enhancements include:
+Speech Emotion Recognition 
+Facial expression analysis 
+Docker deployment 
+WebRTC communication 
+Multi-user interview support 
+Cloud deployment 
+Multi-role interview blueprints 
+Human validation dashboard 
+Interview analytics dashboard 
+These improvements will further enhance scalability, usability, and evaluation accuracy while maintaining the modular architecture developed throughout this project.
+Chapter 7
+Conclusion
+This Final Year Project aimed to design and implement an AI-driven real-time interview platform capable of conducting adaptive technical interviews through natural voice interaction while providing structured candidate evaluation and detailed recruiter-oriented reports. The motivation behind this project was to address the limitations of conventional online assessment systems, which often rely on static questionnaires, limited interaction, and manual evaluation. By integrating modern artificial intelligence technologies with real-time speech processing, the developed system offers a more realistic interview experience that closely resembles interactions with a human interviewer.
+The final implementation successfully achieves the primary objectives defined at the beginning of the project. The developed platform is capable of conducting complete voice-based interviews, dynamically adapting questions according to candidate responses, evaluating answers using a structured multi-dimensional rubric, and generating comprehensive interview reports. Unlike traditional chatbot-based interview systems, the platform maintains conversational flow, tracks interview coverage across multiple technical domains, and handles interruptions and conversational exceptions using a dedicated guard pipeline.
+The completed system integrates several state-of-the-art technologies into a unified architecture. FastAPI serves as the backend API framework responsible for session management and report generation, while Pipecat provides the real-time voice orchestration framework connecting speech recognition, dialogue management, and speech synthesis. Deepgram Nova-2 performs streaming speech-to-text transcription, Groq Llama 3.3 70B Versatile is used as the sole large language model for question generation and candidate evaluation, and Cartesia produces low-latency interviewer speech through streaming text-to-speech synthesis. Together, these components enable a responsive and production-oriented voice interview pipeline.
+One of the most significant achievements of this project is the implementation of a structured adaptive dialogue system. Rather than asking questions sequentially from a static question bank, the system evaluates each candidate response before deciding whether to probe deeper into the current topic or advance to another technical domain. This behaviour is coordinated through the DialogueManager, DecisionEngine, and CoverageEngine, enabling interviews to progress naturally while ensuring balanced assessment across the predefined Junior AI Engineer blueprint domains.
+Another major contribution is the introduction of a comprehensive guard pipeline that improves interview robustness during live conversations. Guards were developed to handle situations such as repeated questions, conversational meta-commands, candidate uncertainty ("I don't know"), duplicate speech recognition output, and transcript noise. These mechanisms significantly improve interview quality by preventing unnecessary scoring errors while maintaining conversational continuity. The addition of transcript quality assessment and fairness-aware score adjustment further ensures that candidates are not unfairly penalized because of speech recognition inaccuracies or microphone-related issues.
+The reporting subsystem also represents a substantial enhancement over many existing interview simulators. Instead of generating only an overall interview score, the developed platform produces structured JSON reports containing communication and technical score profiles, recruiter-oriented hiring recommendations, adaptive interview traces, domain assessment maps, interview completion statistics, and documented limitations. This reporting approach increases transparency and makes interview outcomes easier for recruiters and researchers to interpret.
+Extensive testing was performed throughout the development process. More than forty automated regression tests validate the functionality of session management, adaptive dialogue flow, evaluation logic, transcript processing, reporting modules, and voice integration components. In addition to automated testing, multiple live interview sessions were conducted using the complete voice pipeline to evaluate speech recognition quality, latency, interruption handling, transcript generation, and overall user experience. These evaluations confirmed that the implemented architecture functions reliably under realistic interview conditions while maintaining stable conversational behaviour.
+Although the developed platform successfully fulfills the primary objectives of the project, several limitations remain. Speech recognition quality continues to depend on microphone hardware, background noise, internet connectivity, and cloud-based transcription services. The current implementation supports only a single active voice client because of the selected Pipecat transport architecture. Furthermore, advanced multimodal analysis proposed during the initial project planning—including facial expression recognition and speech emotion recognition—was intentionally deferred to maintain a manageable project scope and prioritize a stable end-to-end voice interviewing system.
+The project also demonstrates that practical engineering decisions sometimes provide greater value than pursuing overly ambitious research objectives. During development, several planned components—including full Item Response Theory (IRT), Computerized Adaptive Testing (CAT), TensorFlow-based emotion recognition, and webcam behavioural analysis—were replaced by more practical alternatives such as blueprint-driven adaptive questioning, structured LLM evaluation, transcript fairness adjustment, and robust dialogue management. These decisions resulted in a more reliable, maintainable, and demonstrable system while remaining academically defensible.
+Future enhancements can significantly extend the capabilities of the platform. Integrating multimodal emotion recognition using speech and facial analysis would provide richer behavioural insights during interviews. Implementing WebRTC transport could reduce communication latency compared to raw WebSocket audio streaming. A production deployment architecture using Docker, Kubernetes, or cloud infrastructure would improve scalability and enable concurrent interview sessions. Additional work may also include expanding the role registry beyond Junior AI Engineer positions, incorporating multilingual interview support, introducing real-time LLM streaming responses, and validating the evaluation methodology through large-scale human studies using the prepared Cohen's κ export framework.
+From an academic perspective, the project demonstrates that large language models can be integrated effectively into structured assessment systems when combined with deterministic evaluation logic, adaptive dialogue management, transparent reporting, and clearly documented limitations. Rather than replacing traditional assessment entirely, the developed platform illustrates how AI can augment technical interviewing by improving consistency, reducing manual effort, and providing standardized evaluation criteria while maintaining human oversight.
+In conclusion, this Final Year Project successfully delivers a complete AI-driven real-time interview platform that combines adaptive questioning, voice interaction, structured evaluation, and comprehensive reporting into a unified system. Through six iterative development phases and multiple rounds of live testing, the project evolved from an initial prototype into a robust and extensible interview framework suitable for academic demonstration and future research. The completed system establishes a strong foundation upon which future work in multimodal assessment, scalable deployment, and advanced adaptive interviewing can be built, while demonstrating the practical potential of artificial intelligence to improve modern technical recruitment processes.
+Bibliography
+[1] H. Sun, Y. Zhang, X. Li, and J. Wang, "MockLLM: An LLM-Based Mock Interview System for Personalized Interview Practice," arXiv preprint arXiv:2405.18113, 2024.
+[2] Z. Wang, L. Chen, Y. Zhao, and H. Liu, "InterviewBot: An Intelligent Interview Assistant Based on Large Language Models," arXiv preprint arXiv:2303.15049, 2023.
+[3] T. Brown et al., "Language Models are Few-Shot Learners," Advances in Neural Information Processing Systems (NeurIPS), vol. 33, pp. 1877–1901, 2020.
+[4] OpenAI, "GPT-4 Technical Report," arXiv preprint arXiv:2303.08774, 2023.
+[5] A. Vaswani et al., "Attention Is All You Need," Advances in Neural Information Processing Systems (NeurIPS), vol. 30, 2017.
+[6] M. Raghavan, S. Barocas, J. Kleinberg, and K. Levy, "Mitigating Bias in Algorithmic Hiring: Evaluating Claims and Practices," arXiv preprint arXiv:1906.09208, 2019.
+[7] D. Jurafsky and J. H. Martin, Speech and Language Processing, 3rd ed., Draft, Stanford University, 2023.
+[8] A. Graves, "Sequence Transduction with Recurrent Neural Networks," arXiv preprint arXiv:1211.3711, 2012.
+[9] A. Radford et al., "Robust Speech Recognition via Large-Scale Weak Supervision," arXiv preprint arXiv:2212.04356, 2022.
+[10] J. Devlin, M. Chang, K. Lee, and K. Toutanova, "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding," Proceedings of NAACL-HLT, 2019.
+[11] T. Fawcett, "An Introduction to ROC Analysis," Pattern Recognition Letters, vol. 27, no. 8, pp. 861–874, 2006.
+[12] J. Cohen, "A Coefficient of Agreement for Nominal Scales," Educational and Psychological Measurement, vol. 20, no. 1, pp. 37–46, 1960.
+[13] K. Krippendorff, Content Analysis: An Introduction to Its Methodology, 4th ed. Sage Publications, 2018.
+[14] I. Sommerville, Software Engineering, 10th ed. Pearson Education, 2016.
+[15] T. Erl, Service-Oriented Architecture: Concepts, Technology, and Design. Upper Saddle River, NJ, USA: Prentice Hall, 2005.
+[16] M. Fowler, Patterns of Enterprise Application Architecture. Boston, MA, USA: Addison-Wesley, 2002.
+[17] H. Koshti, P. Sharma, R. Singh, and K. Patel, "Resume-Based HR and Technical Assessment Using Artificial Intelligence," 2025.
+[18] S. R. Jagtap, A. Kulkarni, and M. Joshi, "Voice and Facial Analysis-Based AI Interview Application," Indian Journal of Science and Technology, 2025.
+[19] K. N. V. Shekar, S. Kumar, and P. Rao, "AI-Driven Virtual Interviewer Using Natural Language Processing," 2025.
+[20] M. B. Amrutha, A. Nair, and P. Menon, "Emotion and Confidence Analysis in AI-Based Mock Interviews," 2024.
+[21] P. Kothari, R. Shah, and D. Patel, InterviewEase: Intelligent AI Interview Platform. Springer, 2024.
+[22] Khapekar, P. Patil, and S. Deshmukh, "Real-Time Mock Interview Platform Using Artificial Intelligence," International Journal of Novel Research and Development (IJNRD), 2025.
+[23] "AI-Driven Smart Interview Simulator," TIJER, 2025.
+[24] Groq Inc., "Groq API Documentation." Available: https://console.groq.com/docs
+[25] Pipecat AI, "Pipecat Documentation." Available: https://docs.pipecat.ai
+[26] Deepgram Inc., "Deepgram Speech-to-Text API Documentation." Available: https://developers.deepgram.com
+[27] Cartesia AI, "Cartesia Text-to-Speech Documentation." Available: https://docs.cartesia.ai
+[28] FastAPI Developers, "FastAPI Documentation." Available: https://fastapi.tiangolo.com
+[29] PostgreSQL Global Development Group, "PostgreSQL Documentation." Available: https://www.postgresql.org/docs
+[30] Python Software Foundation, "Python Documentation." Available: https://docs.python.org/3
+[31] Mozilla Foundation, "WebSocket API." Available: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
+[32] Google, "WebRTC Overview." Available: https://webrtc.org
+[33] NumPy Developers, "NumPy Documentation." Available: https://numpy.org
+[34] Pydantic Developers, "Pydantic Documentation." Available: https://docs.pydantic.dev
+[35] Uvicorn Developers, "Uvicorn ASGI Server Documentation." Available: https://www.uvicorn.org
+[36] Starlette Developers, "Starlette Documentation." Available: https://www.starlette.io
+[37] Silero Team, "Silero Voice Activity Detection." Available: https://github.com/snakers4/silero-vad
+[38] IEEE Standards Association, Ethically Aligned Design: A Vision for Prioritizing Human Well-Being with Autonomous and Intelligent Systems. IEEE, 2020.
+[39] D. P. Kingma and J. Ba, "Adam: A Method for Stochastic Optimization," International Conference on Learning Representations (ICLR), 2015.
+[40] T. Mitchell, Machine Learning. McGraw-Hill, 1997.
+APPENDIX
+Chapter A
+ Project Configuration and System Information
+This appendix presents the implementation-specific information for the proposed AI-Driven Real-Time Interview Platform. It summarizes the project configuration, interview blueprint, software environment, implementation artifacts, and development observations. Unlike the main chapters, which focus on methodology and evaluation, this appendix serves as a practical reference for reproducing, configuring, and understanding the deployed system.
+A.1 System Architecture Overview
+The developed system integrates modern cloud-based Artificial Intelligence services with a modular Python backend to conduct adaptive real-time technical interviews. Figure A.1 illustrates the overall architecture of the implemented system.
+Figure A.1: Overall architecture of the AI-Driven Real-Time Interview Platform.
+[Insert Architecture Diagram from Chapter 4]
+The interview pipeline consists of the following stages:
+Browser-based audio capture 
+WebSocket transport using Pipecat 
+Voice Activity Detection (Silero VAD) 
+Deepgram streaming Speech-to-Text 
+Adaptive dialogue management 
+Groq Llama 3.3 (70B Versatile) evaluation and question generation 
+Cartesia Text-to-Speech synthesis 
+JSON/PostgreSQL report generation 
+Recruiter-oriented evaluation report 
+A.2 Software Environment
+Table A.1 summarizes the primary technologies and frameworks used during development.
+Table A.1: Software environment used in the proposed system.
+Component
+Technology Used
+Purpose
+Programming Language
+Python 3.10.11
+Backend implementation
+Web Framework
+FastAPI
+REST API services
+Voice Framework
+Pipecat v1.4
+Real-time voice orchestration
+Speech-to-Text
+Deepgram Nova-2
+Live transcription
+Text-to-Speech
+Cartesia
+Streaming interviewer voice
+Large Language Model
+Groq Llama 3.3 70B Versatile
+Question generation and evaluation
+Voice Activity Detection
+Silero VAD
+Speech segmentation
+Database
+PostgreSQL (Optional)
+Persistent storage
+Report Storage
+JSON Files
+Interview reports
+Frontend
+HTML, CSS, JavaScript
+Browser interview client
+API Communication
+REST + WebSocket
+Client-server communication
+Version Control
+Git/GitHub
+Source management
+A.3 Interview Blueprint
+The interview follows a structured blueprint consisting of ten technical and behavioural domains. This blueprint enables adaptive questioning while ensuring adequate topic coverage throughout the interview.
+Table A.2: Interview blueprint domains.
+Domain No.
+Domain
+Assessment Focus
+1
+Project Overview
+Resume discussion and introduction
+2
+Python Programming
+Code organization and implementation
+3
+Machine Learning
+Algorithms and model understanding
+4
+Data Preprocessing
+Missing values, encoding, scaling
+5
+Model Evaluation
+Metrics, validation, overfitting
+6
+NLP and Speech AI
+Text preprocessing and speech systems
+7
+APIs and Backend
+FastAPI, REST APIs, error handling
+8
+Deployment
+Production deployment and monitoring
+9
+Debugging
+Problem-solving methodology
+10
+Behavioural Ownership
+Personal contribution and teamwork
+The Coverage Engine dynamically determines when to advance between these domains based on candidate performance, eliminating unnecessary repetition while maintaining interview consistency.
+A.4 System Configuration
+The application is configured using environment variables stored within the .env file. This approach separates sensitive credentials from source code and enables easy deployment across different environments.
+The major configuration categories include:
+Groq API configuration 
+Deepgram Speech-to-Text configuration 
+Cartesia Text-to-Speech configuration 
+Pipecat networking 
+Voice Activity Detection parameters 
+Database connectivity 
+Transcript processing 
+Adaptive interview settings 
+Table A.3: Primary Environment Variables
+Variable
+Purpose
+GROQ_API_KEY
+Groq authentication
+GROQ_MODEL
+Primary LLM model
+GROQ_EVALUATOR_MODEL
+Evaluation model
+DEEPGRAM_API_KEY
+Speech recognition API
+DEEPGRAM_MODEL
+Nova-2 streaming model
+CARTESIA_API_KEY
+Text-to-Speech authentication
+CARTESIA_VOICE_ID
+Interviewer voice selection
+PIPECAT_WS_PORT
+Voice WebSocket server
+REPORT_HTTP_PORT
+Report server
+DATABASE_URL
+PostgreSQL connection (optional)
+BOT_ECHO_COOLDOWN_SECONDS
+Echo suppression
+TRANSCRIPT_DEBOUNCE_SECONDS
+STT merge timing
+A.5 Sample Interview Screens
+The following screenshots demonstrate different stages of the implemented interview system.
+Figure A.2: Browser-based interview client connected to the voice server.
+[Insert Screenshot — Connected Browser Client]
+Figure A.3: Live terminal showing Pipecat voice pipeline.
+[Insert Screenshot — Interview Bot Terminal]
+Figure A.4: Real-time transcript generation using Deepgram STT.
+[Insert Screenshot — Transcript Output]
+Figure A.5: Generated interview report in JSON format.
+[Insert Screenshot — Final Report JSON]
+Figure A.6: Recruiter report summarizing candidate performance.
+[Insert Screenshot — HR Report]
+A.6 Interview Report Statistics
+Each completed interview generates a structured report containing multiple evaluation components.
+The report includes:
+Candidate metadata 
+Interview duration 
+Technical scores 
+Communication scores 
+Domain assessment map 
+Adaptive questioning trace 
+Recruiter recommendation 
+Bias-awareness notes 
+Interview completion statistics 
+Table A.4: Report Components
+Component
+Description
+Overall Score
+Weighted interview score
+Communication Profile
+Speaking effectiveness
+Technical Profile
+Technical competency
+Domain Assessment
+Coverage status
+Adaptive Trace
+Decision history
+Hire Recommendation
+STRONG_HIRE → NO_HIRE
+Completion Percentage
+Blueprint coverage
+Transcript Quality
+Noise assessment
+Fairness Adjustment
+Applied when required
+A.7 Configuration Notes
+Several implementation decisions were made during development to improve interview quality and system robustness.
+These include:
+Adoption of Pipecat as the primary voice orchestration framework. 
+Migration from static interview flow to adaptive questioning. 
+Integration of Groq Llama 3.3 for both evaluation and question generation. 
+Deepgram Nova-2 selected for low-latency streaming speech recognition. 
+Cartesia integrated to provide natural interviewer speech. 
+Transcript cleanup introduced to compensate for fragmented streaming speech. 
+Separate communication and technical scoring profiles introduced during Phase 6C. 
+Human-study export functionality added for thesis validation. 
+A.8 Development Challenges
+Several practical challenges were encountered throughout the implementation.
+Voice Processing
+Real-time browser microphones produced inconsistent audio quality, requiring extensive tuning of Voice Activity Detection parameters.
+Transcript Fragmentation
+Streaming Speech-to-Text frequently generated overlapping or duplicated transcript fragments. Phase 6B introduced transcript cleanup utilities to address these issues.
+Adaptive Interview Flow
+Repeated questions occasionally occurred during probing. Semantic question deduplication was implemented to prevent redundant questioning.
+Meta Conversation
+Users often responded with phrases such as "next question" or "I don't know." Dedicated conversational guards were implemented to distinguish these responses from technical answers.
+Fair Evaluation
+Candidates with noisy microphones were unfairly penalized in communication scoring. A transcript-quality assessment module was introduced to dynamically adjust communication weights when excessive speech noise was detected.
+Live Voice Reliability
+Initial voice testing revealed issues including interrupted speech, reconnect failures, missed speech detection, and aggressive Voice Activity Detection. These were resolved through the Voice Hotfix following Phase 6.
+This appendix presents the key implementation files of the proposed AI-Driven Real-Time Interview Platform. Only the most important components are included to illustrate the system architecture and implementation. Complete source code is available in the project repository.
+B.1 DialogueManager Implementation
+The following listing presents the central dialogue orchestration logic responsible for transcript preprocessing, adaptive evaluation, guard execution, decision making, question generation, and report storage.
+Listing B.1: DialogueManager implementation (backend/dialogue/dialogue_manager.py).
+[Insert DialogueManager handle_turn() implementation here]
+B.2 Interview Processor (Pipecat)
+The following listing illustrates the custom Pipecat FrameProcessor responsible for buffering streaming transcripts, merging overlapping speech, handling interruptions, and forwarding complete responses to the DialogueManager.
+Listing B.2: InterviewProcessor implementation (backend/pipecat_integration/interview_processor.py).
+[Insert InterviewProcessor implementation here]
+B.3 FastAPI REST API
+The following listing presents the primary REST API endpoints exposed by the FastAPI backend for interview session management, reporting, and system monitoring.
+Listing B.3: FastAPI endpoints (main.py).
+[Insert FastAPI endpoint code here]
+B.4 Evaluation Pipeline
+The following listing demonstrates the adaptive evaluation pipeline responsible for invoking the Groq Large Language Model, performing rethink evaluation, and generating structured scoring output.
+Listing B.4: Evaluation pipeline (backend/dialogue/evaluation_pipeline.py).
+[Insert Evaluation Pipeline code here]
+B.5 Guard Pipeline
+The following listing illustrates the guard chain executed before every candidate response is evaluated. These guards detect meta-conversation, duplicate questions, repeated uncertainty responses, transcript noise, and other conversational edge cases.
+Listing B.5: Guard pipeline (backend/dialogue/guards/).
+[Insert Guard Pipeline implementation here]
+B.6 Transcript Processing
+The following listing presents the transcript preprocessing utilities introduced during Phase 6B for improving transcription quality prior to evaluation.
+Listing B.6: Transcript preprocessing (backend/dialogue/transcript_utils.py).
+[Insert Transcript Utilities implementation here]
+B.7 Voice Pipeline Configuration
+The following listing demonstrates the configuration of the Pipecat voice pipeline integrating Silero VAD, Deepgram Speech-to-Text, InterviewProcessor, Cartesia Text-to-Speech, and WebSocket transport.
+Listing B.7: Voice pipeline (backend/pipecat_integration/interview_bot.py).
+[Insert Voice Pipeline implementation here]
+B.8 Report Generation
+The following listing illustrates the report generation component responsible for assembling interview analytics, recruiter summaries, score profiles, and interview completion statistics.
+Listing B.8: Report generation (backend/dialogue/analytics.py).
+[Insert Report Generation implementation here]
+B.9 Human Study Export
+The following listing presents the implementation used to export structured evaluation data for human validation and inter-rater agreement analysis.
+Listing B.9: Human Study Export (backend/evaluation/human_study_export.py).
+[Insert Human Study Export implementation here]
+B.10 Database Integration (Optional)
+The following listing demonstrates the optional PostgreSQL integration used for persistent interview storage when database support is enabled.
+Listing B.10: Database integration (backend/dialogue/database.py).
+[Insert Database implementation here]
+Chapter C
+Alignment with Sustainable Development Goals (SDGs)
+Table C.1: Alignment of the Proposed AI Interviewer with Sustainable Development Goals (SDGs)
+No.
+SDG Name
+Goal
+Implementation
+Impact
+1
+Quality Education (SDG 4)
+Improve learning opportunities through intelligent interview practice.
+The platform provides adaptive technical interviews, personalized feedback, recruiter-style reports, and performance analytics for continuous learning.
+Enhances technical skills, interview confidence, and graduate employability.
+2
+Decent Work and Economic Growth (SDG 8)
+Improve employment readiness and career development.
+AI-generated technical and behavioral interviews simulate real recruitment processes using adaptive questioning and structured evaluation.
+Helps job seekers prepare effectively while supporting organizations in candidate assessment.
+3
+Industry, Innovation and Infrastructure (SDG 9)
+Promote innovation using modern AI technologies.
+Integrates Groq LLM, Pipecat, Deepgram, Cartesia, FastAPI, and adaptive dialogue management into a unified interview platform.
+Demonstrates practical application of AI, speech technologies, and intelligent software systems.
+4
+Reduced Inequalities (SDG 10)
+Provide equal access to interview preparation regardless of background.
+The platform offers automated interview practice without requiring access to expensive coaching or professional recruiters.
+Enables wider access to quality interview preparation and reduces barriers for students and graduates.
+5
+Peace, Justice and Strong Institutions (SDG 16)
+Encourage transparent and fair AI-assisted evaluation.
+Structured rubrics, transcript quality assessment, domain coverage reporting, and bias-awareness documentation improve evaluation transparency.
+Supports more explainable and accountable AI-based assessment practices.

@@ -59,6 +59,33 @@ def test_resume_data_structured():
     print("[PASS] test_resume_data_structured")
 
 
+def test_resume_skills_replace_defaults_not_merge():
+    """Resume skills replace defaults — no Python/ML pollution when absent."""
+    profile = build_candidate_profile(
+        resume_text=(
+            "Aisha Khan — AI Researcher\n"
+            "Focus areas: NLP, Computer Vision, YOLO for object detection.\n"
+            "Built a document classification and CV pipeline."
+        )
+    )
+    assert profile.profile_source == "resume"
+    skills_l = [s.lower() for s in profile.skills]
+    assert any("nlp" in s for s in skills_l) or any("vision" in s for s in skills_l)
+    # Default-only skills must not appear unless present in the resume text.
+    assert "python" not in skills_l
+    assert "machine learning" not in skills_l
+    assert "data preprocessing" not in skills_l
+    assert "model evaluation" not in skills_l
+    print("[PASS] test_resume_skills_replace_defaults_not_merge")
+
+
+def test_resume_structured_skills_not_merged_with_defaults():
+    profile = build_candidate_profile(resume_data={"skills": ["Docker"]})
+    assert profile.profile_source == "resume"
+    assert profile.skills == ["Docker"]
+    print("[PASS] test_resume_structured_skills_not_merged_with_defaults")
+
+
 def test_empty_resume_falls_back_to_default():
     profile = build_candidate_profile(resume_data={})
     assert profile.profile_source == "default"
@@ -114,6 +141,8 @@ if __name__ == "__main__":
         test_default_profile_no_resume,
         test_resume_text_personalization,
         test_resume_data_structured,
+        test_resume_skills_replace_defaults_not_merge,
+        test_resume_structured_skills_not_merged_with_defaults,
         test_empty_resume_falls_back_to_default,
         test_target_role_wins_for_blueprint,
         test_bootstrap_from_request_payload,

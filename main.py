@@ -70,7 +70,7 @@ class StartRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "target_role": "junior_ai_engineer",
-                "display_name": "Alex",
+                "display_name": "Saadi",
                 "resume_text": "3 years Python, TensorFlow, NLP projects...",
                 "resume_data": {
                     "skills": ["Python", "TensorFlow", "NLP"],
