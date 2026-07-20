@@ -36,6 +36,7 @@ manual_client/
     │   └── playbackController.js
     └── network/
         ├── voiceSession.js       # WebSocket + mic pipeline
+        ├── inviteClient.js       # Resolve/bind recruiter invite (optional)
         └── reportClient.js       # Fetch /latest-report
 ```
 
@@ -49,6 +50,7 @@ manual_client/
 | Live transcript event handling | `js/core/conversationStore.js` + `js/network/voiceSession.js` |
 | Report sections | `js/ui/report/sections.js` (add a function per section) |
 | Barge-in sensitivity | `config.js` or query params (`?barge_rms=0.06`) |
+| Recruiter invite role | `?invite=TOKEN` (+ optional `?recruiter=http://localhost:8001`) |
 | WebSocket protocol | `js/network/voiceSession.js` |
 | DOM element ids | `index.html` + `js/ui/dom.js` |
 

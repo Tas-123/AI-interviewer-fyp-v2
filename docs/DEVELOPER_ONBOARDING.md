@@ -25,9 +25,19 @@ backend/
   voice/          VoiceTurnPolicy (Phase 5)
   tests/          phase tests + pytest harness
 main.py           FastAPI REST entry
+recruiter_dashboard/  Recruiter UI + API (:8001) — invites + Report v2 listing
 docs/             phase reports and guides
 scripts/          run_regression.sh
 ```
+
+Recruiter Dashboard (separate from the voice engine):
+
+```bash
+cd recruiter_dashboard
+uvicorn app:app --reload --port 8001
+```
+
+See `docs/RECRUITER_DASHBOARD.md` and `recruiter_dashboard/README.md`.
 
 ## Running tests
 

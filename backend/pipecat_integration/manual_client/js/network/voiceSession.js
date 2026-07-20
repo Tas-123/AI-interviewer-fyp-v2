@@ -30,6 +30,7 @@ export function createVoiceSession(config, ui, hooks = {}) {
         micGain = 2.5,
         suppressMicWhileBotSpeaking = true,
         bargeIn = {},
+        targetRole = "junior_ai_engineer",
     } = config;
     const onSessionEnded = typeof hooks.onSessionEnded === "function"
         ? hooks.onSessionEnded
@@ -65,7 +66,10 @@ export function createVoiceSession(config, ui, hooks = {}) {
     function getStartPayload() {
         const displayName = ui.refs.inputName?.value?.trim() || "";
         const resumeText = ui.refs.inputResume?.value?.trim() || "";
-        const payload = { type: "start", target_role: "junior_ai_engineer" };
+        const role =
+            (typeof targetRole === "string" && targetRole.trim()) ||
+            "junior_ai_engineer";
+        const payload = { type: "start", target_role: role };
         if (displayName) payload.display_name = displayName;
         if (resumeText) payload.resume_text = resumeText;
         return payload;

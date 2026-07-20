@@ -2,6 +2,10 @@
  * Manual client configuration — URLs and barge-in thresholds.
  * Override via query string:
  *   ?ws=ws://host:8765&report=http://host:8766/latest-report&report_html=http://host:8766/latest-report.html
+ * Recruiter invite (optional):
+ *   ?invite=TOKEN
+ *   &recruiter=http://localhost:8001
+ *   &role=junior_ai_engineer   (lab fallback when no invite)
  */
 (function () {
     const params = new URLSearchParams(window.location.search);
@@ -11,6 +15,12 @@
         reportUrl: params.get("report") || "http://localhost:8766/latest-report",
         reportHtmlUrl:
             params.get("report_html") || "http://localhost:8766/latest-report.html",
+        inviteToken: (params.get("invite") || "").trim(),
+        recruiterApiUrl: (
+            params.get("recruiter") || "http://localhost:8001"
+        ).replace(/\/$/, ""),
+        targetRole: (params.get("role") || "junior_ai_engineer").trim() ||
+            "junior_ai_engineer",
         bargeIn: {
             rmsThreshold: parseFloat(params.get("barge_rms") || "0.055"),
             minFrames: parseInt(params.get("barge_frames") || "4", 10),

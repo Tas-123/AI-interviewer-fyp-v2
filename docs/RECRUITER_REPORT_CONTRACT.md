@@ -13,7 +13,7 @@
 InterviewContext → generate_final_report → build_report_v2 → JSON (+ HTML)
                                                       ↓
                               Candidate: thank-you + link to HTML
-                              Recruiter (later): Dashboard reads same JSON keys
+                              Recruiter Dashboard (:8001): reads same JSON keys
 ```
 
 - **Do not** scrape HTML as the API.
@@ -67,11 +67,18 @@ Sibling HTML uses the same stem with `.html`.
 
 ---
 
-## Future Recruiter Dashboard
+## Recruiter Dashboard (implemented)
 
-1. `GET /api/recruiter/reports/{session_id}` → Report v2 JSON (same fields above).  
-2. Render the same section order as the HTML assessment.  
-3. Keep candidate-facing product limited to a completion confirmation.
+Separate module on port **8001** (`recruiter_dashboard/`). See `docs/RECRUITER_DASHBOARD.md`.
+
+| Path | Returns |
+|------|---------|
+| `GET /api/reports` | Report v2 card list from `reports/*.json` |
+| `GET /api/reports/{session_id}` | Full Report v2 JSON (same fields above) |
+| `GET /api/reports/{session_id}/html` | Sibling HTML (inline) |
+| `GET /api/reports/{session_id}/html?download=1` | Sibling HTML (attachment download) |
+
+**UI:** Candidate Reports table — **View** opens a summary modal (contract fields for screening); **Full Report** / **Download** use the HTML endpoints. Keep candidate-facing product limited to a completion confirmation.
 
 ---
 

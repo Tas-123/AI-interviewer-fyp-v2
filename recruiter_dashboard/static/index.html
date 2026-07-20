@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recruiter Dashboard — AI Interviewer</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">AI</span>
+        <div>
+          <h1>Recruiter Dashboard</h1>
+          <p class="subtitle">Interview links &amp; candidate reports</p>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button type="button" class="tab is-active" data-view="interviews" role="tab">AI Interview</button>
+        <button type="button" class="tab" data-view="reports" role="tab">Candidate Reports</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="view-interviews" class="view is-active" aria-label="AI Interview">
+        <div class="panel">
+          <h2>Create interview</h2>
+          <p class="hint">Select a role, generate a unique link, and share it with the candidate. The link opens the existing Candidate Interface.</p>
+          <form id="create-form" class="form-grid">
+            <label>
+              Interview field / role
+              <select id="target-role" name="target_role" required></select>
+            </label>
+            <label>
+              Label <span class="optional">(optional)</span>
+              <input id="invite-label" name="label" type="text" placeholder="e.g. July batch — AI Jr" maxlength="120" />
+            </label>
+            <button type="submit" class="btn primary" id="btn-create">Generate interview link</button>
+          </form>
+          <div id="create-result" class="create-result" hidden>
+            <p class="success-line">Link ready — copy and share with the candidate.</p>
+            <div class="link-row">
+              <input id="candidate-url" type="text" readonly />
+              <button type="button" class="btn" id="btn-copy">Copy link</button>
+            </div>
+            <p id="copy-feedback" class="copy-feedback" hidden></p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Interview invites</h2>
+            <button type="button" class="btn ghost" id="btn-refresh-invites">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Created</th>
+                  <th>Role</th>
+                  <th>Label</th>
+                  <th>Status</th>
+                  <th>Link</th>
+                </tr>
+              </thead>
+              <tbody id="invites-body">
+                <tr><td colspan="5" class="empty">No invites yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-reports" class="view" aria-label="Candidate Reports" hidden>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Latest interview reports</h2>
+            <button type="button" class="btn ghost" id="btn-refresh-reports">Refresh</button>
+          </div>
+          <p class="hint">Reads Report v2 JSON already written by the voice interview engine. <strong>View</strong> opens a quick summary; <strong>Full Report</strong> opens the HTML assessment in a new tab; <strong>Download</strong> saves that HTML locally.</p>
+          <div class="table-wrap">
+            <table class="reports-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Candidate</th>
+                  <th>Role</th>
+                  <th>Type</th>
+                  <th>Hire signal</th>
+                  <th>Score</th>
+                  <th class="col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reports-body">
+                <tr><td colspan="7" class="empty">No reports found.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Recruiter API :8001</span>
+      <span class="sep">·</span>
+      <span>Candidate UI :3000</span>
+      <span class="sep">·</span>
+      <span>Voice bot :8765 / reports :8766</span>
+      <span class="sep">·</span>
+      <span>One live voice session at a time</span>
+    </footer>
+  </div>
+
+  <!-- Report summary modal (outside shell so backdrop covers full viewport) -->
+  <div id="report-modal" class="modal" hidden aria-hidden="true">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div
+      class="modal-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detail-title"
+    >
+      <header class="modal-header">
+        <h2 id="detail-title">Report summary</h2>
+        <button type="button" class="btn ghost modal-close" id="btn-close-detail" aria-label="Close">Close</button>
+      </header>
+      <div id="detail-body" class="modal-body detail-body"></div>
+      <footer id="detail-footer" class="modal-footer" hidden></footer>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

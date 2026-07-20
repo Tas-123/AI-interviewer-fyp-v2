@@ -6,6 +6,9 @@ logs/
 reports/
 *.log
 
+# Recruiter invite store (local demo data)
+recruiter_dashboard/data/interviews.json
+
 # Archived / legacy artifacts (do not commit)
 reports_old/
 debug_bundle_*/

@@ -14,10 +14,18 @@ import {
 } from "./ui/report/renderReport.js?v=20260719c";
 import { fetchLatestReportMatched } from "./network/reportClient.js?v=20260719c";
 import { createVoiceSession } from "./network/voiceSession.js?v=20260719c";
+import {
+    bindInviteSession,
+    resolveInvite,
+} from "./network/inviteClient.js?v=20260720a";
 
 const cfg = window.MANUAL_CLIENT_CONFIG || {};
 const DEFAULT_HTML =
     cfg.reportHtmlUrl || "http://localhost:8766/latest-report.html";
+
+/** Resolved at bootstrap; used for start payload + session bind. */
+let resolvedTargetRole = cfg.targetRole || "junior_ai_engineer";
+let activeInviteToken = (cfg.inviteToken || "").trim();
 
 function buildUiBundle(refs) {
     const conversation = createConversationView(refs);
@@ -130,71 +138,116 @@ function bootstrap() {
         }, 5000);
     };
 
-    const session = createVoiceSession(
-        {
-            wsUrl: cfg.wsUrl || "ws://localhost:8765",
-            reportUrl: cfg.reportUrl || "http://localhost:8766/latest-report",
-            micGain: Number(cfg.micGain) > 0 ? Number(cfg.micGain) : 2.5,
-            suppressMicWhileBotSpeaking: cfg.suppressMicWhileBotSpeaking !== false,
-            botAudioJitterBufferSec: cfg.botAudioJitterBufferSec ?? 0.15,
-            bargeIn: cfg.bargeIn || {},
-        },
-        ui,
-        {
-            onSessionStarted: (sessionId) => {
-                expectedSessionId = sessionId;
-                ui.debug.log(`Voice session started (${sessionId}).`, "info");
+    const finishBootstrap = () => {
+        const session = createVoiceSession(
+            {
+                wsUrl: cfg.wsUrl || "ws://localhost:8765",
+                reportUrl: cfg.reportUrl || "http://localhost:8766/latest-report",
+                micGain: Number(cfg.micGain) > 0 ? Number(cfg.micGain) : 2.5,
+                suppressMicWhileBotSpeaking: cfg.suppressMicWhileBotSpeaking !== false,
+                botAudioJitterBufferSec: cfg.botAudioJitterBufferSec ?? 0.15,
+                bargeIn: cfg.bargeIn || {},
+                targetRole: resolvedTargetRole,
             },
-            onSessionEnded: (sessionId) => {
-                ui.debug.log("Session ended — showing completion message…", "info");
-                // Paint thank-you + link immediately (before the 1.5s report poll).
-                renderCompletionMessageImmediate(ui.refs.reportPanel, DEFAULT_HTML);
-                scheduleOnce(sessionId);
+            ui,
+            {
+                onSessionStarted: (sessionId) => {
+                    expectedSessionId = sessionId;
+                    ui.debug.log(`Voice session started (${sessionId}).`, "info");
+                    if (activeInviteToken && cfg.recruiterApiUrl) {
+                        bindInviteSession(
+                            cfg.recruiterApiUrl,
+                            activeInviteToken,
+                            sessionId
+                        )
+                            .then(() => {
+                                ui.debug.log(
+                                    `Invite bound to session ${sessionId}.`,
+                                    "success"
+                                );
+                            })
+                            .catch((err) => {
+                                ui.debug.log(
+                                    `Invite bind skipped: ${err.message}`,
+                                    "info"
+                                );
+                            });
+                    }
+                },
+                onSessionEnded: (sessionId) => {
+                    ui.debug.log("Session ended — showing completion message…", "info");
+                    // Paint thank-you + link immediately (before the 1.5s report poll).
+                    renderCompletionMessageImmediate(ui.refs.reportPanel, DEFAULT_HTML);
+                    scheduleOnce(sessionId);
+                    const { btnConnect, btnDisconnect } = ui.refs;
+                    if (btnConnect) btnConnect.disabled = false;
+                    if (btnDisconnect) btnDisconnect.disabled = true;
+                },
+                onPreambleLine: (text) => preInterview?.onPreambleLine(text),
+                onInstructionsComplete: () => preInterview?.onInstructionsComplete(),
+            }
+        );
+
+        wireControls(session, ui);
+
+        preInterview = createPreInterviewFlow(refs, {
+            onLog: (msg, level) => ui.debug.log(msg, level),
+            onStartInstructions: async () => {
                 const { btnConnect, btnDisconnect } = ui.refs;
-                if (btnConnect) btnConnect.disabled = false;
-                if (btnDisconnect) btnDisconnect.disabled = true;
+                if (btnConnect) {
+                    btnConnect.disabled = true;
+                    btnConnect.hidden = true;
+                }
+                if (btnDisconnect) btnDisconnect.disabled = false;
+                ui.conversationStore?.reset();
+                ui.conversation.clear();
+                // No mic yet — only Cartesia playback for instructions.
+                await session.connect({
+                    preamble: true,
+                    enableMicUpload: false,
+                    needMic: false,
+                });
+                session.sendInstructions();
             },
-            onPreambleLine: (text) => preInterview?.onPreambleLine(text),
-            onInstructionsComplete: () => preInterview?.onInstructionsComplete(),
-        }
-    );
+            onReadyStart: async () => {
+                const { btnConnect, btnDisconnect } = ui.refs;
+                ui.conversationStore?.reset();
+                ui.conversation.clear();
+                showReportLoading(ui.refs.reportPanel);
+                await session.ensureMicrophone();
+                session.sendStart();
+                if (btnConnect) {
+                    btnConnect.disabled = true;
+                    btnConnect.hidden = false;
+                }
+                if (btnDisconnect) btnDisconnect.disabled = false;
+            },
+        });
+        preInterview.wire();
+    };
 
-    wireControls(session, ui);
-
-    preInterview = createPreInterviewFlow(refs, {
-        onLog: (msg, level) => ui.debug.log(msg, level),
-        onStartInstructions: async () => {
-            const { btnConnect, btnDisconnect } = ui.refs;
-            if (btnConnect) {
-                btnConnect.disabled = true;
-                btnConnect.hidden = true;
-            }
-            if (btnDisconnect) btnDisconnect.disabled = false;
-            ui.conversationStore?.reset();
-            ui.conversation.clear();
-            // No mic yet — only Cartesia playback for instructions.
-            await session.connect({
-                preamble: true,
-                enableMicUpload: false,
-                needMic: false,
-            });
-            session.sendInstructions();
-        },
-        onReadyStart: async () => {
-            const { btnConnect, btnDisconnect } = ui.refs;
-            ui.conversationStore?.reset();
-            ui.conversation.clear();
-            showReportLoading(ui.refs.reportPanel);
-            await session.ensureMicrophone();
-            session.sendStart();
-            if (btnConnect) {
-                btnConnect.disabled = true;
-                btnConnect.hidden = false;
-            }
-            if (btnDisconnect) btnDisconnect.disabled = false;
-        },
-    });
-    preInterview.wire();
+    if (activeInviteToken && cfg.recruiterApiUrl) {
+        ui.debug.log(`Resolving invite ${activeInviteToken}…`, "info");
+        resolveInvite(cfg.recruiterApiUrl, activeInviteToken)
+            .then((invite) => {
+                if (invite?.target_role) {
+                    resolvedTargetRole = invite.target_role;
+                }
+                ui.debug.log(
+                    `Invite OK — role ${resolvedTargetRole}.`,
+                    "success"
+                );
+            })
+            .catch((err) => {
+                ui.debug.log(
+                    `Invite resolve failed (${err.message}); using role ${resolvedTargetRole}.`,
+                    "info"
+                );
+            })
+            .finally(() => finishBootstrap());
+    } else {
+        finishBootstrap();
+    }
 }
 
 bootstrap();
