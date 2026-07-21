@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recruiter Login — AI Interviewer</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body class="login-page">
+  <div class="login-shell">
+    <div class="panel login-card">
+      <div class="brand login-brand">
+        <span class="brand-mark">AI</span>
+        <div>
+          <h1>Recruiter login</h1>
+          <p class="subtitle">Dashboard access only — candidates use invite links</p>
+        </div>
+      </div>
+      <form id="login-form" class="form-grid">
+        <label>
+          Username
+          <input id="username" name="username" type="text" autocomplete="username" required />
+        </label>
+        <label>
+          Password
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <p id="login-error" class="login-error" hidden></p>
+        <button type="submit" class="btn primary" id="btn-login">Sign in</button>
+      </form>
+    </div>
+  </div>
+  <script type="module" src="/static/js/login.js"></script>
+</body>
+</html>

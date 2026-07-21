@@ -50,6 +50,44 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
+}
+
+.user-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* —— Login page —— */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-shell {
+  width: min(420px, 100%);
+  padding: 1.5rem;
+}
+
+.login-card {
+  margin: 0;
+}
+
+.login-brand {
+  margin-bottom: 1.25rem;
+}
+
+.login-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
 .brand {
   display: flex;
   gap: 0.85rem;

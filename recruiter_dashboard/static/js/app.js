@@ -1,3 +1,4 @@
+import { fetchMe, logout } from "./api.js";
 import { createInterviewsView } from "./interviewsView.js";
 import { createReportsView } from "./reportsView.js";
 
@@ -23,7 +24,42 @@ function wireTabs(onSwitch) {
   });
 }
 
+function wireLogout() {
+  const btn = document.getElementById("btn-logout");
+  btn?.addEventListener("click", async () => {
+    try {
+      await logout();
+    } catch {
+      /* still leave */
+    }
+    window.location.href = "/login";
+  });
+}
+
+async function ensureAuthenticated() {
+  try {
+    const me = await fetchMe();
+    if (me.auth_enabled && !me.authenticated) {
+      window.location.href = "/login";
+      return false;
+    }
+    const label = document.getElementById("recruiter-user");
+    if (label && me.username) {
+      label.textContent = me.username;
+    }
+    return true;
+  } catch {
+    window.location.href = "/login";
+    return false;
+  }
+}
+
 async function bootstrap() {
+  const ok = await ensureAuthenticated();
+  if (!ok) return;
+
+  wireLogout();
+
   const interviews = createInterviewsView();
   const reports = createReportsView();
 

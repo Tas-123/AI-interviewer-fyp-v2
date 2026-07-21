@@ -4,17 +4,21 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from services import invite_store
 from services import report_index
+from services.auth import require_recruiter
 
 router = APIRouter(prefix="/api", tags=["reports"])
 
 
 @router.get("/reports")
-def list_reports(include_aborted: bool = True) -> dict[str, Any]:
+def list_reports(
+    include_aborted: bool = True,
+    _auth: None = Depends(require_recruiter),
+) -> dict[str, Any]:
     cards = report_index.list_report_cards(include_aborted=include_aborted)
     # Soft-complete invites that now have matching reports
     for card in cards:
@@ -29,7 +33,10 @@ def list_reports(include_aborted: bool = True) -> dict[str, Any]:
 
 
 @router.get("/reports/{session_id}")
-def get_report(session_id: str) -> dict[str, Any]:
+def get_report(
+    session_id: str,
+    _auth: None = Depends(require_recruiter),
+) -> dict[str, Any]:
     result = report_index.get_report(session_id)
     if not result:
         raise HTTPException(status_code=404, detail="Report not found for session.")
@@ -45,7 +52,11 @@ def get_report(session_id: str) -> dict[str, Any]:
 
 
 @router.get("/reports/{session_id}/html")
-def get_report_html(session_id: str, download: bool = False):
+def get_report_html(
+    session_id: str,
+    download: bool = False,
+    _auth: None = Depends(require_recruiter),
+):
     """
     Serve the sibling HTML assessment.
     - Default: inline (open in browser tab).

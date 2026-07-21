@@ -5,10 +5,11 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from services import invite_store
+from services.auth import require_recruiter
 from services.roles import get_role_meta, list_roles, normalize_role
 
 router = APIRouter(prefix="/api", tags=["interviews"])
@@ -50,17 +51,21 @@ def _public_invite_payload(invite: dict[str, Any]) -> dict[str, Any]:
 
 
 @router.get("/roles")
-def get_roles() -> dict[str, Any]:
+def get_roles(_auth: None = Depends(require_recruiter)) -> dict[str, Any]:
+    """Role dropdown for the dashboard (protected). Candidate gets role via invite resolve."""
     return {"roles": list_roles()}
 
 
 @router.get("/interviews")
-def list_interviews() -> dict[str, Any]:
+def list_interviews(_auth: None = Depends(require_recruiter)) -> dict[str, Any]:
     return {"invites": invite_store.list_invites()}
 
 
 @router.post("/interviews")
-def create_interview(body: CreateInterviewBody) -> dict[str, Any]:
+def create_interview(
+    body: CreateInterviewBody,
+    _auth: None = Depends(require_recruiter),
+) -> dict[str, Any]:
     target_role = normalize_role(body.target_role)
     role_meta = get_role_meta(target_role)
     display_title = role_meta.get("display_title")

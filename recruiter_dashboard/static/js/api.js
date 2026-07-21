@@ -1,7 +1,13 @@
 /** API helpers for Recruiter Dashboard (same origin as FastAPI). */
 
+function redirectToLogin() {
+  if (window.location.pathname === "/login") return;
+  window.location.href = "/login";
+}
+
 async function request(path, options = {}) {
   const res = await fetch(path, {
+    credentials: "same-origin",
     headers: { Accept: "application/json", ...(options.headers || {}) },
     ...options,
   });
@@ -14,11 +20,23 @@ async function request(path, options = {}) {
       data = { raw: text };
     }
   }
+  if (res.status === 401) {
+    redirectToLogin();
+    throw new Error("Recruiter login required.");
+  }
   if (!res.ok) {
     const detail = data?.detail || res.statusText || "Request failed";
     throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
   }
   return data;
+}
+
+export function fetchMe() {
+  return request("/api/auth/me");
+}
+
+export function logout() {
+  return request("/api/auth/logout", { method: "POST" });
 }
 
 export function fetchRoles() {
