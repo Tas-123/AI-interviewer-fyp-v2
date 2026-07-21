@@ -55,6 +55,18 @@ export function createInterview(payload) {
   });
 }
 
+export function fetchEmailStatus() {
+  return request("/api/email/status");
+}
+
+export function sendInvitation(token, payload = {}) {
+  return request(`/api/interviews/${encodeURIComponent(token)}/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchReports() {
   return request("/api/reports");
 }

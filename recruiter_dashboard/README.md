@@ -34,6 +34,10 @@ Open [http://localhost:8001](http://localhost:8001) → **login** → dashboard.
 | `RECRUITER_USERNAME` | `recruiter` | Login username |
 | `RECRUITER_PASSWORD` | _(empty)_ | Required when auth enabled |
 | `RECRUITER_SESSION_SECRET` | demo fallback | Signs the session cookie |
+| `SMTP_HOST` / `SMTP_PORT` | _(empty)_ / `587` | Optional invite email |
+| `SMTP_USER` / `SMTP_PASSWORD` | | SMTP credentials (e.g. Gmail App Password) |
+| `EMAIL_FROM` | | From address |
+| `COMPANY_NAME` | `AI Interviewer` | Name in invitation email |
 
 Set in project root `.env` (loaded automatically) or `recruiter_dashboard/.env`.
 
@@ -42,19 +46,29 @@ Set in project root `.env` (loaded automatically) or `recruiter_dashboard/.env`.
 1. Start voice bot (`:8765` / `:8766`).
 2. Start Candidate UI (`:3000`).
 3. Start Recruiter Dashboard (`:8001`) and sign in.
-4. In **AI Interview**, select role → **Generate interview link** → copy.
-5. Open the link (includes `?invite=TOKEN`). Candidate resolves role from this API **without** recruiter login, then runs lobby → voice interview.
-6. After the interview ends, open **Candidate Reports** (while logged in) and refresh.
+4. Generate interview link → **Copy link** (always works).
+5. Optionally enter candidate email → **Send invitation** (only if SMTP is configured).
+6. Candidate opens `?invite=TOKEN` (no recruiter login) → lobby → voice interview.
+7. After the interview ends, open **Candidate Reports**.
+
+## Invite delivery
+
+| Path | When |
+|------|------|
+| **Copy link** | Always — primary, reliable for FYP demos |
+| **Send invitation** | Optional — needs candidate email + SMTP env |
+
+Email body: company name, interview title, optional candidate name, invite link, instructions. **No password** (token link only).
 
 ## Authentication
 
 | Surface | Auth |
 |---------|------|
-| `/`, create/list invites, `/api/reports*` | Session cookie after `/login` |
+| `/`, create/list invites, `/api/reports*`, send email | Session cookie after `/login` |
 | `GET /api/interviews/{token}`, `POST .../bind` | **Public** (candidate) |
 | `POST /api/auth/login`, `logout`, `GET /api/auth/me` | Public auth endpoints |
 
-**Non-goals:** candidate passwords; SMTP invite email (future).
+**Non-goals:** candidate passwords.
 
 ## Candidate Reports UI
 
@@ -62,25 +76,17 @@ Each row has a compact action group:
 
 | Button | Behavior |
 |--------|----------|
-| **View** (primary) | Centered **summary modal** — scores, hire signal, narratives; close with Close / backdrop / Esc |
+| **View** (primary) | Centered **summary modal** |
 | **Full Report** | HTML assessment in a new browser tab |
 | **Download** | Save the HTML file (`/html?download=1`) |
-
-Modal footer repeats Full Report / Download for convenience. Summary is never injected under the table.
-
-Key UI files:
-
-- `static/login.html` / `static/js/login.js` — recruiter sign-in
-- `static/js/reportsView.js` — table + modal open/close
-- `static/css/main.css` — `.action-group`, `.modal*` styles
-- `static/index.html` — `#report-modal` markup + Logout
 
 ## Limitations (FYP)
 
 - **One live voice session** at a time on the Pipecat bot.
-- Invite store is a local JSON file (`data/interviews.json`) — fine for demos, not multi-user production.
-- Recruiter auth is env-based (demo-grade), not OAuth/multi-tenant.
-- Interview engine (`DialogueManager` / Pipecat) is not imported or modified by this module.
+- Invite store is a local JSON file (`data/interviews.json`).
+- Recruiter auth is env-based (demo-grade).
+- SMTP is optional; misconfigured SMTP never blocks Copy link.
+- Interview engine is not imported or modified by this module.
 
 ## API (summary)
 
@@ -89,9 +95,11 @@ Key UI files:
 | `POST` | `/api/auth/login` | Public | Set session cookie |
 | `POST` | `/api/auth/logout` | Public | Clear session |
 | `GET` | `/api/auth/me` | Public | Auth status |
+| `GET` | `/api/email/status` | Recruiter | SMTP configured? |
 | `GET` | `/api/roles` | Recruiter | Role dropdown |
 | `GET` | `/api/interviews` | Recruiter | List invites |
-| `POST` | `/api/interviews` | Recruiter | Create invite |
+| `POST` | `/api/interviews` | Recruiter | Create invite (optional email/name) |
+| `POST` | `/api/interviews/{token}/send` | Recruiter | Send invitation email |
 | `GET` | `/api/interviews/{token}` | Public | Resolve invite (Candidate) |
 | `POST` | `/api/interviews/{token}/bind` | Public | Bind `{ session_id }` |
 | `GET` | `/api/reports` | Recruiter | List Report v2 cards |

@@ -39,7 +39,16 @@
               <p class="field-help" id="role-help">Interview blueprint for this role (AI, Frontend, or Backend).</p>
             </div>
 
-            
+            <div class="form-section">
+              <label class="field-label" for="candidate-name">Candidate name <span class="optional">(optional)</span></label>
+              <input id="candidate-name" name="candidate_name" type="text" maxlength="120" placeholder="e.g. Alex Khan" />
+            </div>
+
+            <div class="form-section">
+              <label class="field-label" for="candidate-email">Candidate email <span class="optional">(optional)</span></label>
+              <input id="candidate-email" name="candidate_email" type="email" maxlength="200" placeholder="candidate@example.com" />
+              <p class="field-help" id="email-smtp-hint">Copy link always works. Send invitation needs SMTP in .env.</p>
+            </div>
 
             <button type="submit" class="btn primary btn-create" id="btn-create">Generate interview link</button>
           </form>
@@ -50,7 +59,12 @@
               <input id="candidate-url" type="text" readonly />
               <button type="button" class="btn" id="btn-copy">Copy link</button>
             </div>
+            <div class="send-row" id="send-row">
+              <button type="button" class="btn primary" id="btn-send-invite" disabled>Send invitation</button>
+              <span id="send-hint" class="field-help"></span>
+            </div>
             <p id="copy-feedback" class="copy-feedback" hidden></p>
+            <p id="send-feedback" class="copy-feedback" hidden></p>
           </div>
         </div>
 
@@ -67,11 +81,12 @@
                   <th>Role</th>
                   <th>Label</th>
                   <th>Status</th>
+                  <th>Email</th>
                   <th>Link</th>
                 </tr>
               </thead>
               <tbody id="invites-body">
-                <tr><td colspan="5" class="empty">No invites yet.</td></tr>
+                <tr><td colspan="6" class="empty">No invites yet.</td></tr>
               </tbody>
             </table>
           </div>

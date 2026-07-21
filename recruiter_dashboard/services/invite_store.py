@@ -81,9 +81,13 @@ def create_invite(
     display_title: str | None = None,
     description: str | None = None,
     suggested_skills: list[str] | None = None,
+    candidate_email: str | None = None,
+    candidate_name: str | None = None,
 ) -> dict[str, Any]:
     token = secrets.token_urlsafe(8)
     origin = candidate_origin.rstrip("/")
+    email = (candidate_email or "").strip() or None
+    name = (candidate_name or "").strip() or None
     invite = {
         "invite_token": token,
         "target_role": target_role,
@@ -91,6 +95,9 @@ def create_invite(
         "display_title": (display_title or "").strip() or None,
         "description": (description or "").strip() or None,
         "suggested_skills": list(suggested_skills or []),
+        "candidate_email": email,
+        "candidate_name": name,
+        "email_sent_at": None,
         "status": "pending",
         "created_at": _utc_now(),
         "session_id": None,
@@ -102,6 +109,43 @@ def create_invite(
         data["invites"].append(invite)
         _write(data)
     return dict(invite)
+
+
+def update_invite_contact(
+    token: str,
+    *,
+    candidate_email: str | None = None,
+    candidate_name: str | None = None,
+) -> dict[str, Any] | None:
+    """Update optional contact fields on an invite."""
+    token = (token or "").strip()
+    if not token:
+        return None
+    with _LOCK:
+        data = _read()
+        for inv in data["invites"]:
+            if inv.get("invite_token") == token:
+                if candidate_email is not None:
+                    inv["candidate_email"] = (candidate_email or "").strip() or None
+                if candidate_name is not None:
+                    inv["candidate_name"] = (candidate_name or "").strip() or None
+                _write(data)
+                return dict(inv)
+    return None
+
+
+def mark_email_sent(token: str) -> dict[str, Any] | None:
+    token = (token or "").strip()
+    if not token:
+        return None
+    with _LOCK:
+        data = _read()
+        for inv in data["invites"]:
+            if inv.get("invite_token") == token:
+                inv["email_sent_at"] = _utc_now()
+                _write(data)
+                return dict(inv)
+    return None
 
 
 def bind_session(token: str, session_id: str) -> dict[str, Any] | None:

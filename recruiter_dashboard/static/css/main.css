@@ -302,6 +302,20 @@ textarea {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  margin-bottom: 0.65rem;
+}
+
+.send-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.optional {
+  font-weight: 400;
+  opacity: 0.75;
 }
 
 .link-row input {

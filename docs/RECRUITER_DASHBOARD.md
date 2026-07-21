@@ -36,6 +36,14 @@ RECRUITER_AUTH_ENABLED=true
 RECRUITER_USERNAME=recruiter
 RECRUITER_PASSWORD=change-me
 RECRUITER_SESSION_SECRET=replace-with-a-long-random-string
+
+# Optional invitation email (Copy link works without these)
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+EMAIL_FROM=
+COMPANY_NAME=AI Interviewer
 ```
 
 Invite links are `{CANDIDATE_ORIGIN}/?invite={token}`.
@@ -51,13 +59,21 @@ Optional Candidate override: `?recruiter=http://localhost:8001` if the Recruiter
 - Set `RECRUITER_AUTH_ENABLED=false` only for local lab bypass.
 - Demo-grade: password compared from env with `hmac.compare_digest` (not bcrypt/OAuth). Fine for FYP; production would use hashed secrets or SSO.
 
+## Invite delivery (dual workflow)
+
+1. **Primary — Copy link (always):** After generate, copy `candidate_url` and share manually (WhatsApp, Slack, etc.). Works with or without SMTP.
+2. **Optional — Send invitation:** Enter candidate email (and optional name) → **Send invitation** when SMTP is configured. Email includes company name, interview title, link, and instructions — **no password** (access is invite-token only).
+
+`GET /api/email/status` reports whether SMTP is ready. If not configured, the Send button stays disabled with a hint; create + copy never break.
+
 ## Invite lifecycle
 
 1. Recruiter logs in → `POST /api/interviews` → token stored in `recruiter_dashboard/data/interviews.json`.
-2. Candidate opens link → `GET /api/interviews/{token}` → `target_role` applied to WS `start` payload.
-3. On `conversation_event` session started → `POST .../bind` with `session_id`.
-4. On voice disconnect, engine writes `reports/interview_report_*.json` as before.
-5. Recruiter `GET /api/reports` indexes disk Report v2 (contract fields only).
+2. Optional: `POST /api/interviews/{token}/send` via SMTP.
+3. Candidate opens link → `GET /api/interviews/{token}` → `target_role` applied to WS `start` payload.
+4. On `conversation_event` session started → `POST .../bind` with `session_id`.
+5. On voice disconnect, engine writes `reports/interview_report_*.json` as before.
+6. Recruiter `GET /api/reports` indexes disk Report v2 (contract fields only).
 
 ## Candidate Reports UI
 
@@ -74,7 +90,7 @@ The modal shows Report v2 screening fields (scores, hire signal, executive/overa
 ## Explicit non-goals (this FYP pass)
 
 - **Candidate username/password** — invite tokens already scope access; IAM would not strengthen the thesis.
-- **SMTP / “Send invitation” email** — future enhancement (optional preview + SMTP). Keep **Copy link** as the primary delivery path.
+- Email is **optional delivery** of the same invite link (not a second auth system).
 
 ## Single-session limitation
 
