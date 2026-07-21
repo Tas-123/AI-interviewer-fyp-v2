@@ -674,7 +674,7 @@ def generate_final_report(context) -> dict:
         e
         for e in context.evaluations
         if (e.get("overall_score", 0) or 0) > 0
-        and (not e.get("is_error") or e.get("evaluation_degraded"))
+        and not e.get("is_error")
     ]
 
     # --- A. Weighted Score Summary ---
@@ -707,6 +707,7 @@ def generate_final_report(context) -> dict:
     # --- B. Technical Evidence Analysis ---
     # Junior AI Engineer evaluation should focus on beginner-to-intermediate technical evidence,
     # not senior-level architecture or STAR-style storytelling.
+    role_label = context.resume_data.get("role", "Junior AI Engineer")
     technical_evidence_analysis = {
         "framework": "Evidence-Based Junior AI Engineer Technical Competency Rubric",
         "expected_level": "Beginner-to-intermediate practical understanding, not expert-level production mastery.",
@@ -758,7 +759,7 @@ def generate_final_report(context) -> dict:
         ],
         "technical_turns_evaluated": len(scored),
         "note": (
-            "This report uses an evidence-based Junior AI Engineer technical competency rubric. "
+            f"This report uses an evidence-based {role_label} technical competency rubric. "
             "It does not expect senior-level production mastery. The candidate is evaluated on core AI/ML understanding, "
             "practical implementation steps, basic tool usage, validation/testing, debugging approach, communication clarity, "
             "and evidence of personal contribution."

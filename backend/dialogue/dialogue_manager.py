@@ -40,6 +40,8 @@ class DialogueManager:
             llm_model=self.llm.model,
         )
         self._init_question_selector(resume_data)
+        self._last_spoken_question: str = ""
+        self._consecutive_repeat_count: int = 0
 
     def _init_question_selector(self, resume_data: dict):
         """Wire resume-conditioned questions when profile came from a resume."""
@@ -128,7 +130,7 @@ class DialogueManager:
             question=last_question,
             metadata=guard_hit.metadata,
         )
-        question = guard_hit.response_text or ""
+        question = self._cap_identical_repeat(guard_hit.response_text or "")
         self.context.add_turn(question, transcript)
         self._add_guard_trace(
             guard_hit, transcript, last_question, question, transcript_quality
@@ -283,6 +285,30 @@ class DialogueManager:
         if is_semantic_duplicate(fallback, self.context.question_history):
             return "Please share any relevant experience you have with this topic."
         return fallback
+
+    def _cap_identical_repeat(self, question: str) -> str:
+        """Force advance when the same question has been spoken twice already."""
+        clean = (question or "").strip().lower()
+        prev = self._last_spoken_question.strip().lower()
+        if clean and clean == prev:
+            self._consecutive_repeat_count += 1
+            if self._consecutive_repeat_count >= 2:
+                self._consecutive_repeat_count = 0
+                next_domain = self.engine._advance_to_next_domain(self.context)
+                if next_domain:
+                    action = {
+                        "type": "ask",
+                        "topic": next_domain,
+                        "domain": next_domain,
+                        "difficulty": "medium",
+                    }
+                    question = self._ensure_unique_question(
+                        self.llm.generate(action, self.context)
+                    )
+        else:
+            self._consecutive_repeat_count = 0
+        self._last_spoken_question = question
+        return question
 
     def handle_turn(self, transcript):
         raw_transcript_for_debug = transcript
@@ -460,6 +486,8 @@ class DialogueManager:
                 "weighted_score": evaluation.get("weighted_overall_score", evaluation.get("overall_score", 0)),
                 "hire_signal": evaluation.get("hire_signal", ""),
             }
+
+            question = self._cap_identical_repeat(question)
 
             # Record this turn (skip error strings from question history)
             if question.startswith("[Error"):

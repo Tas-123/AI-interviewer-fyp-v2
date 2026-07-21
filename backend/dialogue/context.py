@@ -197,7 +197,8 @@ class InterviewContext:
 
         # Track weighted score history
         weighted = evaluation.get("weighted_overall_score", 0)
-        if weighted > 0:
+        # Skip degraded / error turns so they don't corrupt the aggregate.
+        if weighted > 0 and not evaluation.get("is_error"):
             self.weighted_score_history.append(
                 (self.turn_count, weighted)
             )
