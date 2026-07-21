@@ -131,7 +131,62 @@ class MetaConversationGuard:
         if not intent:
             return GuardResult(triggered=False)
 
-        if intent in ("STAY_ON_QUESTION", "PREVIOUS_QUESTION"):
+        # Prefer IDK ladder when candidate both IDKs and asks for next question.
+        if intent == "STAY_ON_QUESTION":
+            from dialogue.idk_policy import is_idk_response
+
+            if is_idk_response(ctx.transcript):
+                return GuardResult(triggered=False)
+
+            interview_ctx = ctx.interview_context
+            domain = ""
+            if interview_ctx is not None:
+                domain = str(getattr(interview_ctx, "current_domain", "") or "")
+
+            soft_count = 1
+            if interview_ctx is not None and hasattr(interview_ctx, "record_soft_advance"):
+                soft_count = interview_ctx.record_soft_advance(domain)
+
+            next_domain = None
+            if interview_ctx is not None and hasattr(interview_ctx, "get_next_domain"):
+                next_domain = interview_ctx.get_next_domain()
+
+            # End of blueprint → close; second soft advance → hard skip.
+            if next_domain is None or soft_count >= 2:
+                return GuardResult(
+                    triggered=True,
+                    decision_type="CHANGE_TOPIC",
+                    response_text="Alright — let's move on.",
+                    should_evaluate=False,
+                    metadata={
+                        "guard": self.name,
+                        "intent": "SOFT_ADVANCE_ESCALATED",
+                        "flow_action": "skip_domain",
+                        "force_advance": True,
+                        "soft_advance_count": soft_count,
+                    },
+                )
+
+            return GuardResult(
+                triggered=True,
+                decision_type="STAY_ON_QUESTION",
+                response_text=meta_response(
+                    intent,
+                    ctx.last_question,
+                    interview_context=ctx.interview_context,
+                    llm_client=ctx.llm_client,
+                    llm_model=ctx.llm_model,
+                ),
+                should_evaluate=False,
+                metadata={
+                    "guard": self.name,
+                    "intent": intent,
+                    "flow_action": "stay_on_question",
+                    "soft_advance_count": soft_count,
+                },
+            )
+
+        if intent == "PREVIOUS_QUESTION":
             flow_action = "stay_on_question"
         else:
             flow_action = "skip_domain"

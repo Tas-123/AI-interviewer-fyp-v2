@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api", tags=["reports"])
 
 
 @router.get("/reports")
-def list_reports(include_aborted: bool = False) -> dict[str, Any]:
+def list_reports(include_aborted: bool = True) -> dict[str, Any]:
     cards = report_index.list_report_cards(include_aborted=include_aborted)
     # Soft-complete invites that now have matching reports
     for card in cards:

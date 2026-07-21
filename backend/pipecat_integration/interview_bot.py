@@ -38,16 +38,36 @@ def start_report_http_server(host="localhost", port=None):
     if port is None:
         port = settings.report_http_port
 
-    def _latest_report_json_path():
-        reports_dir = settings.reports_dir
-        if not reports_dir.exists():
-            return None
+    def _iter_report_json_paths():
+        dirs = [settings.reports_dir, settings.aborted_reports_dir]
+        for d in dirs:
+            if not d.exists():
+                continue
+            yield from d.glob("interview_report_*.json")
+
+    def _session_id_from_report_path(path: Path) -> str:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            meta = data.get("report_meta") or {}
+            legacy = data.get("interview_metadata") or {}
+            return str(meta.get("session_id") or legacy.get("session_id") or "")
+        except Exception:
+            return ""
+
+    def _latest_report_json_path(session_id: str | None = None):
         report_files = sorted(
-            reports_dir.glob("interview_report_*.json"),
+            _iter_report_json_paths(),
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )
-        return report_files[0] if report_files else None
+        if not report_files:
+            return None
+        wanted = (session_id or "").strip()
+        if wanted:
+            for path in report_files:
+                if _session_id_from_report_path(path) == wanted:
+                    return path
+        return report_files[0]
 
     class ReportHandler(BaseHTTPRequestHandler):
         def _send_json(self, status_code, payload):
@@ -75,10 +95,20 @@ def start_report_http_server(host="localhost", port=None):
             self._send_json(200, {"ok": True})
 
         def do_GET(self):
-            path = self.path.split("?", 1)[0]
+            raw = self.path
+            path = raw.split("?", 1)[0]
+            query = ""
+            if "?" in raw:
+                query = raw.split("?", 1)[1]
+            params = {}
+            if query:
+                from urllib.parse import parse_qs
+
+                params = {k: (v[0] if v else "") for k, v in parse_qs(query).items()}
+            session_id = (params.get("session_id") or "").strip() or None
 
             if path in ("/latest-report.html", "/reports/latest.html"):
-                latest = _latest_report_json_path()
+                latest = _latest_report_json_path(session_id)
                 if latest is None:
                     self._send_bytes(
                         404,
@@ -113,7 +143,7 @@ def start_report_http_server(host="localhost", port=None):
                 self._send_json(404, {"error": "Not found"})
                 return
 
-            latest = _latest_report_json_path()
+            latest = _latest_report_json_path(session_id)
             if latest is None:
                 if not settings.reports_dir.exists():
                     self._send_json(404, {"error": "No reports folder found yet"})

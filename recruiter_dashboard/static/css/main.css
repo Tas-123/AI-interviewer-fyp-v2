@@ -149,6 +149,34 @@ body {
   max-width: 420px;
 }
 
+.create-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 420px;
+}
+
+.form-section {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.field-help {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.btn-create {
+  justify-self: start;
+  margin-top: 0.25rem;
+}
+
 label {
   display: grid;
   gap: 0.35rem;
@@ -162,7 +190,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: var(--text);
   background: var(--bg);
@@ -172,9 +201,15 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: 2px solid rgba(61, 139, 253, 0.45);
   border-color: var(--accent);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 4.5rem;
 }
 
 .btn {

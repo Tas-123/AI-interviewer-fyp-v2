@@ -31,10 +31,13 @@ export function createInterviewsView() {
   const tbody = document.getElementById("invites-body");
   const btnRefresh = document.getElementById("btn-refresh-invites");
 
+  let rolesCache = [];
+
   async function loadRoles() {
     const data = await fetchRoles();
-    const roles = data.roles || [];
-    roleSelect.innerHTML = roles
+    rolesCache = data.roles || [];
+    if (!roleSelect) return;
+    roleSelect.innerHTML = rolesCache
       .map(
         (r) =>
           `<option value="${escapeHtml(r.key)}">${escapeHtml(r.display_title)}</option>`
@@ -53,9 +56,10 @@ export function createInterviewsView() {
       .map((inv) => {
         const status = inv.status || "pending";
         const url = inv.candidate_url || "";
+        const roleCell = escapeHtml(inv.display_title || inv.target_role);
         return `<tr>
           <td>${escapeHtml(formatWhen(inv.created_at))}</td>
-          <td>${escapeHtml(inv.target_role)}</td>
+          <td>${roleCell}</td>
           <td>${escapeHtml(inv.label || "—")}</td>
           <td><span class="badge ${escapeHtml(status)}">${escapeHtml(status)}</span></td>
           <td>
@@ -86,20 +90,20 @@ export function createInterviewsView() {
 
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    btnCreate.disabled = true;
-    copyFeedback.hidden = true;
+    btnCreate && (btnCreate.disabled = true);
+    if (copyFeedback) copyFeedback.hidden = true;
     try {
       const invite = await createInterview({
-        target_role: roleSelect.value,
-        label: labelInput.value.trim(),
+        target_role: roleSelect?.value || "junior_ai_engineer",
+        label: labelInput?.value?.trim() || null,
       });
-      urlInput.value = invite.candidate_url || "";
-      resultBox.hidden = false;
+      if (urlInput) urlInput.value = invite.candidate_url || "";
+      if (resultBox) resultBox.hidden = false;
       await loadInvites();
     } catch (err) {
       alert(`Could not create interview: ${err.message}`);
     } finally {
-      btnCreate.disabled = false;
+      btnCreate && (btnCreate.disabled = false);
     }
   });
 

@@ -34,38 +34,56 @@ IDK_PHRASES = (
     "i havent done",
 )
 
-DOMAIN_HINTS: dict[str, str] = {
-    "project_overview": (
-        "Think of one project — even a small one. What problem did it solve and what did you build?"
-    ),
-    "python": (
-        "Consider folders like src/, a config file, and main.py — how would you lay those out?"
-    ),
-    "machine_learning": (
-        "Compare training accuracy to validation accuracy, and mention regularization or more data."
-    ),
-    "data_preprocessing": (
-        "Missing values can use mean/median imputation; categoricals can use encoding; numerics can be scaled."
-    ),
-    "model_evaluation": (
-        "Accuracy for balance; precision/recall when false positives or false negatives matter; F1 combines both."
-    ),
-    "nlp_speech_ai": (
-        "Think tokenization, normalization, and handling audio or text noise before the model."
-    ),
-    "apis_backend": (
-        "A REST endpoint, request/response JSON schema, and basic error handling."
-    ),
-    "deployment": (
-        "Containerize the model, expose an endpoint, and watch logs plus latency."
-    ),
-    "debugging_problem_solving": (
-        "Check data quality first, then preprocessing, then model outputs step by step."
-    ),
-    "behavioral_ownership": (
-        "Pick a small problem you personally fixed — what you did and what changed."
-    ),
-}
+DOMAIN_HINTS: dict[str, str] = {}
+try:
+    from core.domain_packs import all_domain_hints
+
+    DOMAIN_HINTS.update(all_domain_hints())
+    from core.role_templates import build_junior_ai_engineer
+
+    DOMAIN_HINTS.update(build_junior_ai_engineer().hints)
+except Exception:
+    DOMAIN_HINTS = {
+        "project_overview": (
+            "Think of one project — even a small one. What problem did it solve and what did you build?"
+        ),
+        "python": (
+            "Consider folders like src/, a config file, and main.py — how would you lay those out?"
+        ),
+        "machine_learning": (
+            "Compare training accuracy to validation accuracy, and mention regularization or more data."
+        ),
+        "data_preprocessing": (
+            "Missing values can use mean/median imputation; categoricals can use encoding; numerics can be scaled."
+        ),
+        "model_evaluation": (
+            "Accuracy for balance; precision/recall when false positives or false negatives matter; F1 combines both."
+        ),
+        "nlp_speech_ai": (
+            "Think tokenization, normalization, and handling audio or text noise before the model."
+        ),
+        "apis_backend": (
+            "A REST endpoint, request/response JSON schema, and basic error handling."
+        ),
+        "deployment": (
+            "Containerize the model, expose an endpoint, and watch logs plus latency."
+        ),
+        "debugging_problem_solving": (
+            "Check data quality first, then preprocessing, then model outputs step by step."
+        ),
+        "behavioral_ownership": (
+            "Pick a small problem you personally fixed — what you did and what changed."
+        ),
+    }
+
+
+def _hints_for_domain(domain: str, interview_context=None) -> str:
+    hints = getattr(interview_context, "domain_hints", None) if interview_context else None
+    if isinstance(hints, dict) and domain in hints:
+        return hints[domain]
+    return DOMAIN_HINTS.get(
+        domain, "Share whatever you remember — even a partial answer helps."
+    )
 
 
 def is_hint_request(transcript: str) -> bool:
@@ -200,9 +218,7 @@ def idk_attempt_response(
         return spoken, "rephrase_idk"
 
     if attempt == 2:
-        hint = DOMAIN_HINTS.get(
-            domain, "Share whatever you remember — even a partial answer helps."
-        )
+        hint = _hints_for_domain(domain, interview_context)
         ask = rephrase_recovery(
             core_question=core,
             domain=domain,

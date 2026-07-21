@@ -24,20 +24,22 @@
 
     <main>
       <section id="view-interviews" class="view is-active" aria-label="AI Interview">
-        <div class="panel">
+        <div class="panel create-panel">
           <h2>Create interview</h2>
-          <p class="hint">Select a role, generate a unique link, and share it with the candidate. The link opens the existing Candidate Interface.</p>
-          <form id="create-form" class="form-grid">
-            <label>
-              Interview field / role
+          <p class="hint">Choose a predefined role and share the generated link with the candidate.</p>
+
+          <form id="create-form" class="create-form">
+            <div class="form-section">
+              <label class="field-label" for="target-role">Role</label>
               <select id="target-role" name="target_role" required></select>
-            </label>
-            <label>
-              Label <span class="optional">(optional)</span>
-              <input id="invite-label" name="label" type="text" placeholder="e.g. July batch — AI Jr" maxlength="120" />
-            </label>
-            <button type="submit" class="btn primary" id="btn-create">Generate interview link</button>
+              <p class="field-help" id="role-help">Interview blueprint for this role (AI, Frontend, or Backend).</p>
+            </div>
+
+            
+
+            <button type="submit" class="btn primary btn-create" id="btn-create">Generate interview link</button>
           </form>
+
           <div id="create-result" class="create-result" hidden>
             <p class="success-line">Link ready — copy and share with the candidate.</p>
             <div class="link-row">

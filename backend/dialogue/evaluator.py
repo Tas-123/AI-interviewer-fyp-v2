@@ -38,9 +38,10 @@ def load_groq_client():
 
 class Evaluator:
 
-    def __init__(self):
+    def __init__(self, role_title: str | None = None):
         self.client = load_groq_client()
         self.model = settings.groq_evaluator_model or settings.groq_model
+        self.role_title = (role_title or "technical interview").strip() or "technical interview"
         self._pipeline = None
 
     @property
@@ -59,7 +60,7 @@ class Evaluator:
             {
                 "role": "system",
                 "content": (
-                    "You are a fair senior engineer evaluating Junior AI Engineer "
+                    f"You are a fair senior engineer evaluating {self.role_title} "
                     "candidates in a live voice interview. "
                     "Return only valid JSON when JSON is requested. "
                     "No markdown, no code fences, no extra commentary."
@@ -145,6 +146,7 @@ class Evaluator:
     ) -> dict:
         """Second-pass scoring for borderline evaluations (ensemble lite)."""
         prompt = RETHINK_EVALUATION_PROMPT.format(
+            role_title=self.role_title,
             question=question,
             answer=answer,
             primary_evaluation=json.dumps(primary_evaluation, ensure_ascii=False),
@@ -188,6 +190,7 @@ class Evaluator:
             )
 
         prompt = ADAPTIVE_EVALUATION_PROMPT.format(
+            role_title=self.role_title,
             current_question=question,
             candidate_answer=answer,
             previous_evaluations=json.dumps(previous_evaluations),
@@ -209,14 +212,14 @@ class Evaluator:
         except json.JSONDecodeError as exc:
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
             logger.warning("Adaptive JSON parse error: %s", exc)
-            fallback = self._fallback_adaptive_result()
+            fallback = self._fallback_adaptive_result(answer=answer)
             fallback["latency_ms"] = latency_ms
             return fallback
 
         except Exception as exc:
             latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
             logger.warning("Adaptive error: %s", exc)
-            fallback = self._fallback_adaptive_result()
+            fallback = self._fallback_adaptive_result(answer=answer)
             fallback["latency_ms"] = latency_ms
             return fallback
 
@@ -229,7 +232,11 @@ class Evaluator:
         if not answer or len(answer.strip().split()) < 3:
             return self._empty_evaluation()
 
-        prompt = EVALUATION_SYSTEM_PROMPT.format(question=question, answer=answer)
+        prompt = EVALUATION_SYSTEM_PROMPT.format(
+            role_title=self.role_title,
+            question=question,
+            answer=answer,
+        )
 
         try:
             raw_text = self._call_groq(prompt, json_mode=True)
@@ -403,8 +410,37 @@ class Evaluator:
             "hire_signal": "No Hire",
         }
 
-    def _error_evaluation(self, error_msg: str) -> dict:
-        """Return a placeholder evaluation when LLM call fails."""
+    def _error_evaluation(self, error_msg: str, *, answer: str = "") -> dict:
+        """Return a placeholder evaluation when LLM call fails.
+
+        When the answer has real substance, use a low-but-nonzero floor so the
+        turn still counts in reports instead of vanishing (overall_score 0).
+        """
+        words = len((answer or "").strip().split())
+        if words >= 8:
+            from evaluation.rubric import compute_weighted_score
+
+            base = {
+                "clarity_score": 1, "clarity": 1,
+                "structure_score": 1, "structure": 1,
+                "confidence_score": 1, "confidence": 1,
+                "ownership_score": 1, "ownership": 1,
+                "leadership_score": 1, "leadership": 1,
+                "result_score": 1, "result_orientation": 1,
+                "strengths": [],
+                "weaknesses": [
+                    f"Evaluation degraded: {error_msg}. "
+                    "Scored with a conservative floor because scoring failed."
+                ],
+                "overall_score": 1.0,
+                "weakest_dimension": "unknown",
+                "hire_signal": "No Hire",
+                "is_error": True,
+                "evaluation_degraded": True,
+            }
+            base["weighted_overall_score"] = compute_weighted_score(base)
+            return base
+
         return {
             "clarity_score": 0, "clarity": 0,
             "structure_score": 0, "structure": 0,
@@ -421,10 +457,14 @@ class Evaluator:
             "is_error": True,
         }
 
-    def _fallback_adaptive_result(self) -> dict:
+    def _fallback_adaptive_result(self, answer: str = "") -> dict:
         """Return a safe fallback when adaptive evaluation fails entirely."""
+        evaluation = self._error_evaluation(
+            "Adaptive evaluation failed.", answer=answer
+        )
+        # Floor scores still ADVANCE so interview does not hang; report keeps the turn.
         return {
-            "evaluation": self._error_evaluation("Adaptive evaluation failed."),
+            "evaluation": evaluation,
             "decision": {
                 "type": "ADVANCE",
                 "next_question": (

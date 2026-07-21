@@ -72,6 +72,10 @@ export function createVoiceSession(config, ui, hooks = {}) {
         const payload = { type: "start", target_role: role };
         if (displayName) payload.display_name = displayName;
         if (resumeText) payload.resume_text = resumeText;
+        const skills = Array.isArray(ui.refs?._selectedSkills)
+            ? ui.refs._selectedSkills
+            : [];
+        if (skills.length) payload.skills = skills;
         return payload;
     }
 

@@ -20,8 +20,15 @@ def looks_like_incomplete_transcript(transcript: str, last_question: str = "") -
 
     if word_count <= 4:
         technical_keywords = [
+            # AI / ML
             "python", "model", "dataset", "accuracy", "precision", "recall",
             "missing", "categorical", "scaling", "api", "deploy", "overfitting",
+            # Frontend
+            "html", "css", "javascript", "typescript", "react", "vue", "angular",
+            "component", "hooks", "dom", "flexbox", "responsive", "fetch", "axios",
+            # Backend
+            "sql", "database", "postgres", "mongodb", "jwt", "auth", "docker",
+            "fastapi", "express", "node",
         ]
         if any(k in clean for k in technical_keywords):
             return True
@@ -45,6 +52,10 @@ def looks_like_incomplete_transcript(transcript: str, last_question: str = "") -
                 "training", "preprocessing", "api", "deploy", "nlp",
                 "neural", "cnn", "lstm", "transformer", "pipeline",
                 "scikit", "sklearn", "pytorch", "tensorflow",
+                # Frontend / Backend project markers
+                "react", "javascript", "typescript", "html", "css", "vue",
+                "portfolio", "website", "frontend", "backend", "node",
+                "fastapi", "sql", "database", "docker",
             ]
             if not any(m in clean for m in substance_markers):
                 return True

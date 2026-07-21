@@ -52,28 +52,105 @@ def build_domain_ratings(domain_assessment_map: dict) -> list[dict]:
 
 
 def build_question_review(adaptive_trace: list) -> list[dict]:
+    """
+    Build recruiter Q&A history from the adaptive trace.
+
+    Includes scored turns plus unscored/error and meaningful redirect turns so
+    the HTML report matches what was spoken (not only successfully scored).
+    """
+    include_redirects = {
+        "IDK_RESPONSE",
+        "TAIL_FRAGMENT_CONTINUE",
+        "REPEAT_REQUEST",
+        "STAY_ON_QUESTION",
+        "INCOMPLETE_TRANSCRIPT_REDIRECT",
+        "SKIP_BUDGET_EXCEEDED",
+    }
+    exclude_noise = {
+        "DOMAIN_RELEVANCE_REDIRECT",
+        "META_CONVERSATION",
+        "SKIP_REQUEST",
+        "OFF_TOPIC",
+        "EXTERNAL_PROMPT_ECHO",
+    }
+
     reviews = []
     for item in adaptive_trace or []:
-        if not item.get("guard_passed", True):
+        decision_type = item.get("decision_type") or ""
+        guard_passed = item.get("guard_passed", True)
+
+        if decision_type in exclude_noise:
             continue
-        if item.get("decision_type") in {
-            "DOMAIN_RELEVANCE_REDIRECT",
-            "INCOMPLETE_TRANSCRIPT_REDIRECT",
-            "META_CONVERSATION",
-            "SKIP_REQUEST",
-        }:
+        if not guard_passed and decision_type not in include_redirects:
             continue
+
         scores = item.get("scores") or {}
         profiles = item.get("score_profiles") or {}
         comm = profiles.get("communication", {}).get("composite")
         tech = profiles.get("technical", {}).get("composite")
-        weighted = scores.get("weighted_overall_score", 0)
-        if weighted <= 0 and not comm and not tech:
+        weighted = scores.get("weighted_overall_score", 0) or 0
+        is_error = bool(item.get("is_error") or scores.get("is_error"))
+        has_score = (weighted > 0) or bool(comm) or bool(tech)
+
+        question = (item.get("question_answered") or item.get("next_question") or "").strip()
+        if not question:
             continue
+        # Skip placeholder error prompts that never asked a real domain question
+        if question.startswith("[Error generating") and not has_score:
+            # Still include if candidate answered something meaningful against it
+            answer_probe = (item.get("candidate_answer") or "").strip()
+            if len(answer_probe.split()) < 3 and decision_type not in include_redirects:
+                continue
 
         answer = (item.get("candidate_answer") or "").strip()
         if len(answer) > 280:
             answer = answer[:277] + "..."
+
+        if has_score and not is_error:
+            review_status = "scored"
+            evaluation_summary = _brief_evaluation_summary(item, float(weighted))
+            score_block = {
+                "communication_composite": comm,
+                "technical_composite": tech,
+                "weighted_overall": weighted,
+            }
+            hire_signal = item.get("hire_signal")
+        elif has_score and (is_error or item.get("evaluation_degraded")):
+            review_status = "scored_degraded"
+            evaluation_summary = (
+                f"Weighted score {float(weighted):.2f} (evaluation degraded). "
+                "Scoring failed; conservative floor applied."
+            )
+            score_block = {
+                "communication_composite": comm,
+                "technical_composite": tech,
+                "weighted_overall": weighted,
+            }
+            hire_signal = item.get("hire_signal") or "No Hire"
+        elif is_error or (guard_passed and not has_score):
+            review_status = "evaluation_unavailable"
+            evaluation_summary = (
+                "Evaluation unavailable for this turn "
+                "(scoring failed or returned no usable score)."
+            )
+            score_block = {
+                "communication_composite": None,
+                "technical_composite": None,
+                "weighted_overall": None,
+            }
+            hire_signal = "N/A"
+        else:
+            review_status = "redirect"
+            evaluation_summary = (
+                f"Not scored ({decision_type.replace('_', ' ').title()}). "
+                "Interviewer redirected or asked the candidate to continue."
+            )
+            score_block = {
+                "communication_composite": None,
+                "technical_composite": None,
+                "weighted_overall": None,
+            }
+            hire_signal = "N/A"
 
         reviews.append(
             {
@@ -83,15 +160,12 @@ def build_question_review(adaptive_trace: list) -> list[dict]:
                     item.get("domain", ""),
                     str(item.get("domain", "")).replace("_", " ").title(),
                 ),
-                "question": item.get("question_answered") or item.get("next_question"),
+                "question": question,
                 "candidate_answer_summary": answer,
-                "evaluation_summary": _brief_evaluation_summary(item, weighted),
-                "scores": {
-                    "communication_composite": comm,
-                    "technical_composite": tech,
-                    "weighted_overall": weighted,
-                },
-                "hire_signal_per_turn": item.get("hire_signal"),
+                "evaluation_summary": evaluation_summary,
+                "review_status": review_status,
+                "scores": score_block,
+                "hire_signal_per_turn": hire_signal,
             }
         )
     return reviews
@@ -101,7 +175,7 @@ def _brief_evaluation_summary(item: dict, weighted: float) -> str:
     weakest = item.get("weakest_dimension")
     signal = item.get("hire_signal", "N/A")
     parts = [f"Weighted score {weighted:.2f} ({signal})."]
-    if weakest:
+    if weakest and weakest != "unknown":
         parts.append(f"Weakest dimension: {weakest}.")
     reason = item.get("follow_up_reason")
     if reason and "advancing" not in str(reason).lower():

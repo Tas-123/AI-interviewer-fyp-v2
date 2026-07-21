@@ -31,7 +31,9 @@ class DialogueManager:
         self.context = InterviewContext(resume_data)
         self.engine = DecisionEngine()
         self.llm = LLMAdapter()
-        self.evaluator = Evaluator()
+        self.evaluator = Evaluator(
+            role_title=(resume_data or {}).get("role") or "technical interview"
+        )
         self.latency_history = []  # List of latency_ms per turn
         self.guard_pipeline = GuardPipeline(
             llm_client=self.llm.client,
@@ -173,7 +175,12 @@ class DialogueManager:
         from dialogue.states import InterviewState
 
         domain = getattr(self.context, "current_domain", "")
-        if hasattr(self.context, "can_skip_domain") and not self.context.can_skip_domain():
+        force_advance = bool((guard_hit.metadata or {}).get("force_advance"))
+        if (
+            hasattr(self.context, "can_skip_domain")
+            and not self.context.can_skip_domain()
+            and not force_advance
+        ):
             # Skip budget exhausted — stay on the current question.
             from dialogue.rephrase_policy import resolve_core_question
 
@@ -199,8 +206,12 @@ class DialogueManager:
                 "latency_ms": 0,
             }
 
-        if hasattr(self.context, "record_skip"):
+        if hasattr(self.context, "record_skip") and not force_advance:
             self.context.record_skip()
+        elif force_advance and hasattr(self.context, "record_skip"):
+            # Soft-advance escalation still consumes budget when available.
+            if self.context.can_skip_domain():
+                self.context.record_skip()
 
         if domain:
             if hasattr(self.context, "mark_domain_skipped"):
@@ -391,8 +402,24 @@ class DialogueManager:
             engine_decision_type = engine_result.get("decision_type", decision.get("type", "ADVANCE"))
             engine_action_type = engine_result.get("type", "")
             engine_reason = engine_result.get("reason", "")
+            engine_action = engine_result.get("action", "")
 
-            if engine_reason == "probe_limit_reached_moving_to_next_domain" or engine_action_type == "ask":
+            # STAY must speak the engine continue prompt — never regenerate a domain seed.
+            if (
+                engine_decision_type == "STAY_ON_QUESTION"
+                or engine_action == "stay"
+            ):
+                question = (
+                    engine_result.get("next_question")
+                    or "Please continue with your answer."
+                ).strip()
+                decision_type = "STAY_ON_QUESTION"
+                if question and hasattr(self.context, "set_active_question"):
+                    # Keep canonical on the prior domain question when possible
+                    pass
+            elif engine_reason == "probe_limit_reached_moving_to_next_domain" or (
+                engine_action_type == "ask" and engine_decision_type != "STAY_ON_QUESTION"
+            ):
                 # Force next blueprint domain question through LLMAdapter.
                 question = self._ensure_unique_question(
                     self.llm.generate(engine_result, self.context)
@@ -506,7 +533,10 @@ class DialogueManager:
                         "result_orientation": evaluation.get("result_orientation", 0),
                         "overall_score": evaluation.get("overall_score", 0),
                         "weighted_overall_score": evaluation.get("weighted_overall_score", 0),
+                        "is_error": bool(evaluation.get("is_error")),
                     },
+                    "is_error": bool(evaluation.get("is_error")),
+                    "evaluation_degraded": bool(evaluation.get("evaluation_degraded")),
                     "star_breakdown": evaluation.get("star_breakdown", {}),
                     "hire_signal": evaluation.get("hire_signal", "N/A"),
                     "evaluation_method": {

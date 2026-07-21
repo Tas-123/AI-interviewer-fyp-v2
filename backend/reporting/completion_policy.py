@@ -21,12 +21,16 @@ DEFAULT_THRESHOLDS = CompletionThresholds()
 
 
 def count_evaluated_turns(context) -> int:
-    """Scored turns only — excludes guard redirects and errors."""
-    return sum(
-        1
-        for evaluation in getattr(context, "evaluations", []) or []
-        if evaluation.get("overall_score", 0) > 0 and not evaluation.get("is_error")
-    )
+    """Scored turns — includes degraded floor scores; excludes pure error zeros."""
+    count = 0
+    for evaluation in getattr(context, "evaluations", []) or []:
+        score = evaluation.get("overall_score", 0) or 0
+        if score <= 0:
+            continue
+        if evaluation.get("is_error") and not evaluation.get("evaluation_degraded"):
+            continue
+        count += 1
+    return count
 
 
 def classify_report_type(

@@ -18,6 +18,12 @@ import {
     bindInviteSession,
     resolveInvite,
 } from "./network/inviteClient.js?v=20260720a";
+import {
+    applyInterviewMeta,
+    getSelectedSkills,
+    metaForRole,
+    syncSelectedSkillsToShell,
+} from "./ui/interviewMeta.js?v=20260720d";
 
 const cfg = window.MANUAL_CLIENT_CONFIG || {};
 const DEFAULT_HTML =
@@ -25,6 +31,7 @@ const DEFAULT_HTML =
 
 /** Resolved at bootstrap; used for start payload + session bind. */
 let resolvedTargetRole = cfg.targetRole || "junior_ai_engineer";
+let resolvedDisplayTitle = "";
 let activeInviteToken = (cfg.inviteToken || "").trim();
 
 function buildUiBundle(refs) {
@@ -118,6 +125,10 @@ function wireControls(session, ui) {
 function bootstrap() {
     const refs = getDomRefs();
     const ui = buildUiBundle(refs);
+
+    refs._syncSkills = () => syncSelectedSkillsToShell(refs);
+    // Paint lobby from role query param immediately; invite may refine later.
+    applyInterviewMeta(refs, metaForRole(resolvedTargetRole));
 
     ui.status.setPhase(SESSION_PHASES.SETUP);
     ui.conversation.showEmpty(
@@ -233,12 +244,26 @@ function bootstrap() {
                 if (invite?.target_role) {
                     resolvedTargetRole = invite.target_role;
                 }
+                resolvedDisplayTitle = invite?.display_title || "";
+                applyInterviewMeta(refs, {
+                    display_title:
+                        invite?.display_title ||
+                        metaForRole(resolvedTargetRole).display_title,
+                    description:
+                        invite?.description ||
+                        metaForRole(resolvedTargetRole).description,
+                    suggested_skills:
+                        invite?.suggested_skills?.length
+                            ? invite.suggested_skills
+                            : metaForRole(resolvedTargetRole).suggested_skills,
+                });
                 ui.debug.log(
-                    `Invite OK — role ${resolvedTargetRole}.`,
+                    `Invite OK — ${resolvedDisplayTitle || resolvedTargetRole}.`,
                     "success"
                 );
             })
             .catch((err) => {
+                applyInterviewMeta(refs, metaForRole(resolvedTargetRole));
                 ui.debug.log(
                     `Invite resolve failed (${err.message}); using role ${resolvedTargetRole}.`,
                     "info"
@@ -246,6 +271,7 @@ function bootstrap() {
             })
             .finally(() => finishBootstrap());
     } else {
+        applyInterviewMeta(refs, metaForRole(resolvedTargetRole));
         finishBootstrap();
     }
 }

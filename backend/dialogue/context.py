@@ -2,7 +2,7 @@
 Interview Context — Tracks all session state for one interview.
 """
 
-from core.role_registry import get_role_config
+from core.role_registry import resolve_role_config
 from dialogue.coverage_engine import CoverageEngine
 from dialogue.states import InterviewState
 
@@ -37,7 +37,15 @@ class InterviewContext:
         self.skills = [skill.lower() for skill in resume_data.get("skills", [])]
 
         # Blueprint coverage via CoverageEngine (role-driven structure)
-        role_cfg = get_role_config(self.target_role)
+        role_cfg = resolve_role_config(target_role=self.target_role)
+        self.role_config = role_cfg
+        self.domain_seeds = dict(role_cfg.seeds or {})
+        self.domain_spoken_cores = dict(role_cfg.spoken_cores or {})
+        self.domain_labels = dict(role_cfg.labels or {})
+        self.domain_hints = dict(role_cfg.hints or {})
+        self.technical_domains = tuple(role_cfg.technical_domains or ())
+        self.high_value_domains = tuple(role_cfg.high_value_domains or ())
+        self.skill_domain_map = dict(role_cfg.skill_domain_map or {})
         self.coverage = CoverageEngine(role_cfg)
         self.interview_blueprint = self.coverage.interview_blueprint
         self.domain_coverage = self.coverage.domain_coverage
@@ -82,6 +90,8 @@ class InterviewContext:
 
         # Phase 6A: per-domain IDK attempts (rephrase → hint → skip)
         self.domain_idk_counts: dict[str, int] = {}
+        # Soft "next question" asks per domain (escalate to skip after 2)
+        self.domain_soft_advance_counts: dict[str, int] = {}
 
         # Phase 6C: domain assessment tracking for reporting
         self.assessed_domains: set[str] = set()
@@ -334,6 +344,14 @@ class InterviewContext:
         key = (domain or "general").strip().lower()
         self.domain_idk_counts[key] = self.domain_idk_counts.get(key, 0) + 1
         return self.domain_idk_counts[key]
+
+    def record_soft_advance(self, domain: str) -> int:
+        """Increment soft 'next question' asks for a domain; return new count."""
+        key = (domain or "general").strip().lower()
+        self.domain_soft_advance_counts[key] = (
+            self.domain_soft_advance_counts.get(key, 0) + 1
+        )
+        return self.domain_soft_advance_counts[key]
 
     def mark_domain_assessed(self, domain: str) -> None:
         if domain:

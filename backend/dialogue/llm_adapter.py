@@ -39,49 +39,52 @@ from dialogue.prompts import (
 
 logger = logging.getLogger(__name__)
 
-# Intent seeds / fallbacks for Junior AI Engineer blueprint domains.
-DOMAIN_QUESTION_SEEDS: dict[str, str] = {
-    "project_overview": (
-        "Briefly explain one AI or machine learning project you worked on. "
-        "What problem did it solve, what did you build, and what was the result?"
-    ),
-    "python": (
-        "In Python, how would you structure a small machine learning project so the "
-        "code stays clean, reusable, and easy to debug?"
-    ),
-    "machine_learning": (
-        "How would you detect overfitting in a machine learning model, and what "
-        "steps would you take to reduce it?"
-    ),
-    "data_preprocessing": (
-        "How would you handle missing values, categorical features, and scaling "
-        "before training a machine learning model?"
-    ),
-    "model_evaluation": (
-        "For a classification model, how would you choose evaluation metrics such as "
-        "accuracy, precision, recall, F1-score, and confusion matrix?"
-    ),
-    "nlp_speech_ai": (
-        "If you are building a speech or NLP-based AI system, what preprocessing "
-        "steps would you apply before sending text to the model?"
-    ),
-    "apis_backend": (
-        "How would you expose a trained AI model through an API, and what request, "
-        "response, and error-handling details would you include?"
-    ),
-    "deployment": (
-        "What steps would you take to deploy a small AI model and monitor its "
-        "latency, errors, and performance after deployment?"
-    ),
-    "debugging_problem_solving": (
-        "If your AI pipeline gives poor results, how would you debug whether the "
-        "issue is in the data, preprocessing, model, or evaluation?"
-    ),
-    "behavioral_ownership": (
-        "Tell me about a time you took ownership of a technical problem. "
-        "What did you do, and what was the outcome?"
-    ),
-}
+DEFAULT_ROLE_TITLE = "technical interview"
+
+
+def resolve_role_title(context=None, resume_data: dict | None = None) -> str:
+    """Active interview display title — never force Junior AI Engineer."""
+    if context is not None:
+        rd = getattr(context, "resume_data", None) or {}
+        title = (
+            rd.get("role")
+            or getattr(getattr(context, "role_config", None), "display_title", None)
+            or getattr(context, "role_title", None)
+        )
+        if title and str(title).strip():
+            return str(title).strip()
+    if resume_data:
+        title = resume_data.get("role")
+        if title and str(title).strip():
+            return str(title).strip()
+    return DEFAULT_ROLE_TITLE
+
+# Fallback seeds for Junior AI Engineer (also used when context has no role seeds).
+from core.domain_packs import all_seeds, all_spoken_cores
+
+DOMAIN_QUESTION_SEEDS: dict[str, str] = all_seeds()
+# Keep AI-specific wording for classic AI domains (matches prior behavior).
+try:
+    from core.role_templates import build_junior_ai_engineer
+
+    _ai = build_junior_ai_engineer()
+    DOMAIN_QUESTION_SEEDS.update(_ai.seeds)
+except Exception:
+    pass
+
+
+def _seeds_from_context(context) -> dict[str, str]:
+    seeds = getattr(context, "domain_seeds", None)
+    if isinstance(seeds, dict) and seeds:
+        return seeds
+    return DOMAIN_QUESTION_SEEDS
+
+
+def _cores_from_context(context) -> dict[str, str]:
+    cores = getattr(context, "domain_spoken_cores", None)
+    if isinstance(cores, dict) and cores:
+        return cores
+    return all_spoken_cores()
 
 
 class LLMAdapter:
@@ -107,32 +110,65 @@ class LLMAdapter:
 
         if action_type == "intro":
             question = self._generate_intro(context)
+            question = self._ensure_spoken_question(
+                question, context, domain="project_overview"
+            )
             self._commit_active_question(context, question, "project_overview")
             return question
 
         if action_type == "followup":
             question = self._generate_followup(action, context)
             domain = action.get("domain", getattr(context, "current_domain", ""))
+            question = self._ensure_spoken_question(question, context, domain=domain)
             self._commit_active_question(context, question, domain)
             return question
 
         topic = action.get("topic", "")
         if topic == "behavioral":
             question = self._generate_behavioral(action, context)
+            question = self._ensure_spoken_question(
+                question, context, domain="behavioral_ownership"
+            )
             self._commit_active_question(context, question, "behavioral_ownership")
             return question
 
         question = self._generate_technical(action, context)
         domain = action.get("domain", topic)
+        question = self._ensure_spoken_question(question, context, domain=domain)
         self._commit_active_question(context, question, domain)
         return question
+
+    def _domain_seed_fallback(self, context, domain: str = "") -> str:
+        """Role pack seed/core when LLM question generation fails."""
+        dkey = (domain or getattr(context, "current_domain", "") or "").strip().lower()
+        seeds = _seeds_from_context(context)
+        cores = _cores_from_context(context)
+        text = (cores.get(dkey) or seeds.get(dkey) or "").strip()
+        if text:
+            return text
+        return (
+            "Please explain one practical technical approach for this topic, "
+            "including the steps you would take and how you would validate it."
+        )
+
+    def _ensure_spoken_question(self, question: str, context, *, domain: str = "") -> str:
+        q = (question or "").strip()
+        if q and not q.startswith("[Error generating"):
+            return q
+        fallback = self._domain_seed_fallback(context, domain)
+        logger.error(
+            "Question generation failed; using domain seed fallback for %s",
+            domain or "unknown",
+        )
+        return fallback
 
     def _commit_active_question(self, context, question: str, domain: str = "") -> None:
         if not question or str(question).startswith("[Error"):
             return
         if hasattr(context, "set_active_question"):
-            intent = DOMAIN_QUESTION_SEEDS.get(
-                (domain or "").strip().lower(),
+            dkey = (domain or "").strip().lower()
+            intent = _seeds_from_context(context).get(
+                dkey,
                 str(domain or "").replace("_", " "),
             )
             clipped = self._clip_spoken_question(str(question))
@@ -147,13 +183,14 @@ class LLMAdapter:
         skills_list = list(getattr(context, "skills", []) or [])[:5]
         skills_str = ", ".join(skills_list) if skills_list else "general"
         experience = context.resume_data.get("experience", "not specified")
-        role_title = context.resume_data.get("role", "Junior AI Engineer")
+        role_title = resolve_role_title(context)
         name = context.resume_data.get("name", "Candidate")
         profile_source = context.resume_data.get("profile_source", "default")
         projects = context.resume_data.get("projects") or []
         project_hint = ", ".join(str(p) for p in projects[:2]) if projects else ""
 
         prompt = INTRO_SYSTEM_PROMPT.format(
+            role_title=role_title,
             skills=skills_str,
             experience=experience,
         )
@@ -164,6 +201,7 @@ Session context:
 - Target role: {role_title}
 - Profile source: {profile_source}
 - Projects from resume: {project_hint or "none listed"}
+- You MUST name the interview as "{role_title}" — never substitute a different job title.
 - If profile_source is resume and Skills is not "general", briefly name ONE concrete skill or project from the Skills/Projects lists above — never invent others.
 - If profile_source is default, explain this is a structured {role_title} practice interview without inventing a personal skill list.
 - Ask exactly ONE opening question (introduce yourself + one project or technical experience).
@@ -175,7 +213,7 @@ Session context:
         topic = action.get("topic", "general")
         domain = action.get("domain", topic)
         difficulty = action.get("difficulty", "medium")
-        seed = DOMAIN_QUESTION_SEEDS.get(domain, "")
+        seed = _seeds_from_context(context).get(domain, "")
         variety = len(getattr(context, "question_history", []) or [])
 
         # 1) On-domain resume question (never role_specific bank for technical domains).
@@ -193,6 +231,7 @@ Session context:
                             bank_question,
                             variety_seed=variety,
                             replace_with_core=False,
+                            cores=_cores_from_context(context),
                         )
                     )
                     if candidate and not is_semantic_duplicate(
@@ -203,7 +242,12 @@ Session context:
         # 2) Prefer naturalized domain seed (short, deterministic, voice-friendly).
         if action.get("type") == "ask" and seed:
             candidate = self._clip_spoken_question(
-                _naturalize_static_question(domain, seed, variety_seed=variety)
+                _naturalize_static_question(
+                    domain,
+                    seed,
+                    variety_seed=variety,
+                    cores=_cores_from_context(context),
+                )
             )
             if candidate and not is_semantic_duplicate(
                 candidate, context.question_history
@@ -226,7 +270,9 @@ Session context:
             if candidate:
                 return candidate
 
+        role_title = resolve_role_title(context)
         system_prompt = TECHNICAL_SYSTEM_PROMPT.format(
+            role_title=role_title,
             topic=topic,
             difficulty=difficulty,
         )
@@ -234,7 +280,7 @@ Session context:
         system_prompt += f"""
         
 Interview policy:
-- You are interviewing for a {context.resume_data.get("role", "Junior AI Engineer")} role.
+- You are interviewing for a {role_title} role.
 - Current required domain: {domain}.
 - Domain intent seed: {seed or topic}
 - Ask exactly ONE focused question for this domain.
@@ -273,7 +319,12 @@ Interview policy:
             return limited
         if seed:
             return self._clip_spoken_question(
-                _naturalize_static_question(domain, seed, variety_seed=variety)
+                _naturalize_static_question(
+                    domain,
+                    seed,
+                    variety_seed=variety,
+                    cores=_cores_from_context(context),
+                )
             )
         return self._clip_spoken_question(text or "")
 
@@ -326,7 +377,7 @@ Interview policy:
         history = self._build_history_text(context)
 
         prompt = f"""
-You are a professional live voice interviewer for a Junior AI Engineer role.
+You are a professional live voice interviewer for a {resolve_role_title(context)} role.
 
 Generate exactly ONE spoken interview question.
 
@@ -396,11 +447,13 @@ Return ONLY the spoken question.
 
         if category:
             full_prompt = (
-                f"{BEHAVIORAL_SYSTEM_PROMPT}\n\n"
+                f"{BEHAVIORAL_SYSTEM_PROMPT.format(role_title=resolve_role_title(context))}\n\n"
                 f"Focus this question on the category: {category}\n\n"
             )
         else:
-            full_prompt = f"{BEHAVIORAL_SYSTEM_PROMPT}\n\n"
+            full_prompt = (
+                f"{BEHAVIORAL_SYSTEM_PROMPT.format(role_title=resolve_role_title(context))}\n\n"
+            )
 
         if recent_qa:
             full_prompt += (
@@ -425,6 +478,7 @@ Return ONLY the spoken question.
         difficulty = action.get("difficulty", "easy")
 
         prompt = FOLLOWUP_SYSTEM_PROMPT.format(
+            role_title=resolve_role_title(context),
             topic=topic,
             difficulty=difficulty,
         )
@@ -535,6 +589,7 @@ def _naturalize_static_question(
     variety_seed: int = 0,
     *,
     replace_with_core: bool = True,
+    cores: dict[str, str] | None = None,
 ) -> str:
     """
     Lightly naturalize fixed blueprint questions without changing their intent.
@@ -566,52 +621,21 @@ def _naturalize_static_question(
     ):
         return q
 
-    # Fixed cores (fairness / coverage). Used for seed path only.
-    cores = {
-        "python": (
-            "In a small ML project, how would you organize the code so it stays "
-            "clean, reusable, and easy to debug?"
-        ),
-        "machine_learning": (
-            "Suppose your training score is high but validation performance drops. "
-            "How would you detect overfitting, and what would you do to reduce it?"
-        ),
-        "data_preprocessing": (
-            "Before training a model, how would you handle missing values, "
-            "categorical features, and scaling?"
-        ),
-        "model_evaluation": (
-            "For a classification model, how would you choose between accuracy, "
-            "precision, recall, F1-score, and the confusion matrix?"
-        ),
-        "nlp_speech_ai": (
-            "Suppose you're building a speech or NLP-based AI system. "
-            "What preprocessing would you apply before sending the text to the model?"
-        ),
-        "apis_backend": (
-            "Once your model is trained and ready, how would you expose it through "
-            "an API, including request, response, and error handling?"
-        ),
-        "deployment": (
-            "How would you deploy a small AI model and monitor latency, errors, "
-            "and model performance after release?"
-        ),
-        "debugging_problem_solving": (
-            "Suppose your AI pipeline starts giving poor results. How would you "
-            "debug whether the issue is in the data, preprocessing, model, or evaluation?"
-        ),
-        "behavioral_ownership": (
-            "Tell me about a time you took ownership of a technical problem. "
-            "What did you do, and what was the outcome?"
-        ),
-        "project_overview": (
-            "Briefly explain one AI or machine learning project you worked on. "
-            "What problem did it solve, what did you build, and what was the result?"
-        ),
-    }
+    # Prefer role-config cores; fall back to shared domain pack spoken cores.
+    if isinstance(cores, dict) and cores:
+        core_map = dict(cores)
+    else:
+        core_map = all_spoken_cores()
+        # Preserve classic AI wording for shared domain ids when no role context.
+        try:
+            from core.role_templates import build_junior_ai_engineer
+
+            core_map.update(build_junior_ai_engineer().spoken_cores)
+        except Exception:
+            pass
 
     if replace_with_core:
-        core = cores.get(d)
+        core = core_map.get(d)
         if not core:
             return q
         spoken = core

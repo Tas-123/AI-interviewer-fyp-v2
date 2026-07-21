@@ -55,7 +55,7 @@ class DecisionEngine:
                 context.mark_domain_probe(active_domain)
                 return {
                     "type": "followup",
-                    "topic": self._domain_to_topic(active_domain),
+                    "topic": self._domain_to_topic(active_domain, context),
                     "domain": active_domain,
                     "weaknesses": latest_eval.get("weaknesses", []),
                     "reason": "weakness_probe_allowed",
@@ -72,7 +72,7 @@ class DecisionEngine:
 
             return {
                 "type": "ask",
-                "topic": self._domain_to_topic(next_domain),
+                "topic": self._domain_to_topic(next_domain, context),
                 "domain": next_domain,
                 "difficulty": "medium",
                 "reason": "probe_limit_reached_moving_to_next_domain",
@@ -97,21 +97,17 @@ class DecisionEngine:
     #  State Handlers
     # ════════════════════════════════════════════════════════════
 
-    def _domain_to_topic(self, domain: str) -> str:
-        """Map Junior AI Engineer blueprint domain to LLM topic label."""
-        mapping = {
-            "project_overview": "project overview",
-            "python": "python",
-            "machine_learning": "machine learning",
-            "data_preprocessing": "data preprocessing",
-            "model_evaluation": "model evaluation",
-            "nlp_speech_ai": "nlp / speech ai",
-            "apis_backend": "apis / backend",
-            "deployment": "deployment",
-            "debugging_problem_solving": "debugging / problem solving",
-            "behavioral_ownership": "behavioral ownership",
-        }
-        return mapping.get(domain, domain or "general")
+    def _domain_to_topic(self, domain: str, context=None) -> str:
+        """Map blueprint domain to LLM topic label."""
+        labels = getattr(context, "domain_labels", None) if context is not None else None
+        if isinstance(labels, dict) and domain in labels:
+            return labels[domain]
+        from core.domain_packs import get_domain
+
+        d = get_domain(domain)
+        if d:
+            return d.label.lower()
+        return (domain or "general").replace("_", " ")
 
     def _get_active_domain(self, context):
         """Return current active blueprint domain."""
@@ -186,7 +182,7 @@ class DecisionEngine:
 
         return {
             "type": "ask",
-            "topic": self._domain_to_topic(domain),
+            "topic": self._domain_to_topic(domain, context),
             "domain": domain,
             "difficulty": "medium",
         }
@@ -242,8 +238,8 @@ class DecisionEngine:
         core = resolve_core_question(context, last_question)
         return {
             "action": "stay",
-            "type": "ask",
-            "topic": self._domain_to_topic(active_domain),
+            "type": "stay",
+            "topic": self._domain_to_topic(active_domain, context),
             "domain": active_domain,
             "next_question": (
                 "I only caught a small fragment of that answer. "
@@ -300,16 +296,19 @@ class DecisionEngine:
                 # Controlled adaptive follow-up policy for technical domains:
                 # We DO want context-based follow-ups because this is a core project feature.
                 # But we still keep max_probes_per_domain = 1 to prevent endless interviews.
-                technical_domains = [
-                    "python",
-                    "machine_learning",
-                    "data_preprocessing",
-                    "model_evaluation",
-                    "nlp_speech_ai",
-                    "apis_backend",
-                    "deployment",
-                    "debugging_problem_solving",
-                ]
+                technical_domains = list(
+                    getattr(context, "technical_domains", None)
+                    or (
+                        "python",
+                        "machine_learning",
+                        "data_preprocessing",
+                        "model_evaluation",
+                        "nlp_speech_ai",
+                        "apis_backend",
+                        "deployment",
+                        "debugging_problem_solving",
+                    )
+                )
 
                 # A decent/specific answer deserves one answer-aware technical follow-up.
                 # Very short answers also get one repair follow-up.
@@ -332,7 +331,7 @@ class DecisionEngine:
                 return {
                     "action": "probe",
                     "type": "followup",
-                    "topic": self._domain_to_topic(active_domain),
+                    "topic": self._domain_to_topic(active_domain, context),
                     "domain": active_domain,
                     "next_question": decision.get("next_question", ""),
                     "decision_type": "PROBE",
@@ -351,7 +350,7 @@ class DecisionEngine:
             return {
                 "action": "advance",
                 "type": "ask",
-                "topic": self._domain_to_topic(next_domain),
+                "topic": self._domain_to_topic(next_domain, context),
                 "domain": next_domain,
                 "next_question": "",
                 "decision_type": "ADVANCE",
@@ -366,13 +365,16 @@ class DecisionEngine:
         weighted_score = evaluation.get("weighted_overall_score", evaluation.get("overall_score", 0))
         answer_word_count = len(str(answer_text).split())
 
-        high_value_context_domains = [
-            "project_overview",
-            "python",
-            "machine_learning",
-            "apis_backend",
-            "deployment",
-        ]
+        high_value_context_domains = list(
+            getattr(context, "high_value_domains", None)
+            or (
+                "project_overview",
+                "python",
+                "machine_learning",
+                "apis_backend",
+                "deployment",
+            )
+        )
 
         should_context_followup = (
             active_domain in high_value_context_domains
@@ -394,7 +396,7 @@ class DecisionEngine:
             return {
                 "action": "probe",
                 "type": "followup",
-                "topic": self._domain_to_topic(active_domain),
+                "topic": self._domain_to_topic(active_domain, context),
                 "domain": active_domain,
                 "next_question": decision.get("next_question", ""),
                 "decision_type": "PROBE",
@@ -413,7 +415,7 @@ class DecisionEngine:
         return {
             "action": "advance",
             "type": "ask",
-            "topic": self._domain_to_topic(next_domain),
+            "topic": self._domain_to_topic(next_domain, context),
             "domain": next_domain,
             "next_question": decision.get("next_question", ""),
             "decision_type": "ADVANCE",

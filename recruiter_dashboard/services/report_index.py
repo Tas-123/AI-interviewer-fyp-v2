@@ -47,7 +47,7 @@ def _card_from_report(report: dict[str, Any], path: Path) -> dict[str, Any]:
     }
 
 
-def list_report_cards(*, include_aborted: bool = False) -> list[dict[str, Any]]:
+def list_report_cards(*, include_aborted: bool = True) -> list[dict[str, Any]]:
     if not REPORTS_DIR.is_dir():
         return []
 

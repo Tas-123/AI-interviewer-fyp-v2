@@ -14,6 +14,7 @@ def save_interview_report(report: dict) -> Path | None:
     Persist report to disk.
 
     Aborted sessions go to reports/aborted/; all others to reports/.
+    HTML is always written (including aborted) so demos never look report-less.
     Returns path written, or None if nothing saved.
     """
     report_type = (report.get("report_meta") or {}).get("report_type", "incomplete")
@@ -36,8 +37,7 @@ def save_interview_report(report: dict) -> Path | None:
         encoding="utf-8",
     )
 
-    if report_type != "aborted":
-        html_path = json_path.with_suffix(".html")
-        html_path.write_text(render_report_html(report), encoding="utf-8")
+    html_path = json_path.with_suffix(".html")
+    html_path.write_text(render_report_html(report), encoding="utf-8")
 
     return json_path

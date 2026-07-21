@@ -1,5 +1,10 @@
-export async function fetchLatestReport(reportUrl) {
-    const res = await fetch(reportUrl, { cache: "no-store" });
+export async function fetchLatestReport(reportUrl, sessionId = "") {
+    let url = reportUrl;
+    if (sessionId) {
+        const join = reportUrl.includes("?") ? "&" : "?";
+        url = `${reportUrl}${join}session_id=${encodeURIComponent(sessionId)}`;
+    }
+    const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) {
         throw new Error(data.error || "Report not ready");
@@ -35,7 +40,7 @@ export async function fetchLatestReportMatched(
     let lastMismatch = null;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         try {
-            const data = await fetchLatestReport(reportUrl);
+            const data = await fetchLatestReport(reportUrl, expectedSessionId);
             const reportSessionId = extractReportSessionId(data);
             if (reportSessionId === expectedSessionId) {
                 return data;
@@ -54,7 +59,7 @@ export async function fetchLatestReportMatched(
 
     // Fallback: show newest report rather than failing the UI entirely.
     try {
-        return await fetchLatestReport(reportUrl);
+        return await fetchLatestReport(reportUrl, expectedSessionId);
     } catch (err) {
         throw lastMismatch || err;
     }

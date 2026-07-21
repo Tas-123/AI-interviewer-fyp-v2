@@ -670,8 +670,12 @@ def generate_final_report(context) -> dict:
     Returns:
         Complete report dict.
     """
-    scored = [e for e in context.evaluations
-              if e.get("overall_score", 0) > 0 and not e.get("is_error")]
+    scored = [
+        e
+        for e in context.evaluations
+        if (e.get("overall_score", 0) or 0) > 0
+        and (not e.get("is_error") or e.get("evaluation_degraded"))
+    ]
 
     # --- A. Weighted Score Summary ---
     raw_fields = ["clarity", "structure", "confidence",

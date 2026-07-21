@@ -163,3 +163,50 @@ body.pre-interview-active .app-shell .controls-row {
         padding-top: 48px;
     }
 }
+
+.required-mark {
+    color: #f07178;
+    font-weight: 600;
+}
+
+.field-error {
+    margin: 0.35rem 0 0;
+    color: #f07178;
+    font-size: 0.82rem;
+}
+
+.pre-input-name.is-invalid,
+input.is-invalid {
+    border-color: #f07178 !important;
+    outline-color: #f07178;
+}
+
+.skill-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.35rem;
+}
+
+.skill-chip {
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(30, 41, 59, 0.65);
+    color: var(--text-main, #e2e8f0);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.skill-chip:hover {
+    border-color: rgba(99, 102, 241, 0.7);
+}
+
+.skill-chip.is-selected,
+.skill-chip[aria-pressed="true"] {
+    background: rgba(99, 102, 241, 0.28);
+    border-color: rgba(129, 140, 248, 0.9);
+    color: #fff;
+}

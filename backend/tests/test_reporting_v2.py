@@ -189,6 +189,8 @@ def test_aborted_report_saved_to_aborted_directory():
         assert path is not None
         assert "aborted" in str(path)
         assert path.exists()
+        html_path = path.with_suffix(".html")
+        assert html_path.exists(), "Aborted reports must also write HTML for demo visibility"
 
         object.__setattr__(config.settings, "reports_dir", original_reports)
         object.__setattr__(config.settings, "aborted_reports_dir", original_aborted)

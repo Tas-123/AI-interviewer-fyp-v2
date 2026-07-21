@@ -29,11 +29,11 @@ export function fetchInterviews() {
   return request("/api/interviews");
 }
 
-export function createInterview({ target_role, label }) {
+export function createInterview(payload) {
   return request("/api/interviews", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target_role, label: label || null }),
+    body: JSON.stringify(payload),
   });
 }
 

@@ -7,7 +7,9 @@ on behalf of the candidate.
 
 from __future__ import annotations
 
-# Junior AI Engineer interview blueprint (domain coverage order).
+# Default Junior AI Engineer interview blueprint (domain coverage order).
+# Authoritative copy lives on the junior_ai_engineer RoleConfig template;
+# kept here for backward-compatible imports and tests.
 INTERVIEW_BLUEPRINT: tuple[str, ...] = (
     "project_overview",
     "python",

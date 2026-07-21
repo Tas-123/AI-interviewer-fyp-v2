@@ -78,6 +78,9 @@ def create_invite(
     target_role: str,
     label: str | None = None,
     candidate_origin: str,
+    display_title: str | None = None,
+    description: str | None = None,
+    suggested_skills: list[str] | None = None,
 ) -> dict[str, Any]:
     token = secrets.token_urlsafe(8)
     origin = candidate_origin.rstrip("/")
@@ -85,6 +88,9 @@ def create_invite(
         "invite_token": token,
         "target_role": target_role,
         "label": (label or "").strip() or None,
+        "display_title": (display_title or "").strip() or None,
+        "description": (description or "").strip() or None,
+        "suggested_skills": list(suggested_skills or []),
         "status": "pending",
         "created_at": _utc_now(),
         "session_id": None,

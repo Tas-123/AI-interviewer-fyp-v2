@@ -14,6 +14,7 @@ DOMAIN_PRIMARY_SIGNATURES: dict[str, tuple[str, ...]] = {
     "project_overview": (
         "ai or machine learning project",
         "project you worked on",
+        "briefly explain one",
     ),
     "python": (
         "organize the code",
@@ -37,6 +38,43 @@ DOMAIN_PRIMARY_SIGNATURES: dict[str, tuple[str, ...]] = {
     "deployment": ("deploy a small ai model", "monitor its latency"),
     "debugging_problem_solving": ("debug whether the issue", "poor results"),
     "behavioral_ownership": ("took ownership", "technical problem"),
+    # Frontend
+    "html_css": (
+        "responsive page layout",
+        "html and css",
+        "desktop and mobile",
+    ),
+    "javascript": (
+        "asynchronous work",
+        "fetching data from an api",
+        "async/await",
+    ),
+    "react_frontend": (
+        "structure components and state",
+        "lift state up",
+        "in react",
+    ),
+    "frontend_apis": (
+        "call a backend api from the browser",
+        "loading or empty states",
+        "handle errors",
+    ),
+    # Backend
+    "backend_language": (
+        "organize a small service",
+        "handlers, business logic",
+        "data access stay separate",
+    ),
+    "databases": (
+        "relational schema",
+        "fetch related records",
+        "join or equivalent",
+    ),
+    "auth_security": (
+        "add authentication to an api",
+        "protect a private endpoint",
+        "unauthorized access",
+    ),
 }
 
 # Legacy single-needle map (kept for backward compatibility).

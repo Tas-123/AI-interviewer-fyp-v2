@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from core.role_registry import DEFAULT_TARGET_ROLE, RoleConfig, get_role_config
+from core.role_registry import DEFAULT_TARGET_ROLE, RoleConfig, resolve_role_config
 from dialogue.resume_context_parser import (
     generate_resume_questions,
     map_resume_to_domains,
@@ -120,9 +120,9 @@ def build_candidate_profile(
     Priority:
     1. target_role → blueprint + role title (structure)
     2. resume_data / resume_text → skills/tools/projects REPLACE defaults
-    3. No resume → copy role default profile (Python/ML fallback)
+    3. No resume → copy role default profile
     """
-    role_cfg: RoleConfig = get_role_config(target_role)
+    role_cfg: RoleConfig = resolve_role_config(target_role=target_role)
     default = dict(role_cfg.default_profile)
 
     inline_text = (resume_data or {}).get("resume_text") if resume_data else None
@@ -208,7 +208,10 @@ def build_candidate_profile(
             "candidate_experience": merged.get("experience", "not specified"),
             "candidate_role": merged.get("detected_role", merged["role"]),
         }
-        resume_questions = generate_resume_questions(parsed_for_questions)
+        resume_questions = generate_resume_questions(
+            parsed_for_questions,
+            skill_domain_map=dict(role_cfg.skill_domain_map or {}),
+        )
         resume_by_domain = map_resume_to_domains(
             skills=merged["skills"],
             tools=merged.get("tools", []),
@@ -223,7 +226,7 @@ def build_candidate_profile(
         experience=merged["experience"],
         projects=list(merged.get("projects", [])),
         tools=list(merged.get("tools", [])),
-        target_role=role_cfg.key,
+        target_role=role_cfg.key or target_role or DEFAULT_TARGET_ROLE,
         profile_source=profile_source,
         resume_questions=resume_questions,
         resume_by_domain=resume_by_domain,
@@ -235,7 +238,7 @@ def bootstrap_from_request(payload: dict | None = None) -> CandidateProfile:
     Accept flexible session-start payloads from REST, Pipecat, or dev WS.
 
     Supported keys: target_role, resume_data, resume_text, display_name,
-    plus legacy flat resume fields at the top level.
+    plus legacy flat resume fields (skills, notes via resume_text).
     """
     payload = payload or {}
 
@@ -248,9 +251,11 @@ def bootstrap_from_request(payload: dict | None = None) -> CandidateProfile:
             if key in payload:
                 resume_data[key] = payload[key]
 
+    resume_text = payload.get("resume_text")
+
     return build_candidate_profile(
         target_role=payload.get("target_role"),
         resume_data=resume_data if resume_data else None,
-        resume_text=payload.get("resume_text"),
+        resume_text=resume_text,
         display_name=payload.get("display_name"),
     )

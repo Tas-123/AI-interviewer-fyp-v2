@@ -47,48 +47,18 @@ EXPERIENCE_PATTERN = re.compile(
 )
 
 # Map resume keywords → blueprint domains for personalization.
+# Built from domain packs (AI template domains as default).
+from core.domain_packs import DOMAIN_DEFS
+
 DOMAIN_KEYWORD_MAP: dict[str, tuple[str, ...]] = {
-    "project_overview": (
-        "project", "built", "developed", "speaker recognition", "chatbot",
-        "pipeline", "application",
-    ),
-    "python": (
-        "python", "django", "flask", "fastapi", "pandas", "numpy",
-        "scikit-learn", "pytest",
-    ),
-    "machine_learning": (
-        "machine learning", "deep learning", "tensorflow", "pytorch",
-        "xgboost", "random forest", "cnn", "lstm", "transformer",
-        "overfitting", "training",
-    ),
-    "data_preprocessing": (
-        "preprocessing", "feature", "missing values", "encoding",
-        "scaling", "pandas", "etl",
-    ),
-    "model_evaluation": (
-        "accuracy", "precision", "recall", "f1", "confusion matrix",
-        "evaluation", "validation", "metrics",
-    ),
-    "nlp_speech_ai": (
-        "nlp", "speech", "speaker recognition", "whisper", "embeddings",
-        "qdrant", "tokenization", "huggingface", "transformers",
-        "text", "audio", "asr", "tts",
-    ),
-    "apis_backend": (
-        "fastapi", "flask", "django", "api", "rest", "endpoint",
-        "backend", "graphql",
-    ),
-    "deployment": (
-        "docker", "kubernetes", "aws", "azure", "gcp", "deploy",
-        "ci/cd", "monitoring", "latency",
-    ),
-    "debugging_problem_solving": (
-        "debug", "logging", "troubleshoot", "bug", "issue",
-    ),
-    "behavioral_ownership": (
-        "led", "ownership", "team", "collaboration", " mentored",
-    ),
+    d.id: d.keywords for d in DOMAIN_DEFS.values() if d.keywords
 }
+
+# Default skill → domain map (Junior AI allowlist + shared aliases).
+DEFAULT_SKILL_DOMAIN_MAP: dict[str, str] = {}
+for _d in DOMAIN_DEFS.values():
+    for alias in _d.skill_aliases:
+        DEFAULT_SKILL_DOMAIN_MAP[alias.lower()] = _d.id
 
 
 def parse_resume(resume_text: str) -> dict:
@@ -266,7 +236,11 @@ def map_resume_to_domains(
     return result
 
 
-def generate_resume_questions(parsed_resume: dict) -> list:
+def generate_resume_questions(
+    parsed_resume: dict,
+    *,
+    skill_domain_map: dict[str, str] | None = None,
+) -> list:
     """
     Generate personalized interview questions from parsed resume data.
 
@@ -290,23 +264,9 @@ def generate_resume_questions(parsed_resume: dict) -> list:
             }
         )
 
-    skill_domain = {
-        "python": "python",
-        "fastapi": "apis_backend",
-        "flask": "apis_backend",
-        "django": "apis_backend",
-        "docker": "deployment",
-        "kubernetes": "deployment",
-        "aws": "deployment",
-        "nlp": "nlp_speech_ai",
-        "speech recognition": "nlp_speech_ai",
-        "speaker recognition": "nlp_speech_ai",
-        "tensorflow": "machine_learning",
-        "pytorch": "machine_learning",
-        "machine learning": "machine_learning",
-        "scikit-learn": "machine_learning",
-        "pandas": "data_preprocessing",
-    }
+    skill_domain = dict(DEFAULT_SKILL_DOMAIN_MAP)
+    if skill_domain_map:
+        skill_domain.update({k.lower(): v for k, v in skill_domain_map.items()})
 
     for skill in skills[:5]:
         domain = skill_domain.get(skill.lower(), "project_overview")
@@ -350,7 +310,7 @@ def generate_resume_questions(parsed_resume: dict) -> list:
                 "domain": "behavioral_ownership",
                 "question": (
                     f"With {experience} of experience, what is the most "
-                    f"important lesson you have learned while building AI systems?"
+                    f"important lesson you have learned in your technical work?"
                 ),
             }
         )

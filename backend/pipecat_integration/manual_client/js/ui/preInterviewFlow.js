@@ -37,9 +37,22 @@ function syncProfileToShell(refs) {
     if (refs.inputName && refs.preInputName) {
         refs.inputName.value = refs.preInputName.value.trim();
     }
-    if (refs.inputResume && refs.preInputResume) {
+    // Imported sync for skills+notes lives on refs via interviewMeta
+    if (typeof refs._syncSkills === "function") {
+        refs._syncSkills();
+    } else if (refs.inputResume && refs.preInputResume) {
         refs.inputResume.value = refs.preInputResume.value.trim();
     }
+}
+
+function validateDisplayName(refs) {
+    const name = refs.preInputName?.value?.trim() || "";
+    const ok = name.length > 0;
+    if (refs.preNameError) refs.preNameError.hidden = ok;
+    if (refs.preInputName) {
+        refs.preInputName.classList.toggle("is-invalid", !ok);
+    }
+    return ok;
 }
 
 /**
@@ -126,6 +139,11 @@ export function createPreInterviewFlow(refs, handlers) {
 
     async function runInitializeAndInstructions() {
         if (started) return;
+        if (!validateDisplayName(refs)) {
+            onLog("Display name is required.", "info");
+            refs.preInputName?.focus();
+            return;
+        }
         started = true;
 
         syncProfileToShell(refs);

@@ -89,12 +89,19 @@ def render_report_html(report: dict) -> str:
 
     question_blocks = []
     for item in report.get("question_review", []) or []:
+        status = item.get("review_status") or "scored"
+        status_badge = ""
+        if status != "scored":
+            status_badge = (
+                f"<span class='pill qa-status'>{_esc(status.replace('_', ' '))}</span>"
+            )
         question_blocks.append(
             f"""
         <details class="qa-card">
           <summary>
             <span class="qa-turn">Turn {_esc(item.get('turn'))}</span>
             <span class="qa-domain">{_esc(item.get('domain_label'))}</span>
+            {status_badge}
           </summary>
           <p><span class="qa-label">Question</span>{_esc(item.get('question'))}</p>
           <p><span class="qa-label">Answer</span>{_esc(item.get('candidate_answer_summary'))}</p>
@@ -103,7 +110,7 @@ def render_report_html(report: dict) -> str:
         """
         )
     questions_html = "".join(question_blocks) or (
-        '<p class="muted">No evaluated Q&amp;A turns.</p>'
+        '<p class="muted">No Q&amp;A turns recorded for this session.</p>'
     )
 
     strengths = "".join(
@@ -114,7 +121,12 @@ def render_report_html(report: dict) -> str:
     ) or "<li class='muted'>None recorded</li>"
 
     banner = ""
-    if report_type != "complete":
+    if report_type == "aborted":
+        note = completion.get("completion_note") or (
+            "No scored turns — transcript only. Treat this as a session log, not a hiring assessment."
+        )
+        banner = f'<div class="banner banner-aborted" role="status">{_esc(note)}</div>'
+    elif report_type != "complete":
         note = completion.get("completion_note") or (
             "Interview ended before a full assessment. Treat ratings as preliminary."
         )
@@ -213,6 +225,18 @@ def render_report_html(report: dict) -> str:
       padding: 0.9rem 1rem;
       margin-bottom: 1.25rem;
       font-size: 0.92rem;
+    }}
+    .banner-aborted {{
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #7f1d1d;
+    }}
+    .qa-status {{
+      margin-left: 0.35rem;
+      font-size: 0.7rem;
+      background: #e2e8f0;
+      color: #334155;
+      border: none;
     }}
     .section {{
       background: var(--surface);

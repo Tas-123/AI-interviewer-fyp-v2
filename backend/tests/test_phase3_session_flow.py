@@ -127,6 +127,18 @@ def test_coverage_engine_advance():
     print("[PASS] test_coverage_engine_advance")
 
 
+def test_phase3_templates_in_registry():
+    from core.role_registry import list_target_roles
+
+    keys = {r["key"] for r in list_target_roles()}
+    assert "junior_ai_engineer" in keys
+    assert "junior_frontend_developer" in keys
+    assert "junior_backend_developer" in keys
+    fe = build_candidate_profile(target_role="junior_frontend_developer")
+    assert fe.role == "Junior Frontend Developer"
+    print("[PASS] test_phase3_templates_in_registry")
+
+
 def test_coverage_probe_limits():
     engine = CoverageEngine(get_role_config())
     domain = "python"
@@ -147,6 +159,7 @@ if __name__ == "__main__":
         test_target_role_wins_for_blueprint,
         test_bootstrap_from_request_payload,
         test_coverage_engine_advance,
+        test_phase3_templates_in_registry,
         test_coverage_probe_limits,
     ]
     failed = 0

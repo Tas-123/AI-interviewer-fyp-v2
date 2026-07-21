@@ -31,18 +31,32 @@ LEGACY_TOP_LEVEL_KEYS = (
     "latency_metrics",
 )
 
-DOMAIN_LABELS = {
-    "project_overview": "Project Overview",
-    "python": "Python",
-    "machine_learning": "Machine Learning",
-    "data_preprocessing": "Data Preprocessing",
-    "model_evaluation": "Model Evaluation",
-    "nlp_speech_ai": "NLP / Speech AI",
-    "apis_backend": "APIs / Backend",
-    "deployment": "Deployment",
-    "debugging_problem_solving": "Debugging & Problem Solving",
-    "behavioral_ownership": "Behavioral / Ownership",
-}
+DOMAIN_LABELS = {}
+try:
+    from core.domain_packs import all_domain_labels
+
+    DOMAIN_LABELS.update(all_domain_labels())
+except Exception:
+    DOMAIN_LABELS = {
+        "project_overview": "Project Overview",
+        "python": "Python",
+        "machine_learning": "Machine Learning",
+        "data_preprocessing": "Data Preprocessing",
+        "model_evaluation": "Model Evaluation",
+        "nlp_speech_ai": "NLP / Speech AI",
+        "apis_backend": "APIs / Backend",
+        "deployment": "Deployment",
+        "debugging_problem_solving": "Debugging & Problem Solving",
+        "behavioral_ownership": "Behavioral / Ownership",
+    }
+
+
+def domain_label(domain_id: str, role_labels: dict | None = None) -> str:
+    """Resolve a human label for a domain id."""
+    key = (domain_id or "").strip().lower()
+    if isinstance(role_labels, dict) and key in role_labels:
+        return role_labels[key]
+    return DOMAIN_LABELS.get(key, key.replace("_", " ").title() if key else "Unknown")
 
 PARTIAL_RECOMMENDATION_RATIONALE = (
     "Preliminary data only. Interview ended before sufficient assessment was "
