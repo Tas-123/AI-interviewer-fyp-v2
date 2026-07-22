@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Feature Clips — AI Interview Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #eef1f4;
+      --bg-deep: #dde3ea;
+      --ink: #15202b;
+      --muted: #526070;
+      --line: #c5ced8;
+      --panel: #ffffff;
+      --accent: #1f4d3a;
+      --accent-soft: #d7ebe1;
+      --focus: #2a6b4f;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1100px 560px at 8% -12%, #d5e4dc 0%, transparent 55%),
+        radial-gradient(900px 480px at 100% 0%, #d9e2ec 0%, transparent 50%),
+        var(--bg);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .shell {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 0.65rem;
+    }
+
+    h1 {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 0.6rem;
+    }
+
+    .lead {
+      color: var(--muted);
+      max-width: 38rem;
+      font-size: 1.02rem;
+    }
+
+    nav.toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1.75rem 0 0;
+    }
+
+    nav.toc a {
+      text-decoration: none;
+      color: var(--ink);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 0.45rem 0.85rem;
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    nav.toc a:hover,
+    nav.toc a:focus-visible {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    section.clip {
+      margin-top: 2.25rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 1.25rem 1.25rem 1.4rem;
+      scroll-margin-top: 1.25rem;
+    }
+
+    section.clip h2 {
+      font-family: "Instrument Serif", Georgia, serif;
+      font-weight: 400;
+      font-size: 1.65rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 1rem;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      max-height: 70vh;
+      background: #0f141c;
+      border: 1px solid var(--line);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #f7faf8;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+    }
+
+    button:hover { background: var(--focus); color: #fff; }
+    button.secondary:hover { background: var(--accent-soft); color: var(--ink); }
+    button:active { transform: translateY(1px); }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 560px) {
+      .shell { padding: 1.5rem 1rem 3rem; }
+      section.clip { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <p class="eyebrow">FYP Demo · Feature Clips</p>
+      <h1>AI Powered Interview Simulation and Feedback Platform</h1>
+      <p class="lead">
+        Short clips for the defense: instructions, adaptive questioning, hints, and interruption handling.
+        Use the links below to jump to each clip during the presentation.
+      </p>
+      <nav class="toc" aria-label="Clip navigation">
+        <a href="#instructions">Instructions</a>
+        <a href="#first-question">First Question</a>
+        <a href="#follow-up">Follow-up Question</a>
+        <a href="#hint">Hint</a>
+        <a href="#interruption">Interruption Handling</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="clip" id="instructions">
+        <h2>Instructions</h2>
+        <p class="meta">Pre-interview lobby instructions spoken to the candidate.</p>
+        <video controls preload="metadata" src="clips/Instructions.mp4"></video>
+        <div class="controls">
+          <button type="button" data-play="instructions-video">Play</button>
+          <button type="button" class="secondary" data-pause="instructions-video">Pause</button>
+        </div>
+      </section>
+
+      <section class="clip" id="first-question">
+        <h2>First Question</h2>
+        <p class="meta">Opening interview question after the session starts.</p>
+        <video id="first-question-video" controls preload="metadata" src="clips/First%20Question.mp4"></video>
+        <div class="controls">
+          <button type="button" data-play="first-question-video">Play</button>
+          <button type="button" class="secondary" data-pause="first-question-video">Pause</button>
+        </div>
+      </section>
+
+      <section class="clip" id="follow-up">
+        <h2>Follow-up Question</h2>
+        <p class="meta">Adaptive probe based on the candidate’s previous answer.</p>
+        <video id="follow-up-video" controls preload="metadata" src="clips/Follow-up%20Question.mp4"></video>
+        <div class="controls">
+          <button type="button" data-play="follow-up-video">Play</button>
+          <button type="button" class="secondary" data-pause="follow-up-video">Pause</button>
+        </div>
+      </section>
+
+      <section class="clip" id="hint">
+        <h2>Hint</h2>
+        <p class="meta">System offers a hint when the candidate needs support.</p>
+        <video id="hint-video" controls preload="metadata" src="clips/Hint.mp4"></video>
+        <div class="controls">
+          <button type="button" data-play="hint-video">Play</button>
+          <button type="button" class="secondary" data-pause="hint-video">Pause</button>
+        </div>
+      </section>
+
+      <section class="clip" id="interruption">
+        <h2>Interruption Handling</h2>
+        <p class="meta">Barge-in: candidate interrupts the AI interviewer mid-speech.</p>
+        <video id="interruption-video" controls preload="metadata" src="clips/Interruption%20Handling.mp4"></video>
+        <div class="controls">
+          <button type="button" data-play="interruption-video">Play</button>
+          <button type="button" class="secondary" data-pause="interruption-video">Pause</button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Isolated demo folder for FYP presentation — not part of the application runtime.
+    </footer>
+  </div>
+
+  <script>
+    // Give the first video a stable id (others already have ids)
+    const instructionsVideo = document.querySelector("#instructions video");
+    if (instructionsVideo) instructionsVideo.id = "instructions-video";
+
+    const allVideos = () => Array.from(document.querySelectorAll("video"));
+
+    function pauseOthers(exceptId) {
+      allVideos().forEach((v) => {
+        if (v.id !== exceptId) v.pause();
+      });
+    }
+
+    document.querySelectorAll("[data-play]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-play");
+        const video = document.getElementById(id);
+        if (!video) return;
+        pauseOthers(id);
+        video.play();
+      });
+    });
+
+    document.querySelectorAll("[data-pause]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-pause");
+        const video = document.getElementById(id);
+        if (video) video.pause();
+      });
+    });
+
+    // When user hits native play on one video, pause the rest
+    allVideos().forEach((video) => {
+      video.addEventListener("play", () => pauseOthers(video.id));
+    });
+  </script>
+</body>
+</html>
