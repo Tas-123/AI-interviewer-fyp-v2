@@ -1,317 +1,271 @@
 # AI Voice Interviewer
 
-Real-time AI Voice Interviewer project for conducting AI Engineer interview practice using voice input, STT, TTS, dialogue management, adaptive questioning, and interview report generation.
+Real-time AI voice interviewer for structured junior technical interviews. Candidates speak in a browser; the system transcribes speech, runs a guided multi-domain dialogue, scores answers with an LLM-based rubric, and produces a recruiter-facing assessment report.
 
-## Project Status
+This repository is the Final Year Project implementation on branch `uthman`.
 
-**Phase 5 complete** — production hardening (config, async voice, logging, docs, regression).
+## What you get
 
-The Pipecat voice path is the primary demo runtime. Remaining tuning areas:
+- **Live voice interviews** — microphone streaming, speech-to-text, text-to-speech, and turn-taking
+- **Pre-interview lobby** — role-aware welcome, spoken instructions, then start when ready
+- **Role templates** — configurable junior tracks (for example AI Engineer, Frontend Developer, Backend Developer), each with its own domain blueprint
+- **Guarded dialogue pipeline** — intent handling, incomplete answers, repeats, coverage-driven progression, adaptive follow-ups
+- **Automated evaluation** — multi-dimension rubric scoring with hire-style summary signals
+- **Structured reports** — Report v2 JSON + HTML (`complete` / `partial` / `incomplete` / `aborted`)
+- **Recruiter workspace** — session login, create invite links, optional invitation email, browse and download reports
+- **Optional text/API path** — REST endpoints for testing without a microphone
 
-* STT transcript cleanup edge cases
-* Echo detection in noisy environments
-* Final report formatting polish
+## System map
 
-See `docs/PHASE_5_COMPLETE.md`, `docs/CONFIGURATION.md`, and `docs/MANUAL_TEST_GUIDE.md`.
+| Piece | Default ports | Purpose |
+|-------|---------------|---------|
+| **Voice bot** | WebSocket `8765`, report HTTP `8766` | Primary interview engine and latest-report endpoints |
+| **Candidate UI** | `3000` | Browser client: lobby, mic, live transcript |
+| **Recruiter dashboard** | `8001` | Invites, auth, report browser (separate FastAPI app) |
+| **Optional REST API** | `8000` | Text chat / report testing via `main.py` |
 
-## Main Features
+Recommended demo order: voice bot → candidate UI → recruiter dashboard.
 
-* Real-time voice interview flow
-* Browser-based manual client
-* WebSocket audio streaming
-* Deepgram STT integration
-* Cartesia TTS integration
-* DialogueManager-based interview logic
-* Adaptive technical questioning
-* Candidate answer evaluation
-* Final interview report generation
-* Debug log support for live testing
+## Tech stack
 
-## Tech Stack
+| Layer | Technology |
+|-------|------------|
+| Language / APIs | Python, FastAPI, Uvicorn |
+| Voice runtime | Pipecat (WebSocket), Silero VAD |
+| Speech-to-text | Deepgram |
+| Text-to-speech | Cartesia |
+| LLM (questions + evaluation) | Groq |
+| Candidate / recruiter UIs | HTML, CSS, JavaScript |
+| Optional persistence | PostgreSQL (falls back when unset) |
 
-* Python
-* FastAPI / WebSocket flow
-* Pipecat integration
-* Deepgram STT
-* Cartesia TTS
-* Groq / LLM-based evaluation
-* Browser manual client using HTML and JavaScript
-
-## Architecture (Phase 1)
-
-| Runtime | Command | Port | Role |
-|---------|---------|------|------|
-| **Pipecat voice** (primary) | `python backend/pipecat_integration/interview_bot.py` | WS `8765`, report HTTP `8766` | Product demo |
-| **FastAPI REST** | `uvicorn main:app --reload` | `8000` | API/testing without mic |
-| **Dev text WebSocket** | Set `ENABLE_DEV_TEXT_VOICE_WS=true` in `.env` | `8000` | Text simulation only |
-
-All runtimes share one in-process `SessionService` when run in the same process. REST `/start` and `/chat` use the same session store as the Pipecat voice adapter.
-
-## Folder Structure
+## Repository layout
 
 ```text
 backend/
-  core/
-    config.py
-    logging_config.py
-    session_service.py
-    interviewer_policy.py
-  voice/
-    voice_turn_policy.py
-  dialogue/
-    guards/
-    transcript_utils.py
-    followup_policy.py
-    output_sanitizer.py
-    analytics.py
-    context.py
-    database.py
-    decision_engine.py
-    dialogue_manager.py
-    evaluator.py
-    llm_adapter.py
-    prompts.py
-    recruiter_report.py
-
-  integration/
-    dialogue_adapter.py
-
-  pipecat_integration/
-    interview_bot.py
-    interview_processor.py
-    manual_client/
-      index.html
-      client.js
-
-  voice/
-    conversation_orchestrator.py
-    interruption_manager.py
-    streaming_response_handler.py
-    voice_session_manager.py
-
-main.py
+  core/                 # Config, sessions, roles, domain packs
+  dialogue/             # Guards, evaluator, decision engine, DialogueManager
+  evaluation/           # Rubric helpers, human-study export
+  reporting/            # Report v2 builders, persistence, HTML renderer
+  integration/          # Adapter between voice path and dialogue
+  pipecat_integration/  # Voice bot, processor, candidate UI (manual_client/)
+  voice/                # Turn policy and related voice helpers
+  tests/                # Pytest suite
+recruiter_dashboard/    # Invite + report UI/API on :8001
+docs/                   # Architecture, pipeline, FYP, recruiter guides
+reports/                # Generated Report v2 JSON/HTML (aborted/ for early exits)
+logs/                   # Optional live debug traces
+scripts/                # Regression helpers
+main.py                 # Optional FastAPI text/API entry
 requirements.txt
 requirements-pipecat.txt
 .env.example
+pytest.ini
 ```
 
-## Setup Instructions
+## Quick start
 
-### 1. Clone the repository
-
-```powershell
-git clone https://github.com/Tas-123/ai-voice-interviewer.git
-cd ai-voice-interviewer
-```
-
-### 2. Create virtual environment
+### 1. Clone and virtual environment
 
 ```powershell
+git clone https://github.com/Tas-123/AI-interviewer-fyp-v2.git
+cd AI-interviewer-fyp-v2
 python -m venv venv
-```
-
-Activate it:
-
-```powershell
 venv\Scripts\activate
 ```
 
-### 3. Install dependencies
+On macOS/Linux: `source venv/bin/activate`.
 
-First try:
+### 2. Install dependencies
 
 ```powershell
 pip install -r requirements.txt
-```
-
-If working on Pipecat voice integration, also install:
-
-```powershell
 pip install -r requirements-pipecat.txt
 ```
 
-## Environment Variables
+For the recruiter dashboard:
 
-Create a `.env` file in the root folder.
+```powershell
+pip install -r recruiter_dashboard\requirements.txt
+```
 
-You can copy `.env.example`:
+### 3. Environment
 
 ```powershell
 copy .env.example .env
 ```
 
-Then add your own API keys inside `.env`.
+Set at least:
 
-Example:
+- `GROQ_API_KEY` — question generation and evaluation
+- `DEEPGRAM_API_KEY` — speech-to-text
+- `CARTESIA_API_KEY` — text-to-speech
 
-```env
-GROQ_API_KEY=your_groq_api_key_here
-DEEPGRAM_API_KEY=your_deepgram_api_key_here
-CARTESIA_API_KEY=your_cartesia_api_key_here
-```
+For the recruiter workspace, also set `RECRUITER_PASSWORD` (and optionally SMTP variables). See [`.env.example`](.env.example) and [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
 
-Important:
+**Do not commit `.env`.** Only `.env.example` belongs in version control.
 
-Do not commit `.env` to GitHub.
-Only `.env.example` should be shared.
+## Running a full demo
 
-## Running the REST API (optional — testing without microphone)
-
-```powershell
-uvicorn main:app --reload
-```
-
-Then `POST /start` with resume data, `POST /chat` with answers, `GET /report/{session_id}`.
-
-## Running the Voice Interview Server (primary)
-
-From the project root:
+### Voice bot (primary)
 
 ```powershell
 venv\Scripts\activate
 python backend\pipecat_integration\interview_bot.py
 ```
 
-Expected server:
+- Interview WebSocket: `ws://localhost:8765`
+- Report HTTP: `http://localhost:8766` (for example `/latest-report`)
 
-```text
-ws://localhost:8765
-```
-
-## Running the Manual Browser Client
-
-Open a second terminal:
+### Candidate UI
 
 ```powershell
 cd backend\pipecat_integration\manual_client
 python -m http.server 3000
 ```
 
-Then open browser:
+Open `http://localhost:3000` and allow microphone access.
+
+With an invite link from the recruiter dashboard, use `http://localhost:3000?invite=TOKEN`.
+
+### Recruiter dashboard
+
+```powershell
+cd recruiter_dashboard
+uvicorn app:app --reload --host 0.0.0.0 --port 8001
+```
+
+Open `http://localhost:8001` → sign in → create an interview invite → **Copy link** (always available). Optionally enter a candidate email and **Send invitation** when SMTP is configured.
+
+After the interview, use **Candidate Reports** to view, open the full HTML assessment, or download it.
+
+### Optional REST API (no microphone)
+
+```powershell
+uvicorn main:app --reload
+```
+
+Useful for `POST /start`, `POST /chat`, and report retrieval during development. This is not the product voice path.
+
+## Configuration (overview)
+
+All settings load from the root `.env`. Groups you may tune:
+
+| Area | Examples |
+|------|----------|
+| LLM / STT / TTS | `GROQ_*`, `DEEPGRAM_*`, `CARTESIA_*` |
+| Voice ports | `PIPECAT_WS_PORT`, `REPORT_HTTP_PORT` |
+| Turn timing / VAD | debounce, echo cooldown, `VAD_STOP_SECS` (raise in noisy rooms) |
+| Logging | `LOG_LEVEL`, `DEBUG_LIVE_LOGGING` |
+| Recruiter | `CANDIDATE_ORIGIN`, `RECRUITER_AUTH_*`, `RECRUITER_USERNAME` / `PASSWORD` |
+| Optional email | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `COMPANY_NAME` |
+| Optional DB | `DATABASE_URL` |
+
+Full reference: [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
+
+## Architecture (short)
 
 ```text
-http://localhost:3000
+Browser mic
+  → WebSocket voice bot
+  → Speech-to-text
+  → DialogueManager (guards → evaluate → decide → generate)
+  → Text-to-speech
+  → Browser speaker
+
+Role template + coverage blueprint drive topics.
+Evaluations feed Report v2 under reports/ (and reports/aborted/ when needed).
+Recruiter dashboard indexes those files; it does not run the interview engine.
 ```
 
-Allow microphone permission when the browser asks.
+Deeper detail:
 
-## Viewing Latest Report
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/DIALOGUE_PIPELINE.md`](docs/DIALOGUE_PIPELINE.md)
+- [`docs/INTERVIEW_FLOW.md`](docs/INTERVIEW_FLOW.md)
+- [`docs/PRE_INTERVIEW_LOBBY_AND_CARTESIA.md`](docs/PRE_INTERVIEW_LOBBY_AND_CARTESIA.md)
 
-If report server is running, open:
+## Recruiter workspace and reporting
 
-```text
-http://localhost:8766/latest-report
-```
+| Concern | Notes |
+|---------|--------|
+| Auth | Env-based recruiter login; invite links stay public (token only, no candidate password) |
+| Invites | Stored locally (JSON); candidate UI resolves role from the token |
+| Delivery | **Copy link** is primary; SMTP send is optional and never blocks create/copy |
+| Reports | Report v2 contract; HTML for presentation; JSON as structured source |
 
-## Debugging Live Interview Flow
+See:
 
-See [docs/DIALOGUE_PIPELINE.md](docs/DIALOGUE_PIPELINE.md) for guard order and turn flow.
+- [`docs/RECRUITER_DASHBOARD.md`](docs/RECRUITER_DASHBOARD.md)
+- [`docs/RECRUITER_REPORT_CONTRACT.md`](docs/RECRUITER_REPORT_CONTRACT.md)
+- [`recruiter_dashboard/README.md`](recruiter_dashboard/README.md)
 
-See [docs/INTERVIEW_FLOW.md](docs/INTERVIEW_FLOW.md) for optional resume, blueprint coverage, and session bootstrap (Phase 3).
+## Testing
 
-See [docs/PHASE_4_COMPLETE.md](docs/PHASE_4_COMPLETE.md) for evaluation rubric, ensemble scoring, and human-study export (Phase 4).
-
-A clean debug log may be available at:
-
-```text
-logs/live_interview_debug.log
-```
-
-Useful command:
+From the repository root (see `pytest.ini`):
 
 ```powershell
-Get-Content .\logs\live_interview_debug.log -Tail 250
+venv\Scripts\activate
+pytest
 ```
 
-This log should show:
-
-```text
-BOT_LAST_QUESTION
-CANDIDATE_RAW_TRANSCRIPT
-CANDIDATE_CLEAN_TRANSCRIPT
-DECISION
-BOT_NEXT_QUESTION
-```
-
-## Common Commands
-
-Run main Pipecat interview bot:
+Or target the package path explicitly:
 
 ```powershell
-python backend\pipecat_integration\interview_bot.py
+$env:PYTHONPATH="backend"
+pytest backend\tests
 ```
 
-Run manual client:
+Regression helper (where available): `scripts/run_regression.sh`.
 
-```powershell
-cd backend\pipecat_integration\manual_client
-python -m http.server 3000
-```
+Legacy smoke scripts under `backend/test_*.py` may still be useful for quick checks; the primary suite lives in `backend/tests/`.
 
-Compile important files:
+## Scope and limitations
 
-```powershell
-python -m py_compile backend\dialogue\dialogue_manager.py
-python -m py_compile backend\pipecat_integration\interview_processor.py
-```
+Designed as an academic MVP, not a multi-tenant production SaaS:
 
-Run tests if needed:
+- **One concurrent live voice session** on the Pipecat bot
+- **File-based** invite store and report files on disk
+- **Demo-grade** recruiter authentication (environment credentials + session cookie)
+- **LLM-as-judge** evaluation — scores depend on model quality and transcript quality
+- **Speech recognition noise** can affect follow-ups and scores in noisy rooms
+- **No separate speech-emotion or facial analysis** — behavioural dimensions come from the text rubric only
+- Optional PostgreSQL; the interview path works without it
 
-```powershell
-python backend\test_dialogue_adapter.py
-python backend\test_pipecat_integration.py
-```
+## Documentation index
 
-## Known Issues
+| Doc | Topic |
+|-----|--------|
+| [`docs/FYP_FINAL_REPORT_V03.md`](docs/FYP_FINAL_REPORT_V03.md) | Master technical FYP report |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Runtimes and module map |
+| [`docs/DIALOGUE_PIPELINE.md`](docs/DIALOGUE_PIPELINE.md) | Guard order and turn flow |
+| [`docs/INTERVIEW_FLOW.md`](docs/INTERVIEW_FLOW.md) | Bootstrap, coverage, roles |
+| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Environment variables |
+| [`docs/PRE_INTERVIEW_LOBBY_AND_CARTESIA.md`](docs/PRE_INTERVIEW_LOBBY_AND_CARTESIA.md) | Lobby and spoken instructions |
+| [`docs/RECRUITER_DASHBOARD.md`](docs/RECRUITER_DASHBOARD.md) | Recruiter product flow |
+| [`docs/RECRUITER_REPORT_CONTRACT.md`](docs/RECRUITER_REPORT_CONTRACT.md) | Report fields and APIs |
+| [`docs/DEVELOPER_ONBOARDING.md`](docs/DEVELOPER_ONBOARDING.md) | Getting productive in the repo |
+| [`docs/MANUAL_TEST_GUIDE.md`](docs/MANUAL_TEST_GUIDE.md) | Manual verification checklist |
+| [`docs/EVALUATION_CALIBRATION.md`](docs/EVALUATION_CALIBRATION.md) | Scoring calibration notes |
 
-This version is not fully tuned yet.
+Older `docs/PHASE_*_COMPLETE.md` files are historical project notes, not the current status source.
 
-Known issues may include:
+## Team notes
 
-1. Echo guard can sometimes misclassify real candidate answers.
-2. STT may produce repeated transcript chunks.
-3. Incomplete candidate answers may need better handling.
-4. Final report formatting may need more technical-rubric tuning.
-5. Browser client and real-time voice flow may require testing on each machine.
-6. Database may show this warning if PostgreSQL dependency is not installed:
+Before a live run:
 
-```text
-[Database] Connection failed: No module named 'psycopg2'
-```
+1. Activate the virtual environment and confirm dependencies are installed.
+2. Ensure `.env` has valid LLM, STT, and TTS keys.
+3. Start the voice bot before opening the candidate UI.
+4. Allow microphone permission in the browser.
+5. Prefer a quiet room; raise `VAD_STOP_SECS` if mid-sentence cutoffs are common.
+6. For dashboard demos, set recruiter credentials and `CANDIDATE_ORIGIN` to match the candidate UI origin.
 
-This warning is not always blocking for local testing.
-
-## Notes for Team Members
-
-Before running the project, make sure:
-
-* Python is installed.
-* Virtual environment is activated.
-* Dependencies are installed.
-* `.env` file is created.
-* Required API keys are added.
-* Microphone permission is allowed in browser.
-* Server is running before opening the browser client.
-
-## Git Workflow
-
-Before making changes:
-
-```powershell
-git pull
-```
-
-After making changes:
-
-```powershell
-git status
-git add .
-git commit -m "Describe your change"
-git push
-```
+Optional live turn traces: set `DEBUG_LIVE_LOGGING=true` and inspect `logs/live_interview_debug.log`.
 
 ## Repository
 
 ```text
-https://github.com/Tas-123/ai-voice-interviewer
+https://github.com/Tas-123/AI-interviewer-fyp-v2
 ```
+
+Authoritative development branch: `uthman`.
